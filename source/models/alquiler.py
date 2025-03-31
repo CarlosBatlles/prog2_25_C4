@@ -2,25 +2,32 @@
 '''Clase Alquiler para representar y gestionar un alquiler de coche'''
 
 import datetime
-from .coche import Coche  # Importar la clase Coche
-from .usuario import Usuario  # Importar la clase Usuario
 
 class Alquiler():
     
-    def __init__(self, id_alquiler: str, coche: Coche, usuario: Usuario, fecha_inicio: datetime.datetime, fecha_fin: datetime.datetime, coste_total: float, activo: bool = True):
+    def __init__(self, id_alquiler, id_coche, id_usuario, fecha_inicio, fecha_fin, coste_total, activo = True):
         # Validar que fecha_inicio sea menor que fecha_fin
+        if fecha_inicio >= fecha_fin:
+            raise ValueError("La fecha de inicio debe ser anterior a la fecha de fin")
+        
         self.id_alquiler = id_alquiler
-        self.coche = coche
-        self.usuario = usuario
+        self.id_coche = id_coche
+        self.id_usuario = id_usuario
         self.fecha_inicio = fecha_inicio
         self.fecha_fin = fecha_fin
         self.coste_total = coste_total
         self.activo = activo
         
     def finalizar(self):
-        # cambia activo a false
-        pass
+        ''' Marca el alquiler como no activo'''
+        self.activo = False
     
     def get_info(self):
-        # mostrar la informacion del alquiler
-        pass
+        '''Devuelve detalles del alquiler '''
+        return (f"Alquiler ID: {self.id_alquiler}\n"
+                f"Coche: {self.id_coche}\n"
+                f"Usuario: {self.id_usuario}\n"
+                f"Fechas: {self.fecha_inicio} - {self.fecha_fin}\n"
+                f"Coste: {self.coste_total} EUR\n"
+                f"Activo: {self.activo}")
+                    
