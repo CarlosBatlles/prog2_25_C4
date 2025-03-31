@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from faker import Faker
 
-# Configuración
+'''# Configuración
 np.random.seed(1935)
 fake = Faker('es_ES')
 num_coches = 90  # Entre 80-100 filas
@@ -121,4 +121,27 @@ df_coches = df_coches.sort_values(by='categoria_precio', ascending=False)
 
 
 # Guardar en CSV
-df_coches.to_csv('data/coches.csv', index=False, encoding='utf-8-sig')
+df_coches.to_csv('data/coches.csv', index=False, encoding='utf-8-sig')'''
+
+'''# BASE DE DATOS DE USUARIOS
+
+# Definir las columnas del DataFrame de usuarios
+columnas_usuarios = ["id_usuario", "nombre", "email", "tipo"]
+
+# Crear un DataFrame vacío con las columnas
+clientes_df = pd.DataFrame(columns=columnas_usuarios)
+
+# Guardar el DataFrame en data/clientes.csv
+clientes_df.to_csv("data/clientes.csv", index=False)'''
+
+
+# BASE DE DATOS DE ALQUILER 
+# Definir las columnas del DataFrame de alquileres
+columnas_alquileres = ["id_alquiler", "id_coche", "id_usuario", "fecha_inicio", "fecha_fin", "coste_total", "activo"]
+
+# Crear un DataFrame vacío con las columnas
+alquileres_df = pd.DataFrame(columns=columnas_alquileres)
+
+
+# Guardar el DataFrame en data/alquileres.csv
+alquileres_df.to_csv("data/alquileres.csv", index=False)
