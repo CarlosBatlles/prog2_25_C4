@@ -2,8 +2,27 @@
 '''Clase Coche para representar los coches disponibles para alquilar y sus características'''
 
 class Coche:
-    def __init__(self, id_coche, marca, modelo, matricula, categoria_tipo, categoria_precio, año, precio_diario, kilometraje, color, combustible, cv, plazas, disponible):
-        self.id_coche = id_coche
+    
+    CATEGORIAS_TIPO = ['Familiar', 'Deportivo', 'SUV', 'Sedán', 'Hatchback', 'Superdeportivo', 'Luxury']
+    CATEGORIAS_PRECIO = ['Premium', 'Medio', 'Básico', 'Lujo']
+    COMBUSTIBLES_PERMITIDOS = ['Gasolina', 'Diésel', 'Híbrido', 'Eléctrico']
+    
+    def __init__(self, coche_id, marca, modelo, matricula, categoria_tipo, categoria_precio, año, precio_diario, kilometraje, color, combustible, cv, plazas, disponible):
+        # Validamos algunos parametros
+        if precio_diario <= 0:
+            raise ValueError('El precio diario debe ser mayor que cero')
+        if kilometraje < 0: 
+            raise ValueError('El kilometraje no puede ser negativo')
+        if plazas <= 0:
+            raise ValueError('El numero de plazas debe ser mayor que cero')
+        if categoria_tipo not in self.CATEGORIAS_TIPO:
+            raise ValueError(f'Categoria tipo: {categoria_tipo} no está disponible')
+        if categoria_precio not in self.CATEGORIAS_PRECIO:
+            raise ValueError(f'Categoria precio: {categoria_precio} no está disponible')
+        if combustible not in self.COMBUSTIBLES_PERMITIDOS:
+            raise ValueError(f'El combustible: {combustible} no está disponible')
+        
+        self.coche_id = coche_id
         self.marca = marca
         self.modelo = modelo
         self.matricula = matricula
@@ -18,6 +37,8 @@ class Coche:
         self.plazas = plazas
         self.disponible = disponible
         
+        
+        
     def alquilar(self):
         ''' Marca el coche como no disponible'''
         if not self.disponible:
@@ -30,12 +51,17 @@ class Coche:
         ''' Marca el coche como disponible'''
         if self.disponible:
             raise ValueError(f"El coche {self.id_coche} ({self.marca} {self.modelo}) ya se encuentra disponible")
-        self.disponible = False
+        self.disponible = True
     
+    def actualizar_kilometraje(self, nuevos_km):
+        '''Actualiza los km del coche'''
+        if nuevos_km < self.kilometraje:
+            raise ValueError('Los nuevos kilómetros no pueden ser menores a los antiguos')
+        self.kilometraje = nuevos_km
     
     def get_info(self):
         '''Devuelve un string con los detalles del coche en un formato legible'''
-        return (f"Coche ID: {self.id_coche}\n"
+        return (f"Coche ID: {self.coche_id}\n"
                 f"Marca: {self.marca}\n"
                 f"Modelo: {self.modelo}\n"
                 f"Matrícula: {self.matricula}\n"
@@ -49,4 +75,8 @@ class Coche:
                 f"Potencia: {self.cv} CV\n"
                 f"Plazas: {self.plazas}\n"
                 f"Disponible: {self.disponible}")
+        
+    def __str__(self):
+        ''' Representacion legible del coche'''
+        return self.get_info()
     
