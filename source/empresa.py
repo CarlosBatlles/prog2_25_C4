@@ -12,28 +12,31 @@ class Empresa():
     
      # Metodos para cargar las bases de datos
      
-    def cargar_coches(self,ruta_archivo):
+    def cargar_coches(self):
         ''' Carga los coches desde un archivo CSV'''
         try:
-            self.coches = pd.read_csv('C:\Users\Alexis Angulo Polan\Documents\GitHub\prog2-25-C4\data\coches.csv')
+            df = pd.read_csv('coches.csv')
+            return df 
         except FileNotFoundError:
-            print(f'El archivo {ruta_archivo} no se encontró')
+            print(f'El archivo no se encontró')
         except Exception as e:
             print(f'Error al cargar coches {e}')
     
-    def cargar_usuarios(self,ruta_archivo):
+    def cargar_usuarios(self):
         try:
-            self.usuarios = pd.read_csv('C:\Users\Alexis Angulo Polan\Documents\GitHub\prog2-25-C4\data\clientes.csv')
+            df = pd.read_csv('clientes.csv')
+            return df 
         except FileNotFoundError:
-            print(f'El archivo {ruta_archivo} no se encontró')
+            print(f'El archivo no se encontró')
         except Exception as e:
             print(f'Error al cargar usuarios {e}')
             
-    def cargar_alquileres(self,ruta_archivo):
+    def cargar_alquileres(self):
         try:
-            self.alquileres = pd.read_csv('C:\Users\Alexis Angulo Polan\Documents\GitHub\prog2-25-C4\data\alquileres.csv')
+            df = pd.read_csv('alquileres.csv')
+            return df 
         except FileNotFoundError:
-            print(f'El archivo {ruta_archivo} no se encontro')
+            print(f'El archivo no se encontro')
         except Exception as e:
             print(f'Error al cargar alquileres {e}')
             
@@ -41,7 +44,7 @@ class Empresa():
     
     def generar_id_usuario(self):
         '''Genera un ID unico para un nuevo usuario'''
-        df = self.cargar_usuarios
+        df = self.cargar_usuarios()
         if df.empty:
             return 'U001'
         ultimo_id = df['id_usuario'].iloc[-1]
@@ -49,7 +52,7 @@ class Empresa():
         return f'U{num:03d}' # Formato U001, U002, etc.
     
     def generar_id_alquiler(self):
-        df = self.cargar_alquileres
+        df = self.cargar_alquileres()
         if df.empty:
             return 'A001'
         ultimo_id = df['id_alquiler'].iloc[-1]
@@ -57,7 +60,7 @@ class Empresa():
         return f'A{num:03d}'
     
     def generar_id_coche(self):
-        df = self.cargar_coches
+        df = self.cargar_coches()
         ultimo_id = df['id'].iloc[-1]
         num = int(ultimo_id[1:]) + 1
         return f'UID{num:02d}'
@@ -86,13 +89,95 @@ class Empresa():
         y elimina o marca el alquiler como terminado.'''
         pass
     
-    def mostrar_coches_disponibles(self, marca=None, categoria=None):
+    def buscar_coches_disponibles(self):
         '''mostrar una lista de los coches disponibles, devulver una lista de coches donde 
         disponible sea True para que se muestre en esta lista'''
-        pass
+        df = self.cargar_coches()
+        if df is None or df.empty:
+            print("No hay coches disponibles o el archivo no se pudo cargar.")
+            return
+        
+        # Paso 1: Mostrar categorías de precio disponibles
+        categorias_precio = df['categoria_precio'].unique()
+        print("Categorías de precio disponibles:")
+        for categoria in categorias_precio:
+            print(f"- {categoria}")
+
+        # Pedir al usuario que seleccione una categoría de precio
+        opcion_precio = input("\nIntroduce la categoría de precio por la que quieres buscar: ").capitalize()
+        if opcion_precio not in categorias_precio:
+            print("La categoría de precio seleccionada no es válida.")
+            return
+
+        # Filtrar coches por la categoría de precio seleccionada
+        df_filtrado_precios = df[df['categoria_precio'] == opcion_precio]
+
+        # Paso 2: Mostrar categorías de tipo disponibles
+        categorias_tipos = df_filtrado_precios['categoria_tipo'].unique()
+        print("\nCategorías de tipo disponibles:")
+        for categoria in categorias_tipos:
+            print(f"- {categoria}")
+
+        # Pedir al usuario que seleccione una categoría de tipo
+        opcion_tipo = input("\nIntroduce la categoría de tipo por la que quieres buscar: ").capitalize()
+        if opcion_tipo not in categorias_tipos:
+            print("La categoría de tipo seleccionada no es válida.")
+            return
+
+        # Filtrar coches por la categoría de tipo seleccionada
+        df_filtrado_tipos = df_filtrado_precios[df_filtrado_precios['categoria_tipo'] == opcion_tipo]
+
+        # Paso 3: Mostrar marcas disponibles
+        marcas = df_filtrado_tipos['marca'].unique()
+        print("\nMarcas disponibles:")
+        for marca in marcas:
+            print(f"- {marca}")
+            
+        opcion_marca = input('\nIntroduce la marca por la que quieres buscar: ').capitalize()
+        if opcion_marca not in marcas:
+            print('La marca seleccionada no es válida')
+            return
+        
+        # filtrar coches por la marca seleccionada
+        df_filtrado_marcas = df_filtrado_tipos[df_filtrado_tipos['marca'] == opcion_marca]
+        
+        # paso 4 mostrar modelos disponibles
+        modelos = df_filtrado_marcas['modelo'].unique()
+        print(f'\nCoches de {opcion_marca} dispomibles: ')
+        for modelo in modelos:
+            cantidad = len(df_filtrado_marcas[df_filtrado_marcas['modelo'] == modelo])
+            print(f'- {modelo} ({cantidad} coche(s) disponible(s))')
+            
+        opcion_modelo = input('\nIntroduce el modelo que quieres: ').capitalize()
+        if opcion_modelo not in modelos:
+            print(f'El modelo {opcion_modelo} no esta disponible')
+            return
+        
+        df_filtrado_modelos = df_filtrado_marcas[df_filtrado_marcas['modelo'] == opcion_modelo]
+        
+        print(f"\nInformación de los coches del modelo '{opcion_modelo}':")
+        for _, coche in df_filtrado_modelos.iterrows():
+            print("-" * 50)
+            print(f"Matrícula: {coche['matricula']}")
+            print(f"Marca: {coche['marca']}")
+            print(f"Modelo: {coche['modelo']}")
+            print(f"Categoría de Precio: {coche['categoria_precio']}")
+            print(f"Categoría de Tipo: {coche['categoria_tipo']}")
+            print(f"Disponible: {'Sí' if coche['disponible'] else 'No'}")
+            print(f"Año: {coche['año']}")
+            print(f"Precio Diario: {coche['precio_diario']}€")
+            print(f"Kilometraje: {coche['kilometraje']} km")
+            print(f"Color: {coche['color']}")
+            print(f"Combustible: {coche['combustible']}")
+            print(f"CV: {coche['cv']}")
+            print(f"Plazas: {coche['plazas']}")
+
     
     def mostrar_precios(self):
         '''devolver una lista/diccionario con la marca y el precio por dia de sus coches
         en funcion de su categoria '''
         pass
         
+a = Empresa('RentACar')
+
+a.buscar_coches_disponibles()

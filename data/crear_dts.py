@@ -135,7 +135,7 @@ clientes_df = pd.DataFrame(columns=columnas_usuarios)
 clientes_df.to_csv("data/clientes.csv", index=False)'''
 
 
-# BASE DE DATOS DE ALQUILER 
+'''# BASE DE DATOS DE ALQUILER 
 # Definir las columnas del DataFrame de alquileres
 columnas_alquileres = ["id_alquiler", "id_coche", "id_usuario", "fecha_inicio", "fecha_fin", "coste_total", "activo"]
 
@@ -145,3 +145,17 @@ alquileres_df = pd.DataFrame(columns=columnas_alquileres)
 
 # Guardar el DataFrame en data/alquileres.csv
 alquileres_df.to_csv("data/alquileres.csv", index=False)
+'''
+
+import pandas as pd
+
+# Cargar el archivo CSV
+df = pd.read_csv('coches.csv')
+
+# Reemplazar 'Sedán' por 'Sedan' en la columna 'categoria_tipo'
+df['marca'] = df['marca'].replace({'BMW': 'Bmw'})
+
+# Guardar los cambios en el archivo CSV
+df.to_csv('coches.csv', index=False)
+
+print("El archivo CSV ha sido actualizado correctamente.")
