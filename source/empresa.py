@@ -128,13 +128,18 @@ class Empresa():
             print(f'Error al guardar el coche en el archivo CSV: {e}')
             
     
-    def registrar_usuario(self,nombre,tipo,email,contraseña):
+    def registrar_usuario(self,nombre,tipo,email,contraseña_hasheada):
         
-        if not nombre or not tipo or not email or not contraseña:
+        # Verificaciones 
+        if not nombre or not tipo or not email or not contraseña_hasheada:
             raise ValueError('Debes rellenar todos los campos')
         
         if not self.es_email_valido(email):
             raise ValueError("El correo electrónico no es válido.")
+        
+        if email in df_usuarios['email'].values:
+            print("El correo electrónico ya está registrado.")
+            return False
         
         df_usuarios = self.cargar_usuarios()
         if df_usuarios is None:
@@ -148,7 +153,7 @@ class Empresa():
             'nombre': nombre,
             'tipo': tipo,
             'email': email,
-            'contraseña': contraseña,
+            'contraseña': contraseña_hasheada,
         }
         
         df_nuevo_usuario = pd.DataFrame([new_user])
@@ -156,14 +161,39 @@ class Empresa():
         
         try:
             df_actualizado.to_csv('clientes.csv',index=False)
-            print(f'El coche con el ID {id_user} ha sido registrado exitosamente')
+            print(f'El usuario con el ID {id_user} ha sido registrado exitosamente')
+            return True
         except Exception as e:
             print(f'Error al guardar el usuario en el archivo CSV: {e}') 
+            return False
     
-    def dar_baja_usuario(self, id_usuario):
-        # busca un usuaro en self.usuarios y eliminarlo ( usar sobrecarga de operador??)
-        pass
-    
+    def dar_baja_usuario(self, email):
+        '''
+        Elimina un usuario del sistema basándose en su correo electrónico.
+        '''
+        # Cargar los usuarios actuales
+        df_usuarios = self.cargar_usuarios()
+        if df_usuarios is None:
+            print('No se pudieron cargar los usuarios. Revisa el archivo CSV.')
+            return False
+
+        # Verificar si el email existe en el DataFrame
+        if email not in df_usuarios['email'].values:
+            print('El correo que has introducido no está registrado.')
+            return False
+
+        # Filtrar el DataFrame para excluir al usuario con el email proporcionado
+        df_actualizado = df_usuarios[df_usuarios['email'] != email]
+        
+        try:
+            df_actualizado.to_csv('clientes.csv',index = True)   
+            print(f'El usuario con email {email} ha sido eliminado exitosamente') 
+            return True
+        except Exception as e:
+            print(f'Error al guardar los cambios en el archivo CSV: {e}')
+            return False
+        
+        
     def alquilar_coche(self,id_usuario, marca, fecha_inicio, fecha_fin):
         '''buscar el coche por marca en self.coches, si esta disponible, llamar al metodo
         alquilar y crear un Alquiler con el coche, usuario y fechas
