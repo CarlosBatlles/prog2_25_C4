@@ -2,6 +2,7 @@
 # Clase Empresa que va a gestionar todo el alquiler de coches 
 import pandas as pd
 import datetime
+import re
 
 class Empresa():
     def __init__(self,nombre):
@@ -9,6 +10,12 @@ class Empresa():
         self.coches = []
         self.usuarios = []
         self.alquileres = []
+        
+    # METODOS PARA VALIDAR
+    
+    def es_email_valido(email):
+        patron = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+        return re.match(patron, email) is not None
     
      # Metodos para cargar las bases de datos
      
@@ -121,9 +128,37 @@ class Empresa():
             print(f'Error al guardar el coche en el archivo CSV: {e}')
             
     
-    def registrar_usuario(self, id_usuario, nombre, email, tipo):
-        # crea un objeto Usuario y añadirlo a self.usuarios (sobrecarga de operador??)
-        pass
+    def registrar_usuario(self,nombre,tipo,email,contraseña):
+        
+        if not nombre or not tipo or not email or not contraseña:
+            raise ValueError('Debes rellenar todos los campos')
+        
+        if not self.es_email_valido(email):
+            raise ValueError("El correo electrónico no es válido.")
+        
+        df_usuarios = self.cargar_usuarios()
+        if df_usuarios is None:
+            print("No se pudieron cargar los usuarios. Verifica el archivo CSV.")
+            return
+        
+        id_user = self.generar_id_usuario()
+        
+        new_user = {
+            'id_usuario': id_user,
+            'nombre': nombre,
+            'tipo': tipo,
+            'email': email,
+            'contraseña': contraseña,
+        }
+        
+        df_nuevo_usuario = pd.DataFrame([new_user])
+        df_actualizado = pd.concat([df_usuarios,df_nuevo_usuario], ignore_index=True)
+        
+        try:
+            df_actualizado.to_csv('clientes.csv',index=False)
+            print(f'El coche con el ID {id_user} ha sido registrado exitosamente')
+        except Exception as e:
+            print(f'Error al guardar el usuario en el archivo CSV: {e}') 
     
     def dar_baja_usuario(self, id_usuario):
         # busca un usuaro en self.usuarios y eliminarlo ( usar sobrecarga de operador??)

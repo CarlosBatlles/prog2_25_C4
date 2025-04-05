@@ -147,7 +147,7 @@ alquileres_df = pd.DataFrame(columns=columnas_alquileres)
 alquileres_df.to_csv("data/alquileres.csv", index=False)
 '''
 
-import pandas as pd
+'''import pandas as pd
 
 # Cargar el archivo CSV
 df = pd.read_csv('coches.csv')
@@ -159,3 +159,18 @@ df['marca'] = df['marca'].replace({'BMW': 'Bmw'})
 df.to_csv('coches.csv', index=False)
 
 print("El archivo CSV ha sido actualizado correctamente.")
+
+import pandas as pd'''
+
+# BASE DE DATOS DE USUARIOS
+
+# Definir las columnas del DataFrame de usuarios (incluyendo "contraseña")
+columnas_usuarios = ["id_usuario", "nombre", "tipo", "email", "contraseña"]
+
+# Crear un DataFrame vacío con las columnas
+clientes_df = pd.DataFrame(columns=columnas_usuarios)
+
+# Guardar el DataFrame en data/clientes.csv
+clientes_df.to_csv("data/clientes.csv", index=False)
+
+print("Archivo 'clientes.csv' creado con éxito, incluyendo la columna 'contraseña'.")
