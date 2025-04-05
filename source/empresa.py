@@ -65,10 +65,61 @@ class Empresa():
         num = int(ultimo_id[1:]) + 1
         return f'UID{num:02d}'
         
+    # METODOS PARA REGISTRAR
     
-    def registrar_coche(self,marca, categoria, nivel, precio_dia):
-        # crear objeto Coche y añadirlo a self.coches
-        pass
+    def registrar_coche(self,marca,modelo,matricula,categoria_tipo,categoria_precio,año,precio_diario,kilometraje,color,combustible,cv,plazas,disponible):
+        ''' Añade un nuevo coche al sistema '''
+        
+        # Comprobaciones
+        if not marca or not modelo or not matricula or not categoria_tipo or not categoria_precio:
+            raise ValueError("Todos los campos de texto (marca, modelo, matricula, categoria_tipo, categoria_precio) deben tener un valor.")
+
+        if precio_diario <= 0:
+            raise ValueError('El precio diario debe ser mayor que 0')
+        if kilometraje < 0:
+            raise ValueError('El kilometraje no puede ser negativo')
+        if cv <= 0:
+            raise  ValueError('La potencia del coche debe ser mayor que 0')
+        if plazas < 2:
+            raise ValueError('Las plazas del coche deben ser mayores a 2')
+        if not isinstance(disponible, bool):
+            raise TypeError("El campo 'disponible' debe ser True o False")
+        
+        df_coches = self.cargar_coches()
+        if df_coches is None:
+            print("No se pudieron cargar los coches. Verifica el archivo CSV.")
+            return
+        
+        # Generar un ID único para el coche
+        id_coche = self.generar_id_coche()
+        
+        # Crear un diccionario con los datos del nuevo coche
+        nuevo_coche = {
+            'id': id_coche,
+            'marca': marca,
+            'modelo': modelo,
+            'matricula': matricula,
+            'categoria_tipo': categoria_tipo,
+            'categoria_precio': categoria_precio,
+            'año': año,
+            'precio_diario': precio_diario,
+            'kilometraje': kilometraje,
+            'color': color,
+            'combustible': combustible,
+            'cv': cv,
+            'plazas': plazas,
+            'disponible': disponible
+        }
+        
+        df_nuevo_coche = pd.DataFrame([nuevo_coche])
+        df_actualizado = pd.concat([df_coches,df_nuevo_coche], ignore_index=True)
+        
+        try:
+            df_actualizado.to_csv('coches.csv',index=False)
+            print(f'El coche con el ID {id_coche} ha sido registrado exitosamente')
+        except Exception as e:
+            print(f'Error al guardar el coche en el archivo CSV: {e}')
+            
     
     def registrar_usuario(self, id_usuario, nombre, email, tipo):
         # crea un objeto Usuario y añadirlo a self.usuarios (sobrecarga de operador??)
