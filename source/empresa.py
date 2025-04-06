@@ -13,6 +13,7 @@ class Empresa():
         
     # METODOS PARA VALIDAR
     
+    @staticmethod
     def es_email_valido(email):
         patron = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
         return re.match(patron, email) is not None
@@ -194,11 +195,111 @@ class Empresa():
             return False
         
         
-    def alquilar_coche(self,id_usuario, marca, fecha_inicio, fecha_fin):
-        '''buscar el coche por marca en self.coches, si esta disponible, llamar al metodo
-        alquilar y crear un Alquiler con el coche, usuario y fechas
-        calcular el coste total (dias * precio por dia), y añadirlo a self.alquileres'''
-        pass
+    def alquilar_coche(self,matricula, fecha_inicio, fecha_fin,email=None):
+        
+        # Cargar los archivos CSV
+        df_coches = self.cargar_coches()
+        if df_coches is None:
+            raise ValueError("Error al cargar el archivo de coches.")
+
+        df_clientes = self.cargar_usuarios()
+        if df_clientes is None:
+            raise ValueError("Error al cargar el archivo de usuarios.")
+        
+        df_alquiler = self.cargar_alquileres()
+        if df_alquiler is None:
+            raise ValueError('Error al cargar el archivo de alquileres')
+        
+        coche = df_coches[df_coches['matricula'] == matricula]
+        if coche.empty:
+            raise ValueError(f"No se encontró ningún coche con la matrícula: {matricula}.")
+        coche = coche.iloc[0]
+        
+        if email and not self.es_email_valido(email):
+            raise ValueError("El correo electrónico no es válido.")
+        
+        # Verificar disponibilidad
+        if not coche['disponible']:
+            raise ValueError(f"El coche {coche['marca']} - {coche['modelo']} no está disponible para alquilar.")
+        else:
+            print(f'El {coche["marca"]}-{coche["modelo"]} está disponible. Procesando alquiler...')
+        
+        precio_total = self.calcular_precio_total(fecha_inicio,fecha_fin,matricula,email)
+        df_coches.loc[df_coches['matricula'] == matricula, 'disponible'] = False
+        
+        id_usuario = 'INVITADO'
+        if email:
+            user = df_clientes[df_clientes['email'] == email]
+            if user.empty:
+                raise ValueError(f'No se encontro ningun usuario con el email: {email}')
+            id_usuario = user.iloc[0]['id_usuario']    
+            
+        nuevo_alquiler = {
+            'id_alquiler' : self.generar_id_alquiler(),
+            'id_coche': coche['id'],
+            'id_usuario': id_usuario,
+            'fecha_inicio': fecha_inicio.strftime('%Y-%m-%d'),  # Convertir a formato de cadena
+            'fecha_fin': fecha_fin.strftime('%Y-%m-%d'),
+            'coste_total': precio_total,
+            'activo': True
+        }
+        
+        df_nuevo_alquiler = pd.DataFrame([nuevo_alquiler])
+        df_actualizado = pd.concat([df_alquiler,df_nuevo_alquiler], ignore_index = True)
+        
+        # Guardar los cambios en los archivos CSV
+        try:
+            df_coches.to_csv('coches.csv', index=False)
+            df_actualizado.to_csv('alquileres.csv', index=False)
+            print("Alquiler registrado exitosamente.")
+        except Exception as e:
+            print(f"Error al guardar los cambios: {e}")
+
+    
+    def calcular_precio_total(self,fecha_inicio:datetime, fecha_fin:datetime, matricula, email= None):
+        
+        # Cargar los archivos CSV
+        df_coches = self.cargar_coches()
+        if df_coches is None:
+            raise ValueError("Error al cargar el archivo de coches.")
+
+        df_clientes = self.cargar_usuarios()
+        if df_clientes is None:
+            raise ValueError("Error al cargar el archivo de usuarios.")
+        
+        if fecha_inicio > fecha_fin:
+            raise ValueError('La fecha de inicio no puede ser mayor a la fecha final')
+        
+        if email and not self.es_email_valido(email):
+            raise ValueError("El correo electrónico no es válido.")
+        
+        coche = df_coches[df_coches['matricula'] == matricula]
+        if coche.empty:
+            raise ValueError(f"No se encontró ningún coche con la matrícula: {matricula}.")
+        coche = coche.iloc[0]
+        
+        if not coche['disponible']:
+            raise ValueError(f'El coche con matricula {matricula} no esta disponible para alquilar')
+        
+        # Calcular el rango de dias
+        rango_de_dias = (fecha_fin - fecha_inicio).days
+        
+        descuentos = {
+            'cliente': 0.94,
+            'normal': 1
+        }
+        
+        tipo_usuario = 'normal'
+        if email:
+            user = df_clientes[df_clientes['email'] == email]
+            if user.empty:
+                raise ValueError("Usuario no encontrado.")
+            tipo_usuario = user.iloc[0]['tipo']
+            
+        descuento = descuentos.get(tipo_usuario,1)
+        precio_total = coche['precio_diario'] * rango_de_dias * descuento
+        
+        return precio_total    
         
     def finalizar_alquiler(self, id_alquiler):
         '''Busca el alquiler en self.alquileres, llama a devolver() del coche
@@ -296,4 +397,4 @@ class Empresa():
         
 a = Empresa('RentACar')
 
-a.buscar_coches_disponibles()
+a.alquilar_coche('a','9676 LRX',3,4)
