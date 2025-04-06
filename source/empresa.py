@@ -537,9 +537,7 @@ class Empresa():
         for categoria in categorias_precio:
             print(f"- {categoria}")
             
-    
-        
-        
+
 a = Empresa('RentACar')
 
 #a.registrar_usuario("Juan Perez", "cliente", "jperez@example.com", "contraseña_segura")
