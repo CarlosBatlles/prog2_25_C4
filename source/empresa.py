@@ -19,7 +19,7 @@ class Empresa():
         patron = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
         return re.match(patron, email) is not None
     
-     # Metodos para cargar las bases de datos
+    # Metodos para cargar las bases de datos
      
     def cargar_coches(self):
         ''' Carga los coches desde un archivo CSV'''
@@ -327,9 +327,38 @@ class Empresa():
         return precio_total    
         
     def finalizar_alquiler(self, id_alquiler):
-        '''Busca el alquiler en self.alquileres, llama a devolver() del coche
-        y elimina o marca el alquiler como terminado.'''
-        pass
+        
+        # Cargar la base de datos de alquileres
+        df_alquiler = self.cargar_alquileres()
+        df_coches = self.cargar_coches()
+        
+        # Validaciones
+        if df_alquiler is None or df_alquiler.empty:
+            raise ValueError('No se pudo cargar el archivo de alquileres o está vacío.')
+        if df_coches is None or df_coches.empty:
+            raise ValueError('No se han podido cargar los coches o esta vacio')
+        
+        alquiler = df_alquiler[df_alquiler['id_alquiler'] == id_alquiler]
+        if alquiler.empty:
+            raise ValueError(f'No existe ningun alquiler con el ID: {id_alquiler}')
+        
+        if not alquiler.iloc[0]['activo']:
+            raise ValueError(f'El alquiler con ID {id_alquiler} ya está finalizado')
+        
+        id_coche = alquiler.iloc[0]['id_coche']
+        
+        df_alquiler.loc[df_alquiler['id_alquiler'] == id_alquiler, 'activo'] = False
+        df_coches.loc[df_coches['id'] == id_coche, 'disponible'] = True
+        
+        # Guardar los cambios en los archivos CSV
+        try:
+            df_alquiler.to_csv('alquileres.csv', index=False)
+            df_coches.to_csv('coches.csv', index=False)
+            print(f"Alquiler con ID {id_alquiler} finalizado exitosamente.")
+            print(f"El coche con ID {id_coche} ha sido marcado como disponible.")
+        except Exception as e:
+            raise ValueError(f"Error al guardar los cambios en los archivos CSV: {e}")
+        
     
     def buscar_coches_disponibles(self):
         '''mostrar una lista de los coches disponibles, devulver una lista de coches donde 
@@ -482,12 +511,40 @@ class Empresa():
         print(f"Factura generada exitosamente: {nombre_archivo}")
         
     
-    def mostrar_precios(self):
-        '''devolver una lista/diccionario con la marca y el precio por dia de sus coches
-        en funcion de su categoria '''
-        pass
+    def mostrar_categorias_tipo(self):
+        
+        df_coches = self.cargar_coches()
+        
+        # Validar que el DataFrame no esté vacío
+        if df_coches is None or df_coches.empty:
+            raise ValueError('No hay datos disponibles para mostrar categorías')
+        
+        categorias_tipo = df_coches['categoria_tipo'].unique()
+        print("-- Categorías de tipo disponibles --")
+        for categoria in categorias_tipo:
+            print(f"- {categoria}")
+            
+    def mostrar_categorias_precio(self):
+        
+        df_coches = self.cargar_coches()
+        
+        # Validar que el DataFrame no esté vacío
+        if df_coches is None or df_coches.empty:
+            raise ValueError('No hay datos disponibles para mostrar categorías')
+        
+        categorias_precio = df_coches['categoria_precio'].unique()
+        print("-- Categorías de precio disponibles --")
+        for categoria in categorias_precio:
+            print(f"- {categoria}")
+            
+    
+        
         
 a = Empresa('RentACar')
 
 #a.registrar_usuario("Juan Perez", "cliente", "jperez@example.com", "contraseña_segura")
-a.alquilar_coche('9676 LRX','2023-10-01','2023-10-05',"jperez@example.com")
+#a.alquilar_coche('9676 LRX','2023-10-01','2023-10-05',"jperez@example.com")
+#a.finalizar_alquiler('A001')
+#a.dar_baja_usuario('jperez@example.com')
+
+a.mostrar_categorias()
