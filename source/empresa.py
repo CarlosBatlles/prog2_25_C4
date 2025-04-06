@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 import re
 from fpdf import FPDF
+import hashlib
 
 class Empresa():
     def __init__(self,nombre):
@@ -18,6 +19,12 @@ class Empresa():
     def es_email_valido(email):
         patron = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
         return re.match(patron, email) is not None
+
+    def hash_contraseña(contraseña):
+        """
+        Genera un hash SHA-256 de la contraseña proporcionada.
+        """
+        return hashlib.sha256(contraseña.encode()).hexdigest()
     
     # Metodos para cargar las bases de datos
      
@@ -130,7 +137,7 @@ class Empresa():
             print(f'Error al guardar el coche en el archivo CSV: {e}')
             
     
-    def registrar_usuario(self,nombre,tipo,email,contraseña_hasheada):
+    def registrar_usuario(self,nombre,tipo,email,contraseña):
         
         df_usuarios = self.cargar_usuarios()
         if df_usuarios is None:
@@ -138,7 +145,7 @@ class Empresa():
             return
         
         # Verificaciones 
-        if not nombre or not tipo or not email or not contraseña_hasheada:
+        if not nombre or not tipo or not email or not contraseña:
             raise ValueError('Debes rellenar todos los campos')
         
         if not self.es_email_valido(email):
@@ -149,6 +156,8 @@ class Empresa():
             return False
         
         id_user = self.generar_id_usuario()
+        
+        contraseña_hasheada = self.hash_contraseña(contraseña)
         
         new_user = {
             'id_usuario': id_user,
