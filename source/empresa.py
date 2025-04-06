@@ -159,7 +159,7 @@ class Empresa():
         df_usuarios = self.cargar_usuarios()
         if df_usuarios is None:
             print("No se pudieron cargar los usuarios. Verifica el archivo CSV.")
-            return
+            return False
         
         # Verificaciones 
         if not nombre or not tipo or not email or not contraseña:
@@ -191,8 +191,10 @@ class Empresa():
         try:
             self._guardar_csv('clientes.csv', df_actualizado)
             print(f'El usuario con el ID {id_user} ha sido registrado exitosamente')
+            return True
         except Exception as e:
             print(f'Error al guardar el usuario en el archivo CSV: {e}')
+            return False
     
     def dar_baja_usuario(self, email):
         '''
@@ -580,5 +582,5 @@ a = Empresa('RentACar')
 
 #a.registrar_usuario("Juan Perez", "cliente", "jperez@example.com", "contraseña_segura")
 #a.alquilar_coche('9676 LRX','2023-10-01','2023-10-05',"jperez@example.com")
-a.finalizar_alquiler('A001')
-a.dar_baja_usuario('jperez@example.com')
+#a.finalizar_alquiler('A001')
+#a.dar_baja_usuario('juan@example.com')

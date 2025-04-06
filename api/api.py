@@ -82,8 +82,7 @@ def invitado_route():
     identity = get_jwt_identity()
     user = identity.get('user', '')
     tipo = identity.get('tipo', 'invitado')
-    return jsonify(msg=f"Hola {user}, estás en la zona pública para el tipo {tipo}")
+    return jsonify(msg=f"Hola {user}, estás en la zona pública para el tipo {tipo}")'''
 
-'''
 if __name__ == '__main__':
     app.run(debug=True)
