@@ -1,15 +1,18 @@
+import sys
+import os
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-import os
-import sys
+
+# Agrega el directorio raíz del proyecto al PATH (para que encuentre `source`)
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
+
+# Ahora la importación debería funcionar
+from source.empresa import Empresa
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "grupo_4!"
 jwt = JWTManager(app)
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from source.empresa import Empresa
-
 
 empresa = Empresa(nombre='RentAcar')
 
@@ -81,6 +84,6 @@ def invitado_route():
     tipo = identity.get('tipo', 'invitado')
     return jsonify(msg=f"Hola {user}, estás en la zona pública para el tipo {tipo}")
 
+'''
 if __name__ == '__main__':
     app.run(debug=True)
-'''

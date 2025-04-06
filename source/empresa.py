@@ -5,6 +5,7 @@ from datetime import datetime
 import re
 from fpdf import FPDF
 import hashlib
+import os
 
 class Empresa():
     def __init__(self,nombre):
@@ -12,6 +13,38 @@ class Empresa():
         self.coches = []
         self.usuarios = []
         self.alquileres = []
+        self.data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
+
+    def _ruta_archivo(self, archivo):
+        """
+        Construye la ruta completa al archivo CSV en la carpeta 'data'.
+        """
+        return os.path.join(self.data_dir, archivo)
+
+    def _cargar_csv(self, archivo):
+        """
+        Carga un archivo CSV desde la carpeta 'data'.
+        """
+        ruta = self._ruta_archivo(archivo)
+        try:
+            return pd.read_csv(ruta)
+        except FileNotFoundError:
+            print(f"El archivo {ruta} no se encontró.")
+            return None
+        except Exception as e:
+            print(f"Error al cargar el archivo {ruta}: {e}")
+            return None
+
+    def _guardar_csv(self, archivo, df):
+        """
+        Guarda un DataFrame en un archivo CSV en la carpeta 'data'.
+        """
+        ruta = self._ruta_archivo(archivo)
+        try:
+            df.to_csv(ruta, index=False)
+            print(f"Archivo guardado exitosamente.")
+        except Exception as e:
+            print(f"Error al guardar el archivo {ruta}: {e}")
         
     # METODOS PARA VALIDAR
     
@@ -20,41 +53,24 @@ class Empresa():
         patron = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
         return re.match(patron, email) is not None
 
-    def hash_contraseña(contraseña):
+    def hash_contraseña(self,contraseña):
         """
         Genera un hash SHA-256 de la contraseña proporcionada.
         """
         return hashlib.sha256(contraseña.encode()).hexdigest()
     
     # Metodos para cargar las bases de datos
-     
     def cargar_coches(self):
         ''' Carga los coches desde un archivo CSV'''
-        try:
-            df = pd.read_csv('coches.csv')
-            return df 
-        except FileNotFoundError:
-            print(f'El archivo no se encontró')
-        except Exception as e:
-            print(f'Error al cargar coches {e}')
-    
+        return self._cargar_csv('coches.csv')
+
     def cargar_usuarios(self):
-        try:
-            df = pd.read_csv('clientes.csv')
-            return df 
-        except FileNotFoundError:
-            print(f'El archivo no se encontró')
-        except Exception as e:
-            print(f'Error al cargar usuarios {e}')
-            
+        ''' Carga los usuarios desde un archivo CSV'''
+        return self._cargar_csv('clientes.csv')
+
     def cargar_alquileres(self):
-        try:
-            df = pd.read_csv('alquileres.csv')
-            return df 
-        except FileNotFoundError:
-            print(f'El archivo no se encontro')
-        except Exception as e:
-            print(f'Error al cargar alquileres {e}')
+        ''' Carga los alquileres desde un archivo CSV'''
+        return self._cargar_csv('alquileres.csv')
             
     # Metodos para generar IDs de usuario y coche automaticamente  
     
@@ -130,8 +146,9 @@ class Empresa():
         df_nuevo_coche = pd.DataFrame([nuevo_coche])
         df_actualizado = pd.concat([df_coches,df_nuevo_coche], ignore_index=True)
         
+        # Guardar los cambios usando el método auxiliar
         try:
-            df_actualizado.to_csv('coches.csv',index=False)
+            self._guardar_csv('coches.csv', df_actualizado)
             print(f'El coche con el ID {id_coche} ha sido registrado exitosamente')
         except Exception as e:
             print(f'Error al guardar el coche en el archivo CSV: {e}')
@@ -170,13 +187,12 @@ class Empresa():
         df_nuevo_usuario = pd.DataFrame([new_user])
         df_actualizado = pd.concat([df_usuarios,df_nuevo_usuario], ignore_index=True)
         
+        # Guardar los cambios usando el método auxiliar
         try:
-            df_actualizado.to_csv('clientes.csv',index=False)
+            self._guardar_csv('clientes.csv', df_actualizado)
             print(f'El usuario con el ID {id_user} ha sido registrado exitosamente')
-            return True
         except Exception as e:
-            print(f'Error al guardar el usuario en el archivo CSV: {e}') 
-            return False
+            print(f'Error al guardar el usuario en el archivo CSV: {e}')
     
     def dar_baja_usuario(self, email):
         '''
@@ -196,14 +212,15 @@ class Empresa():
         # Filtrar el DataFrame para excluir al usuario con el email proporcionado
         df_actualizado = df_usuarios[df_usuarios['email'] != email]
         
+        # Guardar los cambios usando el método auxiliar
         try:
-            df_actualizado.to_csv('clientes.csv',index = True)   
-            print(f'El usuario con email {email} ha sido eliminado exitosamente') 
+            self._guardar_csv('clientes.csv', df_actualizado)
+            print(f'El usuario con email {email} ha sido eliminado exitosamente')
             return True
         except Exception as e:
             print(f'Error al guardar los cambios en el archivo CSV: {e}')
             return False
-        
+            
         
     def alquilar_coche(self,matricula, fecha_inicio:datetime, fecha_fin:datetime,email=None):
         
@@ -268,15 +285,16 @@ class Empresa():
         df_nuevo_alquiler = pd.DataFrame([nuevo_alquiler])
         df_actualizado = pd.concat([df_alquiler,df_nuevo_alquiler], ignore_index = True)
         
-        # Guardar los cambios en los archivos CSV
+        # Guardar los cambios usando métodos auxiliares
         try:
-            df_coches.to_csv('coches.csv', index=False)
-            df_actualizado.to_csv('alquileres.csv', index=False)
+            self._guardar_csv('coches.csv', df_coches)
+            self._guardar_csv('alquileres.csv', df_actualizado)
             print("Alquiler registrado exitosamente.")
         except Exception as e:
             print(f"Error al guardar los cambios: {e}")
+            return
             
-            # Generar la factura en PDF
+        # Generar la factura en PDF
         datos_factura = {
             'id_alquiler': nuevo_alquiler['id_alquiler'],
             'marca': coche['marca'],
@@ -359,10 +377,10 @@ class Empresa():
         df_alquiler.loc[df_alquiler['id_alquiler'] == id_alquiler, 'activo'] = False
         df_coches.loc[df_coches['id'] == id_coche, 'disponible'] = True
         
-        # Guardar los cambios en los archivos CSV
+        # Guardar los cambios usando el método auxiliar
         try:
-            df_alquiler.to_csv('alquileres.csv', index=False)
-            df_coches.to_csv('coches.csv', index=False)
+            self._guardar_csv('alquileres.csv', df_alquiler)
+            self._guardar_csv('coches.csv', df_coches)
             print(f"Alquiler con ID {id_alquiler} finalizado exitosamente.")
             print(f"El coche con ID {id_coche} ha sido marcado como disponible.")
         except Exception as e:
@@ -461,7 +479,14 @@ class Empresa():
         pdf.add_page()
 
         # Añadir logo
-        pdf.image('Logo.png', x=10, y=10, w=50)
+        try:
+            logo_path = self._ruta_archivo('Logo.png')  # Usar el método auxiliar para construir la ruta
+            if os.path.exists(logo_path):
+                pdf.image(logo_path, x=10, y=10, w=50)
+            else:
+                print(f"El archivo Logo.png no se encontró en {logo_path}. Se omitirá el logo.")
+        except Exception as e:
+            print(f"Error al cargar el logo: {e}")
 
         # Título
         pdf.set_font("Arial", "B", 16)
@@ -499,7 +524,7 @@ class Empresa():
         ]:
             pdf.set_x(posicion_x)  # Centrar cada fila
             pdf.cell(50, 10, campo, border=1)
-            pdf.cell(100, 10, valor, border=1, ln=True)
+            pdf.cell(100, 10, str(valor), border=1, ln=True)
 
         pdf.ln(10)
 
@@ -514,10 +539,14 @@ class Empresa():
         pdf.set_text_color(0, 0, 0)  # Negro
         pdf.cell(0, 10, txt="Gracias por elegirnos. ¡Esperamos verte pronto!", ln=True, align="C")
 
-        # Guardar el archivo PDF
+        # Guardar el archivo PDF en la carpeta 'data'
         nombre_archivo = f"factura_{alquiler['id_alquiler']}.pdf"
-        pdf.output(nombre_archivo)
-        print(f"Factura generada exitosamente: {nombre_archivo}")
+        ruta_factura = self._ruta_archivo(nombre_archivo)  # Construir la ruta completa
+        try:
+            pdf.output(ruta_factura)
+            print(f"Factura generada exitosamente: {ruta_factura}")
+        except Exception as e:
+            print(f"Error al guardar la factura: {e}")
         
     
     def mostrar_categorias_tipo(self):
@@ -551,7 +580,5 @@ a = Empresa('RentACar')
 
 #a.registrar_usuario("Juan Perez", "cliente", "jperez@example.com", "contraseña_segura")
 #a.alquilar_coche('9676 LRX','2023-10-01','2023-10-05',"jperez@example.com")
-#a.finalizar_alquiler('A001')
-#a.dar_baja_usuario('jperez@example.com')
-
-a.mostrar_categorias()
+a.finalizar_alquiler('A001')
+a.dar_baja_usuario('jperez@example.com')
