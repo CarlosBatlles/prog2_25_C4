@@ -1,8 +1,9 @@
 
 # Clase Empresa que va a gestionar todo el alquiler de coches 
 import pandas as pd
-import datetime
+from datetime import datetime
 import re
+from fpdf import FPDF
 
 class Empresa():
     def __init__(self,nombre):
@@ -131,6 +132,11 @@ class Empresa():
     
     def registrar_usuario(self,nombre,tipo,email,contraseña_hasheada):
         
+        df_usuarios = self.cargar_usuarios()
+        if df_usuarios is None:
+            print("No se pudieron cargar los usuarios. Verifica el archivo CSV.")
+            return
+        
         # Verificaciones 
         if not nombre or not tipo or not email or not contraseña_hasheada:
             raise ValueError('Debes rellenar todos los campos')
@@ -141,11 +147,6 @@ class Empresa():
         if email in df_usuarios['email'].values:
             print("El correo electrónico ya está registrado.")
             return False
-        
-        df_usuarios = self.cargar_usuarios()
-        if df_usuarios is None:
-            print("No se pudieron cargar los usuarios. Verifica el archivo CSV.")
-            return
         
         id_user = self.generar_id_usuario()
         
@@ -195,7 +196,7 @@ class Empresa():
             return False
         
         
-    def alquilar_coche(self,matricula, fecha_inicio, fecha_fin,email=None):
+    def alquilar_coche(self,matricula, fecha_inicio:datetime, fecha_fin:datetime,email=None):
         
         # Cargar los archivos CSV
         df_coches = self.cargar_coches()
@@ -217,6 +218,17 @@ class Empresa():
         
         if email and not self.es_email_valido(email):
             raise ValueError("El correo electrónico no es válido.")
+        
+        # Convertir las fechas a objetos datetime
+        try:
+            fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("Las fechas deben estar en formato YYYY-MM-DD.")
+
+        # Validar que la fecha de inicio sea anterior a la fecha de fin
+        if fecha_inicio >= fecha_fin:
+            raise ValueError("La fecha de inicio debe ser anterior a la fecha de fin.")
         
         # Verificar disponibilidad
         if not coche['disponible']:
@@ -254,6 +266,19 @@ class Empresa():
             print("Alquiler registrado exitosamente.")
         except Exception as e:
             print(f"Error al guardar los cambios: {e}")
+            
+            # Generar la factura en PDF
+        datos_factura = {
+            'id_alquiler': nuevo_alquiler['id_alquiler'],
+            'marca': coche['marca'],
+            'modelo': coche['modelo'],
+            'matricula': coche['matricula'],
+            'fecha_inicio': nuevo_alquiler['fecha_inicio'],
+            'fecha_fin': nuevo_alquiler['fecha_fin'],
+            'coste_total': nuevo_alquiler['coste_total'],
+            'id_usuario': id_usuario
+        }
+        self.generar_factura_pdf(datos_factura)
 
     
     def calcular_precio_total(self,fecha_inicio:datetime, fecha_fin:datetime, matricula, email= None):
@@ -390,6 +415,73 @@ class Empresa():
             print(f"Plazas: {coche['plazas']}")
 
     
+    # Metodo para generar una factura en pdf
+    def generar_factura_pdf(self, alquiler):
+        pdf = FPDF()
+
+        # Añadir página
+        pdf.add_page()
+
+        # Añadir logo
+        pdf.image('Logo.png', x=10, y=10, w=50)
+
+        # Título
+        pdf.set_font("Arial", "B", 16)
+        pdf.set_text_color(0, 0, 0)  # Azul oscuro
+        pdf.cell(0, 20, txt="Factura de Alquiler", ln=True, align="C")
+
+        # Restaurar color de texto
+        pdf.set_text_color(0, 0, 0)
+
+        # Espacio adicional antes de la fecha de emisión
+        pdf.ln(10)  # Bajar el texto de la fecha de emisión
+        pdf.set_font("Arial", size=12)
+        pdf.cell(0, 10, txt=f"Fecha de Emisión: {datetime.now().strftime('%Y-%m-%d')}", ln=True, align="C")
+
+        # Tabla con detalles del alquiler
+        pdf.set_fill_color(240, 240, 240)  # Gris claro para el encabezado
+
+        # Calcular la posición inicial para centrar la tabla
+        ancho_tabla = 150  # Ancho total de la tabla (50 + 100)
+        posicion_x = (pdf.w - ancho_tabla) / 2  # Centrar horizontalmente
+
+        # Encabezado de la tabla
+        pdf.set_x(posicion_x)  # Establecer la posición X
+        pdf.cell(50, 10, "Campo", border=1, fill=True)
+        pdf.cell(100, 10, "Valor", border=1, fill=True, ln=True)
+
+        # Datos de la tabla
+        for campo, valor in [
+            ("ID de Alquiler", alquiler['id_alquiler']),
+            ("Marca", alquiler['marca']),
+            ("Modelo", alquiler['modelo']),
+            ("Matrícula", alquiler['matricula']),
+            ("Fecha de Inicio", alquiler['fecha_inicio']),
+            ("Fecha de Fin", alquiler['fecha_fin'])
+        ]:
+            pdf.set_x(posicion_x)  # Centrar cada fila
+            pdf.cell(50, 10, campo, border=1)
+            pdf.cell(100, 10, valor, border=1, ln=True)
+
+        pdf.ln(10)
+
+        # Precio total con formato destacado
+        pdf.set_font("Arial", "B", 14)
+        pdf.set_text_color(255, 0, 0)  # Rojo para el precio
+        precio_formateado = f"{alquiler['coste_total']:.2f} EUR"
+        pdf.cell(0, 10, txt=f"Precio Total: {precio_formateado}", ln=True, align="R")
+
+        # Mensaje de agradecimiento
+        pdf.set_font("Arial", "I", 12)
+        pdf.set_text_color(0, 0, 0)  # Negro
+        pdf.cell(0, 10, txt="Gracias por elegirnos. ¡Esperamos verte pronto!", ln=True, align="C")
+
+        # Guardar el archivo PDF
+        nombre_archivo = f"factura_{alquiler['id_alquiler']}.pdf"
+        pdf.output(nombre_archivo)
+        print(f"Factura generada exitosamente: {nombre_archivo}")
+        
+    
     def mostrar_precios(self):
         '''devolver una lista/diccionario con la marca y el precio por dia de sus coches
         en funcion de su categoria '''
@@ -397,4 +489,5 @@ class Empresa():
         
 a = Empresa('RentACar')
 
-a.alquilar_coche('a','9676 LRX',3,4)
+#a.registrar_usuario("Juan Perez", "cliente", "jperez@example.com", "contraseña_segura")
+a.alquilar_coche('9676 LRX','2023-10-01','2023-10-05',"jperez@example.com")
