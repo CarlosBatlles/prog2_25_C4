@@ -35,23 +35,29 @@ def signup(): # Registrar
             return jsonify({'error': 'No se pudo registrar el usuario'}), 500
     except ValueError as e:
         return jsonify({'error':str(e)}), 400
+
+@app.route('/login', methods=['POST'])
+def login(): # iniciar sesion
+    data = request.json
+    email = data.get('email')
+    contraseña = data.get('contraseña')
+    
+    # validar campos 
+    if not email or not contraseña:
+        return jsonify({'error': 'Correo electronico y contraseña son obligatorios'}), 400
+
+    try:
+        # verificar las credenciales
+        if empresa.iniciar_sesion(email,contraseña):
+            # generar token
+            token = create_access_token(identity=email)
+            return jsonify({'mensaje': 'Inicio de sesion exitoso', 'token':token}), 200
+        else:
+            return jsonify({'error':'Credenciales invalidas'}), 401
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 '''
-@app.route('/login', methods=['GET'])
-def login(): #
-    user = request.args.get('user', '')
-    password = request.args.get('password', '')
-    hashed = hashlib.sha256(password.encode()).hexdigest()
-
-    usuarios, tipos = cargar_usuarios()
-    if user in usuarios and usuarios[user] == hashed:
-        tipo = tipos.get(user,'invitado')
-        identity = {'user': user, 'tipo': tipo}
-        access_token= create_access_token(identity={'user': user, 'tipo': tipo})
-        return access_token, 200
-    else:
-        return 'Usuario o contraseña incorrectos', 401
-
-
 @app.route('/admin', methods=['GET'])
 @jwt_required()
 def admin_route():

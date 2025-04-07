@@ -222,7 +222,33 @@ class Empresa():
         except Exception as e:
             print(f'Error al guardar los cambios en el archivo CSV: {e}')
             return False
-            
+        
+    def iniciar_sesion(self, email, contraseña):
+        """
+        Verifica si un usuario con el correo electrónico y contraseña dados existe en la base de datos.
+        Devuelve True si las credenciales son válidas, False en caso contrario.
+        """
+        df_usuarios = self.cargar_usuarios()
+        if df_usuarios is None or df_usuarios.empty:
+            print(f'No se pudieron cargar los usuarios. Revisa el archivo CSV')
+            return False
+        
+        usuario = df_usuarios[df_usuarios['email'] == email]
+        if usuario.empty: 
+            print(f'No se encontró ningun usuario con el correo: {email}')
+            return False
+        
+        contraseña_almacenada = usuario.iloc[0]['contraseña']
+        
+        contraseña_hasheada = self.hash_contraseña(contraseña)
+        
+        if contraseña_almacenada == contraseña_hasheada:
+            print(f"Bienvenido {usuario.iloc[0]['nombre']}")
+            return True
+        else:
+            print('Contraseña incorrecta')
+            return False
+        
         
     def alquilar_coche(self,matricula, fecha_inicio:datetime, fecha_fin:datetime,email=None):
         
@@ -580,7 +606,7 @@ class Empresa():
 
 a = Empresa('RentACar')
 
-#a.registrar_usuario("Juan Perez", "cliente", "jperez@example.com", "contraseña_segura")
-#a.alquilar_coche('9676 LRX','2023-10-01','2023-10-05',"jperez@example.com")
+#a.registrar_usuario("Riki", "cliente", "jperez@example.com", "contraseña_segura")
+#a.alquilar_coche('4195 SSY','2023-10-01','2023-10-05',"riki@example.com")
 #a.finalizar_alquiler('A001')
-#a.dar_baja_usuario('juan@example.com')
+#a.dar_baja_usuario('riki@example.com')
