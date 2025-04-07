@@ -1,7 +1,7 @@
 import sys
 import os
 from flask import Flask, request, jsonify
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 
 # Agrega el directorio raíz del proyecto al PATH (para que encuentre `source`)
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -20,12 +20,21 @@ empresa = Empresa(nombre='RentAcar')
 def signup(): # Registrar
     data = request.json
     nombre = data.get('nombre')
-    tipo = data.get('tipo','ciiente') # Por defecto aplicamos cliente
+    tipo = data.get('tipo','cliente') # Por defecto aplicamos cliente
     email = data.get('email')
     contraseña = data.get('contraseña')
     
+    # Validar campos obligatorios
     if not nombre or not email or not contraseña:
         return jsonify({'error': 'Todos los campos son obligatorios'}), 400
+    
+    # Validar el correo electrónico
+    if not empresa.es_email_valido(email):
+        return jsonify({'error': 'El correo electrónico no es válido'}), 400
+    
+    # Validar el tipo de usuario
+    if tipo not in ['admin', 'cliente']:
+        return jsonify({'error': 'El tipo de usuario debe ser "admin" o "cliente"'}), 400
     
     try:
         # Registrar el usuario
@@ -63,43 +72,54 @@ def login(): # iniciar sesion
         return jsonify({'error': str(e)}), 500
     
 
-
 @app.route('/coches-disponibles', methods=['GET'])
-def obtener_coches_disponibles():
+def buscar_coches_disponibles():
     try:
-        # Obtener los parámetros de la solicitud
         categoria_precio = request.args.get('categoria_precio')
         categoria_tipo = request.args.get('categoria_tipo')
         marca = request.args.get('marca')
         modelo = request.args.get('modelo')
 
-        # Llamar al método buscar_coches_disponibles1 de la clase Empresa
-        coches = empresa.buscar_coches_disponibles1(
-            categoria_precio=categoria_precio,
-            categoria_tipo=categoria_tipo,
-            marca=marca,
-            modelo=modelo
-        )
+        # Obtener los detalles de los coches
+        detalles = empresa.obtener_detalles_coches(categoria_precio, categoria_tipo, marca, modelo)
+        return jsonify(detalles), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Error interno del servidor"}), 500
+    
 
-        if not coches:
-            return jsonify({'mensaje': 'No se encontraron coches disponibles que coincidan con los criterios'}), 200
+@app.route('/usuarios/eliminar', methods=['DELETE'])
+@jwt_required()
+def eliminar_usuario():
+    # Obtener las claims del token
+    claims = get_jwt()
 
-        return jsonify(coches), 200
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    # Obtener el rol del usuario
+    rol = claims.get('rol')
+
+    # Verificar si el rol es admin
+    if rol != 'admin':
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
+    # Obtener el correo del usuario a eliminar desde los parámetros
+    email = request.args.get('email')
+    if not email:
+        return jsonify({'mensaje': 'El correo electrónico es obligatorio'}), 400
+
+    try:
+        # Llamar al método dar_baja_usuario de la clase Empresa
+        if empresa.dar_baja_usuario(email):
+            return jsonify({'mensaje': f'Usuario con correo {email} eliminado con éxito'}), 200
+        else:
+            return jsonify({'error': 'No se pudo eliminar el usuario'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-'''
-@app.route('/admin', methods=['GET'])
-@jwt_required()
-def admin_route():
-    identity = get_jwt_identity()
-    tipo = identity.get('tipo', 'invitado')
-
-    if tipo != 'administrador':
-        return jsonify(msg="Acceso denegado: necesitas ser administrador"), 403
-    else:
-        return jsonify(msg="Bienvenido al panel de administración")
-
 
 @app.route('/cliente', methods=['GET'])
 @jwt_required()
@@ -119,7 +139,7 @@ def invitado_route():
     identity = get_jwt_identity()
     user = identity.get('user', '')
     tipo = identity.get('tipo', 'invitado')
-    return jsonify(msg=f"Hola {user}, estás en la zona pública para el tipo {tipo}")'''
+    return jsonify(msg=f"Hola {user}, estás en la zona pública para el tipo {tipo}")
 
 if __name__ == '__main__':
     app.run(debug=True)

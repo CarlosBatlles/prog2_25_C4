@@ -414,138 +414,84 @@ class Empresa():
         except Exception as e:
             raise ValueError(f"Error al guardar los cambios en los archivos CSV: {e}")
         
-    
-    def buscar_coches_disponibles(self):
-        '''mostrar una lista de los coches disponibles, devulver una lista de coches donde 
-        disponible sea True para que se muestre en esta lista'''
+        
+    def cargar_coches_disponibles(self):
+        """Carga los coches disponibles desde el archivo CSV."""
         df = self.cargar_coches()
         if df is None or df.empty:
-            print("No hay coches disponibles o el archivo no se pudo cargar.")
-            return
-        
-        # Paso 1: Mostrar categorías de precio disponibles
-        categorias_precio = df['categoria_precio'].unique()
-        print("Categorías de precio disponibles:")
-        for categoria in categorias_precio:
-            print(f"- {categoria}")
+            raise ValueError("No hay coches disponibles o el archivo no se pudo cargar.")
+        return df[df['disponible'] == True]  # Filtrar solo coches disponibles
 
-        # Pedir al usuario que seleccione una categoría de precio
-        opcion_precio = input("\nIntroduce la categoría de precio por la que quieres buscar: ").capitalize()
-        if opcion_precio not in categorias_precio:
-            print("La categoría de precio seleccionada no es válida.")
-            return
+    def obtener_categorias_precio(self):
+        """Devuelve una lista de categorías de precio disponibles."""
+        df = self.cargar_coches_disponibles()
+        return df['categoria_precio'].unique().tolist()
 
-        # Filtrar coches por la categoría de precio seleccionada
-        df_filtrado_precios = df[df['categoria_precio'] == opcion_precio]
+    def filtrar_por_categoria_precio(self, categoria_precio):
+        """Filtra coches disponibles por categoría de precio."""
+        df = self.cargar_coches_disponibles()
+        if categoria_precio not in df['categoria_precio'].unique():
+            raise ValueError("La categoría de precio seleccionada no es válida.")
+        return df[df['categoria_precio'] == categoria_precio]
 
-        # Paso 2: Mostrar categorías de tipo disponibles
-        categorias_tipos = df_filtrado_precios['categoria_tipo'].unique()
-        print("\nCategorías de tipo disponibles:")
-        for categoria in categorias_tipos:
-            print(f"- {categoria}")
+    def obtener_categorias_tipo(self, categoria_precio):
+        """Devuelve una lista de categorías de tipo disponibles para una categoría de precio."""
+        df_filtrado = self.filtrar_por_categoria_precio(categoria_precio)
+        return df_filtrado['categoria_tipo'].unique().tolist()
 
-        # Pedir al usuario que seleccione una categoría de tipo
-        opcion_tipo = input("\nIntroduce la categoría de tipo por la que quieres buscar: ").capitalize()
-        if opcion_tipo not in categorias_tipos:
-            print("La categoría de tipo seleccionada no es válida.")
-            return
+    def filtrar_por_categoria_tipo(self, categoria_precio, categoria_tipo):
+        """Filtra coches disponibles por categoría de tipo dentro de una categoría de precio."""
+        df_filtrado = self.filtrar_por_categoria_precio(categoria_precio)
+        if categoria_tipo not in df_filtrado['categoria_tipo'].unique():
+            raise ValueError("La categoría de tipo seleccionada no es válida.")
+        return df_filtrado[df_filtrado['categoria_tipo'] == categoria_tipo]
 
-        # Filtrar coches por la categoría de tipo seleccionada
-        df_filtrado_tipos = df_filtrado_precios[df_filtrado_precios['categoria_tipo'] == opcion_tipo]
+    def obtener_marcas(self, categoria_precio, categoria_tipo):
+        """Devuelve una lista de marcas disponibles para una categoría de precio y tipo."""
+        df_filtrado = self.filtrar_por_categoria_tipo(categoria_precio, categoria_tipo)
+        return df_filtrado['marca'].unique().tolist()
 
-        # Paso 3: Mostrar marcas disponibles
-        marcas = df_filtrado_tipos['marca'].unique()
-        print("\nMarcas disponibles:")
-        for marca in marcas:
-            print(f"- {marca}")
-            
-        opcion_marca = input('\nIntroduce la marca por la que quieres buscar: ').capitalize()
-        if opcion_marca not in marcas:
-            print('La marca seleccionada no es válida')
-            return
-        
-        # filtrar coches por la marca seleccionada
-        df_filtrado_marcas = df_filtrado_tipos[df_filtrado_tipos['marca'] == opcion_marca]
-        
-        # paso 4 mostrar modelos disponibles
-        modelos = df_filtrado_marcas['modelo'].unique()
-        print(f'\nCoches de {opcion_marca} dispomibles: ')
-        for modelo in modelos:
-            cantidad = len(df_filtrado_marcas[df_filtrado_marcas['modelo'] == modelo])
-            print(f'- {modelo} ({cantidad} coche(s) disponible(s))')
-            
-        opcion_modelo = input('\nIntroduce el modelo que quieres: ').capitalize()
-        if opcion_modelo not in modelos:
-            print(f'El modelo {opcion_modelo} no esta disponible')
-            return
-        
-        df_filtrado_modelos = df_filtrado_marcas[df_filtrado_marcas['modelo'] == opcion_modelo]
-        
-        print(f"\nInformación de los coches del modelo '{opcion_modelo}':")
-        for _, coche in df_filtrado_modelos.iterrows():
-            print("-" * 50)
-            print(f"Matrícula: {coche['matricula']}")
-            print(f"Marca: {coche['marca']}")
-            print(f"Modelo: {coche['modelo']}")
-            print(f"Categoría de Precio: {coche['categoria_precio']}")
-            print(f"Categoría de Tipo: {coche['categoria_tipo']}")
-            print(f"Disponible: {'Sí' if coche['disponible'] else 'No'}")
-            print(f"Año: {coche['año']}")
-            print(f"Precio Diario: {coche['precio_diario']}€")
-            print(f"Kilometraje: {coche['kilometraje']} km")
-            print(f"Color: {coche['color']}")
-            print(f"Combustible: {coche['combustible']}")
-            print(f"CV: {coche['cv']}")
-            print(f"Plazas: {coche['plazas']}")
-    
-    def buscar_coches_disponibles1(self, categoria_precio=None, categoria_tipo=None, marca=None, modelo=None):
-        """
-        Busca coches disponibles según los filtros proporcionados.
-        :param categoria_precio: Filtro por categoría de precio (opcional).
-        :param categoria_tipo: Filtro por categoría de tipo (opcional).
-        :param marca: Filtro por marca (opcional).
-        :param modelo: Filtro por modelo (opcional).
-        :return: Lista de coches que coinciden con los filtros.
-        """
-        # Cargar los coches desde el archivo CSV
-        df = self.cargar_coches()
-        if df is None or df.empty:
-            print("No hay coches disponibles o el archivo no se pudo cargar.")
-            return []
+    def filtrar_por_marca(self, categoria_precio, categoria_tipo, marca):
+        """Filtra coches disponibles por marca dentro de una categoría de precio y tipo."""
+        df_filtrado = self.filtrar_por_categoria_tipo(categoria_precio, categoria_tipo)
+        if marca not in df_filtrado['marca'].unique():
+            raise ValueError("La marca seleccionada no es válida.")
+        return df_filtrado[df_filtrado['marca'] == marca]
 
-        # Filtrar coches disponibles
-        df_filtrado = df[df['disponible'] == True]
+    def obtener_modelos(self, categoria_precio, categoria_tipo, marca):
+        """Devuelve una lista de modelos disponibles para una marca, categoría de precio y tipo."""
+        df_filtrado = self.filtrar_por_marca(categoria_precio, categoria_tipo, marca)
+        return df_filtrado['modelo'].unique().tolist()
 
-        # Aplicar filtros opcionales
-        if categoria_precio:
-            df_filtrado = df_filtrado[df_filtrado['categoria_precio'] == categoria_precio]
-        if categoria_tipo:
-            df_filtrado = df_filtrado[df_filtrado['categoria_tipo'] == categoria_tipo]
-        if marca:
-            df_filtrado = df_filtrado[df_filtrado['marca'] == marca]
-        if modelo:
-            df_filtrado = df_filtrado[df_filtrado['modelo'] == modelo]
+    def filtrar_por_modelo(self, categoria_precio, categoria_tipo, marca, modelo):
+        """Filtra coches disponibles por modelo dentro de una marca, categoría de precio y tipo."""
+        df_filtrado = self.filtrar_por_marca(categoria_precio, categoria_tipo, marca)
+        if modelo not in df_filtrado['modelo'].unique():
+            raise ValueError("El modelo seleccionado no está disponible.")
+        return df_filtrado[df_filtrado['modelo'] == modelo]
 
-        resultado = []
+    def obtener_detalles_coches(self, categoria_precio, categoria_tipo, marca, modelo):
+        """Devuelve los detalles de los coches filtrados por modelo."""
+        df_filtrado = self.filtrar_por_modelo(categoria_precio, categoria_tipo, marca, modelo)
+        detalles = []
         for _, coche in df_filtrado.iterrows():
-            coche_formateado = {
-                "Matrícula": coche['matricula'],
-                "Marca": coche['marca'],
-                "Modelo": coche['modelo'],
-                "Categoría de Precio": coche['categoria_precio'],
-                "Categoría de Tipo": coche['categoria_tipo'],
-                "Disponible": "Sí" if coche['disponible'] else "No",
-                "Año": coche['año'],
-                "Precio Diario": f"{coche['precio_diario']}€",
-                "Kilometraje": f"{coche['kilometraje']} km",
-                "Color": coche['color'],
-                "Combustible": coche['combustible'],
-                "CV": coche['cv'],
-                "Plazas": coche['plazas']
-            }
-            resultado.append(coche_formateado)
-
-        return resultado
+            detalles.append({
+                "matricula": coche['matricula'],
+                "marca": coche['marca'],
+                "modelo": coche['modelo'],
+                "categoria_precio": coche['categoria_precio'],
+                "categoria_tipo": coche['categoria_tipo'],
+                "disponible": coche['disponible'],
+                "año": coche['año'],
+                "precio_diario": coche['precio_diario'],
+                "kilometraje": coche['kilometraje'],
+                "color": coche['color'],
+                "combustible": coche['combustible'],
+                "cv": coche['cv'],
+                "plazas": coche['plazas']
+            })
+        return detalles
+    
         
     # Metodo para generar una factura en pdf
     def generar_factura_pdf(self, alquiler):
