@@ -49,11 +49,42 @@ def login(): # iniciar sesion
     try:
         # verificar las credenciales
         if empresa.iniciar_sesion(email,contraseña):
-            # generar token
-            token = create_access_token(identity=email)
+            # Obtener el rol de usuario
+            df_usuarios = empresa.cargar_usuarios()
+            usuario = df_usuarios[df_usuarios['email'] == email]
+            rol = usuario.iloc[0]['tipo']
+            
+            # generar token con el rol
+            token = create_access_token(identity=email, additional_claims={'rol':rol})
             return jsonify({'mensaje': 'Inicio de sesion exitoso', 'token':token}), 200
         else:
             return jsonify({'error':'Credenciales invalidas'}), 401
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+
+
+@app.route('/coches-disponibles', methods=['GET'])
+def obtener_coches_disponibles():
+    try:
+        # Obtener los parámetros de la solicitud
+        categoria_precio = request.args.get('categoria_precio')
+        categoria_tipo = request.args.get('categoria_tipo')
+        marca = request.args.get('marca')
+        modelo = request.args.get('modelo')
+
+        # Llamar al método buscar_coches_disponibles1 de la clase Empresa
+        coches = empresa.buscar_coches_disponibles1(
+            categoria_precio=categoria_precio,
+            categoria_tipo=categoria_tipo,
+            marca=marca,
+            modelo=modelo
+        )
+
+        if not coches:
+            return jsonify({'mensaje': 'No se encontraron coches disponibles que coincidan con los criterios'}), 200
+
+        return jsonify(coches), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     

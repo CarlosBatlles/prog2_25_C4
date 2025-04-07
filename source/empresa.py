@@ -497,8 +497,56 @@ class Empresa():
             print(f"Combustible: {coche['combustible']}")
             print(f"CV: {coche['cv']}")
             print(f"Plazas: {coche['plazas']}")
-
     
+    def buscar_coches_disponibles1(self, categoria_precio=None, categoria_tipo=None, marca=None, modelo=None):
+        """
+        Busca coches disponibles según los filtros proporcionados.
+        :param categoria_precio: Filtro por categoría de precio (opcional).
+        :param categoria_tipo: Filtro por categoría de tipo (opcional).
+        :param marca: Filtro por marca (opcional).
+        :param modelo: Filtro por modelo (opcional).
+        :return: Lista de coches que coinciden con los filtros.
+        """
+        # Cargar los coches desde el archivo CSV
+        df = self.cargar_coches()
+        if df is None or df.empty:
+            print("No hay coches disponibles o el archivo no se pudo cargar.")
+            return []
+
+        # Filtrar coches disponibles
+        df_filtrado = df[df['disponible'] == True]
+
+        # Aplicar filtros opcionales
+        if categoria_precio:
+            df_filtrado = df_filtrado[df_filtrado['categoria_precio'] == categoria_precio]
+        if categoria_tipo:
+            df_filtrado = df_filtrado[df_filtrado['categoria_tipo'] == categoria_tipo]
+        if marca:
+            df_filtrado = df_filtrado[df_filtrado['marca'] == marca]
+        if modelo:
+            df_filtrado = df_filtrado[df_filtrado['modelo'] == modelo]
+
+        resultado = []
+        for _, coche in df_filtrado.iterrows():
+            coche_formateado = {
+                "Matrícula": coche['matricula'],
+                "Marca": coche['marca'],
+                "Modelo": coche['modelo'],
+                "Categoría de Precio": coche['categoria_precio'],
+                "Categoría de Tipo": coche['categoria_tipo'],
+                "Disponible": "Sí" if coche['disponible'] else "No",
+                "Año": coche['año'],
+                "Precio Diario": f"{coche['precio_diario']}€",
+                "Kilometraje": f"{coche['kilometraje']} km",
+                "Color": coche['color'],
+                "Combustible": coche['combustible'],
+                "CV": coche['cv'],
+                "Plazas": coche['plazas']
+            }
+            resultado.append(coche_formateado)
+
+        return resultado
+        
     # Metodo para generar una factura en pdf
     def generar_factura_pdf(self, alquiler):
         pdf = FPDF()
