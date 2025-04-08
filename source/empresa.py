@@ -181,8 +181,10 @@ class Empresa():
         try:
             self._guardar_csv('coches.csv', df_actualizado)
             print(f'El coche con el ID {id_coche} ha sido registrado exitosamente')
+            return True
         except Exception as e:
             print(f'Error al guardar el coche en el archivo CSV: {e}')
+            return False
             
     
     def registrar_usuario(self,nombre,tipo,email,contraseña):

@@ -311,7 +311,7 @@ def listar_alquileres():
 
 @app.route('/alquileres/detalles/<string:id>', methods=['GET'])
 @jwt_required()
-def detalles_alquiler(id):
+def detalles_alquiler(id_alquiler):
     # Obtener las claims del token
     claims = get_jwt()
 
@@ -330,7 +330,7 @@ def detalles_alquiler(id):
             return jsonify({'error': 'No hay alquileres registrados'}), 404
 
         # Buscar el alquiler por ID
-        alquiler = df_alquileres[df_alquileres['id_alquiler'] == id]
+        alquiler = df_alquileres[df_alquileres['id_alquiler'] == id_alquiler]
         if alquiler.empty:
             return jsonify({'error': 'Alquiler no encontrado'}), 404
 
@@ -353,6 +353,124 @@ def detalles_alquiler(id):
         return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+
+@app.route('/alquileres/finalizar/<string:id_alquiler>', methods=['PUT'])
+@jwt_required()
+def finalizar_alquiler(id_alquiler):
+    # Obtener las claims del token
+    claims = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    # Obtener el rol y el email del usuario autenticado
+    rol = claims.get('rol')
+    email_usuario_autenticado = get_jwt_identity()
+
+    try:
+        # Cargar los alquileres
+        df_alquileres = empresa.cargar_alquileres()
+        if df_alquileres is None or df_alquileres.empty:
+            return jsonify({'error': 'No se encontraron alquileres registrados'}), 404
+
+        # Buscar el alquiler por ID
+        alquiler = df_alquileres[df_alquileres['id_alquiler'] == id_alquiler]
+        if alquiler.empty:
+            return jsonify({'error': 'Alquiler no encontrado'}), 404
+        
+        # Verificar el estado del alquiler
+        if not alquiler.iloc[0]['activo']:
+            return jsonify({'error': 'El alquiler ya está finalizado'}), 400
+
+        # Extraer el ID del alquiler asociado al alquiler
+        id_usuario_alquiler = alquiler.iloc[0]['id_usuario']
+
+        # Verificar permisos
+        if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
+            return jsonify({'error': 'Acceso no autorizado'}), 403
+    
+    
+        empresa.finalizar_alquiler(id_alquiler)
+        return jsonify({'mensaje': f'Alquiler con id {id_alquiler} finalizado con exito'}), 200
+    
+    except FileNotFoundError:
+        return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+    
+
+# ---------------------------------------
+# ENDPOINTS RELACIONADOS CON COCHES
+# ---------------------------------------
+
+@app.route('/coches/registrar', methods=['POST'])
+@jwt_required()
+def registrar_coche():
+    # Obtener las claims del token
+    claims = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    # Obtener el rol del usuario
+    rol = claims.get('rol')
+
+    # Verificar si el rol es admin
+    if rol != 'admin':
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
+    # Obtener los datos enviados en la solicitud
+    data = request.json
+    marca = data.get('marca')
+    modelo = data.get('modelo')
+    matricula = data.get('matricula')
+    categoria_tipo = data.get('categoria_tipo')
+    categoria_precio = data.get('categoria_precio')
+    año = data.get('año')
+    precio_diario = data.get('precio_diario')
+    kilometraje = data.get('kilometraje')
+    color = data.get('color')
+    combustible = data.get('combustible')
+    cv = data.get('cv')
+    plazas = data.get('plazas')
+    disponible = data.get('disponible')
+
+    # Validar campos obligatorios
+    if not all([marca, modelo, matricula, categoria_tipo, categoria_precio, año, precio_diario, kilometraje, color, combustible, cv, plazas]):
+        return jsonify({'error': 'Faltan campos obligatorios en la solicitud'}), 400
+
+    # Validar el campo 'disponible'
+    if disponible not in [True, False]:
+        return jsonify({'error': 'El campo "disponible" debe ser True o False'}), 400
+
+    try:
+        # Llamar al método registrar_coche de la clase Empresa
+        if empresa.registrar_coche(
+            marca=marca,
+            modelo=modelo,
+            matricula=matricula,
+            categoria_tipo=categoria_tipo,
+            categoria_precio=categoria_precio,
+            año=año,
+            precio_diario=precio_diario,
+            kilometraje=kilometraje,
+            color=color,
+            combustible=combustible,
+            cv=cv,
+            plazas=plazas,
+            disponible=disponible
+        ):
+            return jsonify({'mensaje': 'Coche registrado con éxito'}), 201
+        else:
+            return jsonify({'error': 'Error al registrar el coche'}), 500
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
