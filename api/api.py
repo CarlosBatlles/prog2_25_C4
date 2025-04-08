@@ -54,7 +54,11 @@ def login(): # iniciar sesion
     # validar campos 
     if not email or not contraseña:
         return jsonify({'error': 'Correo electronico y contraseña son obligatorios'}), 400
-
+    
+    # Validar el formato del correo electrónico
+    if not empresa.es_email_valido(email):
+        return jsonify({'error': 'El correo electrónico no es válido'}), 400
+    
     try:
         # verificar las credenciales
         if empresa.iniciar_sesion(email,contraseña):
@@ -99,6 +103,8 @@ def eliminar_usuario():
     if not isinstance(claims, dict):
         return jsonify({'error': 'Error al leer las claims del token'}), 500
 
+    if not empresa.es_email_valido(email):
+        return jsonify({'error': 'El correo electrónico no es válido'}), 400
     # Obtener el rol del usuario
     rol = claims.get('rol')
 
@@ -121,16 +127,33 @@ def eliminar_usuario():
         return jsonify({'error': str(e)}), 500
     
 
-@app.route('/cliente', methods=['GET'])
-@jwt_required()
-def cliente_route():
-    identity = get_jwt_identity()
-    tipo = identity.get('tipo', 'invitado')
-
-    if tipo not in ['cliente', 'administrador']:
-        return jsonify(msg="Acceso denegado: necesitas ser cliente"), 403
-
-    return jsonify(msg="Bienvenido a la zona de clientes")
+@app.route('/alquilar-coche', methods=['POST'])
+def alquilar_coches():
+    data = request.json
+    matricula = data.get('matricula')
+    fecha_inicio = data.get('fecha_inicio')
+    fecha_fin = data.get('fecha_fin')
+    email = data.get('email')
+    
+    # Validaciones necesarias
+    if not matricula or not fecha_inicio or not fecha_fin:
+        return jsonify({'error': 'Debes introducir la matricula, la fecha de inicio y la fecha de fin'}), 400
+    
+    try:
+        # Obtener claims del token si existe
+        claims = get_jwt() if get_jwt() else {}
+        rol = claims.get('rol')
+        
+        if rol and not email:
+            email = get_jwt_identity()
+        
+        empresa.alquilar_coche(matricula=matricula,fecha_inicio=fecha_inicio,fecha_fin=fecha_fin, email=email)
+        
+        return jsonify({'mensaje': 'Alquiler registrado exitosamente'}), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error':f'Error interno del servidor: {str(e)}'}), 500
 
 
 @app.route('/invitado', methods=['GET'])
