@@ -270,8 +270,89 @@ def alquilar_coches():
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error':f'Error interno del servidor: {str(e)}'}), 500
+    
 
+@app.route('/alquileres/listar', methods=['GET'])
+@jwt_required()
+def listar_alquileres():
+    # Obtener las claims del token
+    claims = get_jwt()
 
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+    
+    # Obtener el rol del usuario
+    rol = claims.get('rol')
+
+    # Verificar si el rol es admin
+    if rol != 'admin':
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
+    try:
+        # cargar usuarios
+        df_alquileres = empresa.cargar_alquileres()
+        if df_alquileres is None or df_alquileres.empty:
+            return jsonify({
+                'mensaje': 'No hay alquileres registrados',
+                'alquileres': []
+            }), 200
+        
+        alquileres = df_alquileres.to_dict(orient='records')
+        
+        return jsonify({
+            'mensaje': 'Lista de alquileres obtenida exitosamente',
+            'alquileres': alquileres
+        }), 200
+    except FileNotFoundError:
+        return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/alquileres/detalles/<string:id>', methods=['GET'])
+@jwt_required()
+def detalles_alquiler(id):
+    # Obtener las claims del token
+    claims = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    # Obtener el rol y el email del usuario autenticado
+    rol = claims.get('rol')
+    email_usuario_autenticado = get_jwt_identity()
+
+    try:
+        # Cargar los alquileres
+        df_alquileres = empresa.cargar_alquileres()
+        if df_alquileres is None or df_alquileres.empty:
+            return jsonify({'error': 'No hay alquileres registrados'}), 404
+
+        # Buscar el alquiler por ID
+        alquiler = df_alquileres[df_alquileres['id_alquiler'] == id]
+        if alquiler.empty:
+            return jsonify({'error': 'Alquiler no encontrado'}), 404
+
+        # Extraer el ID del usuario asociado al alquiler
+        id_usuario_alquiler = alquiler.iloc[0]['id_usuario']
+
+        # Verificar permisos
+        if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
+            return jsonify({'error': 'Acceso no autorizado'}), 403
+
+        # Convertir el alquiler a un diccionario
+        alquiler = alquiler.iloc[0].to_dict()
+
+        return jsonify({
+            'mensaje': 'Detalles del alquiler obtenidos exitosamente',
+            'alquiler': alquiler
+        }), 200
+
+    except FileNotFoundError:
+        return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
