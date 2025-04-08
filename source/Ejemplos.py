@@ -1,5 +1,8 @@
 """ Ejemplos de la API"""
+import requests
 
+BASE_URL="http://127.0.0.1:5050" # Cambiar por CarlosBatlles.pythonanywhere.com cuando queramos probar con la webapp
+Token=None
 def menu():
     print("\n Bienvenido a RentAcar:")
     print("1. Login")
@@ -15,10 +18,8 @@ def menu():
     print("11. Alquilar Coches (como invitado)")
     print("0. Salir")
 
-# ----------------------------
-# Bucle principal
-# ----------------------------
-acciones = {
+
+acciones = { #Aquí deben estar los nombres de las funciones de este archivo
     "1": login,
     "2": signup,
     "3": entrar_como_invitado,
@@ -32,6 +33,21 @@ acciones = {
     "11": alquilar_coches_invitado,
 }
 
+def login():
+    global Token
+    user = input("Usuario: ")
+    passwd = input("Contraseña: ")
+    r = requests.get(f"{BASE_URL}/login", params={"user": user, "passwd": passwd})
+    print("Respuesta:", r.status_code, r.json())
+    if r.status_code == 200:
+        TOKEN = r.json()["access_token"]
+
+def signup():
+    user = input("Usuario nuevo: ")
+    passwd = input("Contraseña: ")
+    r = requests.post(f"{BASE_URL}/signup", json={"user": user, "passwd": passwd})
+    print("Respuesta:", r.status_code, r.json())
+# Resto de endpoints
 if __name__ == "__main__":
     while True:
         menu()
