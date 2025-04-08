@@ -16,6 +16,10 @@ jwt = JWTManager(app)
 
 empresa = Empresa(nombre='RentAcar')
 
+# ---------------------------------------
+# ENDPOINTS RELACIONADOS CON BUSQUEDAS
+# ---------------------------------------
+
 @app.route('/signup', methods=['POST'])
 def signup(): # Registrar
     data = request.json
@@ -44,6 +48,7 @@ def signup(): # Registrar
             return jsonify({'error': 'No se pudo registrar el usuario'}), 500
     except ValueError as e:
         return jsonify({'error':str(e)}), 400
+
 
 @app.route('/login', methods=['POST'])
 def login(): # iniciar sesion
@@ -74,24 +79,7 @@ def login(): # iniciar sesion
             return jsonify({'error':'Credenciales invalidas'}), 401
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
 
-@app.route('/coches-disponibles', methods=['GET'])
-def buscar_coches_disponibles():
-    try:
-        categoria_precio = request.args.get('categoria_precio')
-        categoria_tipo = request.args.get('categoria_tipo')
-        marca = request.args.get('marca')
-        modelo = request.args.get('modelo')
-
-        # Obtener los detalles de los coches
-        detalles = empresa.obtener_detalles_coches(categoria_precio, categoria_tipo, marca, modelo)
-        return jsonify(detalles), 200
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        return jsonify({"error": "Error interno del servidor"}), 500
-    
 
 @app.route('/usuarios/eliminar', methods=['DELETE'])
 @jwt_required()
@@ -127,36 +115,6 @@ def eliminar_usuario():
         return jsonify({'error': str(e)}), 500
     
 
-@app.route('/alquilar-coche', methods=['POST'])
-@jwt_required(optional=True)
-def alquilar_coches():
-    data = request.json
-    matricula = data.get('matricula')
-    fecha_inicio = data.get('fecha_inicio')
-    fecha_fin = data.get('fecha_fin')
-    email = data.get('email')
-    
-    # Validaciones necesarias
-    if not matricula or not fecha_inicio or not fecha_fin:
-        return jsonify({'error': 'Debes introducir la matricula, la fecha de inicio y la fecha de fin'}), 400
-    
-    try:
-        # Obtener claims del token si existe
-        claims = get_jwt() if get_jwt() else {}
-        rol = claims.get('rol')
-        
-        if rol and not email:
-            email = get_jwt_identity()
-        
-        empresa.alquilar_coche(matricula=matricula,fecha_inicio=fecha_inicio,fecha_fin=fecha_fin, email=email)
-        
-        return jsonify({'mensaje': 'Alquiler registrado exitosamente'}), 201
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error':f'Error interno del servidor: {str(e)}'}), 500
-
-
 @app.route('/listar-usuarios', methods=['GET'])
 @jwt_required()
 def listar_usuarios():
@@ -190,6 +148,7 @@ def listar_usuarios():
         return jsonify({'error': 'Archivo de usuarios no encontrado'}), 500
     except Exception as e:
         return jsonify({'error':{str(e)}}), 500
+
 
 @app.route('/usuarios/detalles/<string:email>', methods=['GET'])
 @jwt_required()
@@ -258,7 +217,61 @@ def actualizar_usuario(email):
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error':{str(e)}}), 500
+
+# ---------------------------------------
+# ENDPOINTS RELACIONADOS CON BUSQUEDAS
+# ---------------------------------------
+
+@app.route('/coches-disponibles', methods=['GET'])
+def buscar_coches_disponibles():
+    try:
+        categoria_precio = request.args.get('categoria_precio')
+        categoria_tipo = request.args.get('categoria_tipo')
+        marca = request.args.get('marca')
+        modelo = request.args.get('modelo')
+
+        # Obtener los detalles de los coches
+        detalles = empresa.obtener_detalles_coches(categoria_precio, categoria_tipo, marca, modelo)
+        return jsonify(detalles), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Error interno del servidor"}), 500
+
+# ---------------------------------------
+# ENDPOINTS RELACIONADOS CON ALQUILERES
+# ---------------------------------------
+
+@app.route('/alquilar-coche', methods=['POST'])
+@jwt_required(optional=True)
+def alquilar_coches():
+    data = request.json
+    matricula = data.get('matricula')
+    fecha_inicio = data.get('fecha_inicio')
+    fecha_fin = data.get('fecha_fin')
+    email = data.get('email')
     
+    # Validaciones necesarias
+    if not matricula or not fecha_inicio or not fecha_fin:
+        return jsonify({'error': 'Debes introducir la matricula, la fecha de inicio y la fecha de fin'}), 400
+    
+    try:
+        # Obtener claims del token si existe
+        claims = get_jwt() if get_jwt() else {}
+        rol = claims.get('rol')
+        
+        if rol and not email:
+            email = get_jwt_identity()
+        
+        empresa.alquilar_coche(matricula=matricula,fecha_inicio=fecha_inicio,fecha_fin=fecha_fin, email=email)
+        
+        return jsonify({'mensaje': 'Alquiler registrado exitosamente'}), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error':f'Error interno del servidor: {str(e)}'}), 500
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
