@@ -59,6 +59,37 @@ class Empresa():
         """
         return hashlib.sha256(contraseña.encode()).hexdigest()
     
+    def actualizar_usuario(self, email, nueva_contraseña=None):
+        """
+        Actualiza los datos de un usuario existente.
+        Solo permite cambiar la contraseña del usuario autenticado.
+        """
+        # Cargar los usuarios actuales
+        df_usuarios = self.cargar_usuarios()
+        if df_usuarios is None:
+            raise ValueError("No se pudieron cargar los usuarios. Revisa el archivo CSV.")
+
+        # Verificar si el email existe en el DataFrame
+        if email not in df_usuarios['email'].values:
+            raise ValueError(f"El correo electrónico {email} no está registrado.")
+
+        # Si se proporciona una nueva contraseña, validarla y actualizarla
+        if nueva_contraseña:
+            # Hashear la nueva contraseña
+            contraseña_hasheada = self.hash_contraseña(nueva_contraseña)
+
+            # Actualizar la contraseña en el DataFrame
+            df_usuarios.loc[df_usuarios['email'] == email, 'contraseña'] = contraseña_hasheada
+
+            # Guardar los cambios en el archivo CSV
+            try:
+                df_usuarios.to_csv('clientes.csv', index=False)
+                print(f"La contraseña del usuario con email {email} ha sido actualizada exitosamente.")
+            except Exception as e:
+                raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
+
+        return True
+    
     # Metodos para cargar las bases de datos
     def cargar_coches(self):
         ''' Carga los coches desde un archivo CSV'''
