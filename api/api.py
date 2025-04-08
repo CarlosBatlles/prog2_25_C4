@@ -128,6 +128,7 @@ def eliminar_usuario():
     
 
 @app.route('/alquilar-coche', methods=['POST'])
+@jwt_required(optional=True)
 def alquilar_coches():
     data = request.json
     matricula = data.get('matricula')
@@ -156,13 +157,108 @@ def alquilar_coches():
         return jsonify({'error':f'Error interno del servidor: {str(e)}'}), 500
 
 
-@app.route('/invitado', methods=['GET'])
+@app.route('/listar-usuarios', methods=['GET'])
 @jwt_required()
-def invitado_route():
-    identity = get_jwt_identity()
-    user = identity.get('user', '')
-    tipo = identity.get('tipo', 'invitado')
-    return jsonify(msg=f"Hola {user}, estás en la zona pública para el tipo {tipo}")
+def listar_usuarios():
+    # Obtener las claims del token
+    claims = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+    
+    # Obtener el rol del usuario
+    rol = claims.get('rol')
+
+    # Verificar si el rol es admin
+    if rol != 'admin':
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
+    try:
+        # cargar usuarios
+        df_usuarios = empresa.cargar_usuarios()
+        if df_usuarios is None or df_usuarios.empty:
+            return jsonify({'error': 'No hay usuarios registrados'}), 200
+        
+        usuarios = df_usuarios.to_dict(orient='records')
+        
+        return jsonify({
+            'mensaje': 'Lista de usuarios obtenida exitosamente',
+            'usuarios': usuarios
+        }), 200
+    except FileNotFoundError:
+        return jsonify({'error': 'Archivo de usuarios no encontrado'}), 500
+    except Exception as e:
+        return jsonify({'error':{str(e)}}), 500
+
+@app.route('/usuarios/detalles/<string:email>', methods=['GET'])
+@jwt_required()
+def detalles_usuario(email):
+    # Obtener las claims del token
+    claims = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+    
+    # Obtener el rol del usuario
+    rol = claims.get('rol')
+    email_usuario_autenticado = get_jwt_identity()
+    try: 
+        # cargar usuarios
+        df_usuarios = empresa.cargar_usuarios()
+        if df_usuarios is None or df_usuarios.empty:
+            return jsonify({'error': 'No hay usuarios registrados'}), 200
+        
+        usuario = df_usuarios[df_usuarios['email'] == email]
+        if usuario.empty:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        if rol != 'admin' and email_usuario_autenticado != email:
+            return jsonify({'error':'Acceso no autorizado'}), 403
+        
+        usuario = usuario.iloc[0].to_dict
+        return jsonify({
+            'mensaje': 'Detalles del usuario obtenidos exitosamente',
+            'usuario': usuario
+        }), 200
+
+    except FileNotFoundError:
+        return jsonify({'error': 'Archivo de usuarios no encontrado'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+    
+@app.route('/usuarios/actualizar-contraseña/<string:email>', methods=['PUT'])
+@jwt_required()
+def actualizar_usuario(email):
+    claims = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+    
+    email_usuario_autenticado = get_jwt_identity()
+    
+    # Comprobar que el usuario esta intentando cambiar sus propios datos
+    if email_usuario_autenticado != email:
+        return jsonify({'error': 'Acceso no autorizado'}),403
+    
+    data = request.json
+    nueva_contraseña = data.get('nueva_contraseña')
+    
+    if not nueva_contraseña:
+        return jsonify({'error': 'Debes proporcionar una nueva contraseña'}), 400
+    
+    try: 
+        empresa.actualizar_usuario(email=email, nueva_contraseña=nueva_contraseña)
+        return jsonify({'mensaje': 'Contraseña actualizada exitosamente'}), 200
+    
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error':{str(e)}}), 500
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
