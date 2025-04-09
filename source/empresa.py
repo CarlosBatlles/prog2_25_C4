@@ -90,6 +90,33 @@ class Empresa():
 
         return True
     
+    def actualizar_matricula(self, id_coche, nueva_matricula):
+
+        # Cargar los coches actuales
+        df_coches = self.cargar_coches()
+        if df_coches is None:
+            raise ValueError("No se pudieron cargar los coches. Revisa el archivo CSV.")
+
+        # Verificar si el ID existe en el DataFrame
+        if id_coche not in df_coches['id'].values:
+            raise ValueError(f"El coche con matricula {id_coche} no está registrado.")
+        
+        # Verificar si la nueva matrícula ya existe
+        if nueva_matricula in df_coches['matricula'].values:
+            raise ValueError(f"La matrícula {nueva_matricula} ya está registrada en otro coche.")
+
+        # Actualizar la matricula en el DataFrame
+        df_coches.loc[df_coches['id'] == id_coche, 'matricula'] = nueva_matricula
+
+        # Guardar los cambios en el archivo CSV
+        try:
+            df_coches.to_csv('coches.csv', index=False)
+            print(f"La matricula del coche con ID {id_coche} ha sido actualizada exitosamente.")
+        except Exception as e:
+            raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
+
+        return True
+    
     # Metodos para cargar las bases de datos
     def cargar_coches(self):
         ''' Carga los coches desde un archivo CSV'''
