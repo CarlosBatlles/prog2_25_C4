@@ -13,8 +13,14 @@ from source.empresa import Empresa
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "grupo_4!"
 jwt = JWTManager(app)
+token_blocklist = set()
 
 empresa = Empresa(nombre='RentAcar')
+
+@jwt.token_in_blocklist_loader
+def check_if_token_revoked(jwt_header, jwt_payload):
+    jti = jwt_payload['jti']
+    return jti in token_blocklist
 
 # ---------------------------------------
 # ENDPOINTS RELACIONADOS CON BUSQUEDAS
@@ -80,6 +86,17 @@ def login(): # iniciar sesion
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/logout',methods=['POST'])
+@jwt_required()
+def logout():
+    # Obtener el identificar unico
+    jti = get_jwt()['jti']
+    
+    # Agregamos el token a la lista de tokens usados
+    token_blocklist.add(jti)
+    
+    return jsonify({'mensaje':'Sesion cerrada exitosamente'}), 200
 
 @app.route('/usuarios/eliminar', methods=['DELETE'])
 @jwt_required()
@@ -609,6 +626,43 @@ def eliminar_coche(id_coche):
 
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+    
+# ---------------------------------------
+# ENDPOINTS ADICIONALES
+# ---------------------------------------
+
+@app.route('/coches/categorias/precio', methods=['GET'])
+def categorias_precio():
+    try:
+        # Llamar al método de la clase Empresa para obtener las categorías de precio
+        categorias = empresa.mostrar_categorias_precio()
+
+        return jsonify({
+            'mensaje': 'Categorías de precio obtenidas exitosamente',
+            'categorias_precio': categorias
+        }), 200
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+    
+    
+@app.route('/coches/categorias/tipo', methods=['GET'])
+def categorias_tipo():
+    try:
+        # Llamar al método de la clase Empresa para obtener las categorías de tipo
+        categorias = empresa.mostrar_categorias_tipo()
+
+        return jsonify({
+            'mensaje': 'Categorías de tipo obtenidas exitosamente',
+            'categorias_tipo': categorias
+        }), 200
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
     except Exception as e:
         return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
 
