@@ -156,88 +156,129 @@ def signup():
     print("Respuesta:", r.status_code, r.json())
 
 def eliminar_usuario():
-    user_id = input("ID usuario a eliminar")
-    r = requests.delete(f"{BASE_URL}/usuarios/eliminar", json={"id": user_id})
-    print("Respuesta: ", r.status_code, r.json())
+    try:
+        email = input("Correo electrónico del usuario a eliminar: ").strip()
+        r = requests.delete(f"{BASE_URL}/usuarios/eliminar", params={"email": email}, headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def listar_usuarios():
-    r = requests.get(f"{BASE_URL}/usuarios/listar", headers=get_headers(auth_required=True))
-    print("Respuesta:", r.status_code, r.json())
+    try:
+        r = requests.get(f"{BASE_URL}/listar-usuarios", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def detalles_usuario():
-    r = requests.get(f"{BASE_URL}/usuarios/detalles/<email>", headers=get_headers(auth_required=True))
-    print("Respuesta:", r.status_code, r.json())
-
+    try:
+        email = input("Correo del usuario: ").strip()
+        r = requests.get(f"{BASE_URL}/usuarios/detalles/{email}", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def actualizar_contraseña():
-    nueva_contraseña = input("Nueva contraseña: ")
-    r = requests.put(f"{BASE_URL}/usuarios/actualizar-contraseña/{EMAIL}", json={"nueva_contraseña": nueva_contraseña}, headers=get_headers())
-    print("Respuesta:", r.status_code, r.json())
+    try:
+        nueva_contraseña = input("Nueva contraseña: ").strip()
+        email = input("Tu correo electrónico: ").strip()
+        r = requests.put(f"{BASE_URL}/usuarios/actualizar-contraseña/{email}",
+                         json={"nueva_contraseña": nueva_contraseña},
+                         headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
-def logout(): # Quizás no funcione
-    r = requests.post(f"{BASE_URL}/logout", headers={"Authorization": f"Bearer {TOKEN}"})
-    print("Respuesta:", r.status_code, r.json())
+def logout():
+    try:
+        r = requests.post(f"{BASE_URL}/logout", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
-def detalles_coche:
-    r = requests.get(f"{BASE_URL}/usuario/detalles/<email>", headers=get_headers(auth_required=True))
-    print("Respuesta:", r.status_code, r.json())
+def detalles_coche():
+    try:
+        matricula = input("Matrícula del coche: ").strip()
+        r = requests.get(f"{BASE_URL}/coches/detalles/{matricula}", headers=get_headers())
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def actualizar_coche():
-    nueva_matricula = input("Nueva matrícula: ")
-    r = requests.put(f"{BASE_URL}/coches/actualizar<matrícula>/{nueva_matricula}", json={"nueva_matricula": nueva_matricula}, headers=get_headers())
-    print("Respuesta:", r.status_code, r.json())
+    try:
+        id_coche = input("ID del coche a actualizar: ").strip()
+        nueva_matricula = input("Nueva matrícula: ").strip()
+        r = requests.put(f"{BASE_URL}/coches/actualizar-matricula/{id_coche}",
+                         json={"nueva_matricula": nueva_matricula},
+                         headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def listar_alquileres():
-    r = requests.get(f"{BASE_URL}/alquileres/listar", headers=get_headers(auth_required=True))
-    print("Respuesta:", r.status_code, r.json())
-# Resto de endpoints Obtener detalles de un coche específico.
+    try:
+        r = requests.get(f"{BASE_URL}/alquileres/listar", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def alquiler_detalles():
-    r = requests.get(f"{BASE_URL}/alquileres/detalles/<id_alquiler>", headers=get_headers(auth_required=True))
-    print("Respuesta:", r.status_code, r.json())
-
+    try:
+        id_alquiler = input("ID del alquiler: ").strip()
+        r = requests.get(f"{BASE_URL}/alquileres/detalles/{id_alquiler}", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def finalizar_alquiler():
-    id_alquiler = input("🆔 ID del alquiler a finalizar: ")
-    r = requests.put(f"{BASE_URL}/alquileres/finalizar/{id_alquiler}", headers={"Authorization": f"Bearer {token}"})
-    print("Respuesta:", r.status_code, r.json())
+    try:
+        id_alquiler = input("🆔 ID del alquiler a finalizar: ").strip()
+        r = requests.put(f"{BASE_URL}/alquileres/finalizar/{id_alquiler}", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def alquilar_coche():
-    print("\n--- Alquilar Coche ---")
-    matricula = input("Matrícula del coche: ").strip()
-    fecha_inicio = input("Fecha de inicio (YYYY-MM-DD): ").strip()
-    fecha_fin = input("Fecha de fin (YYYY-MM-DD): ").strip()
-    email = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
+    try:
+        print("\n--- Alquilar Coche ---")
+        matricula = input("Matrícula del coche: ").strip()
+        fecha_inicio = input("Fecha de inicio (YYYY-MM-DD): ").strip()
+        fecha_fin = input("Fecha de fin (YYYY-MM-DD): ").strip()
+        email = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
 
-    # Preparar los datos para la solicitud
-    data = {
-        "matricula": matricula,
-        "fecha_inicio": fecha_inicio,
-        "fecha_fin": fecha_fin,
-    }
-    if email:
-        data["email"] = email
+        data = {
+            "matricula": matricula,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin,
+        }
+        if email:
+            data["email"] = email
 
-    # Enviar la solicitud POST al endpoint /alquilar-coche
-    headers = get_headers(auth_required=True)  # Si es necesario autenticación
-    r = requests.post(f"{BASE_URL}/alquilar-coche", json=data, headers=headers)
+        headers = get_headers(auth_required=True)
+        r = requests.post(f"{BASE_URL}/alquilar-coche", json=data, headers=headers)
 
-    # Procesar la respuesta
-    if r.status_code == 200:
-        # Guardar el archivo PDF recibido
-        with open("factura_descargada.pdf", "wb") as f:
-            f.write(r.content)
-        print("Factura descargada exitosamente como 'factura_descargada.pdf'")
-    else:
-        print(f"Error: {r.status_code} - {r.text}")
+        if r.status_code == 200:
+            with open("factura_descargada.pdf", "wb") as f:
+                f.write(r.content)
+            print("Factura descargada exitosamente como 'factura_descargada.pdf'")
+        else:
+            print(f"Error: {r.status_code} - {r.text}")
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def listar_tipos():
-    r = requests.get(f"{BASE_URL}/categorias/tipo", headers=get_headers(auth_required=True))
-    print("Respuesta:", r.status_code, r.json())
+    try:
+        r = requests.get(f"{BASE_URL}/coches/categorias/tipo")
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def listar_precios():
-    r = requests.get(f"{BASE_URL}/categorias/precio", headers=get_headers(auth_required=True))
-    print("Respuesta:", r.status_code, r.json())
+    try:
+        r = requests.get(f"{BASE_URL}/coches/categorias/precio")
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 if __name__ == "__main__":
     while True:
