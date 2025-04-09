@@ -8,15 +8,13 @@ Token=None
 
 def menu_principal():
     print("\n Bienvenido a RentAcar:")
-    print("1. Iniciar sesión como Cliente")
-    print("2. Iniciar sesión como Administrador")
+    print("1. Iniciar sesión")
     print("3. Entrar como invitado")
     print("0. Salir")
 
 acciones_principales = {
     "1": iniciar_sesion_cliente,
-    "2": iniciar_sesion_admin,
-    "3": entrar_como_invitado,
+    "2": entrar_como_invitado,
 }
 
 def menu_cliente():
