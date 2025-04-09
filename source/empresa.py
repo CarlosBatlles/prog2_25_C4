@@ -417,7 +417,7 @@ class Empresa():
             'coste_total': nuevo_alquiler['coste_total'],
             'id_usuario': id_usuario
         }
-        self.generar_factura_pdf(datos_factura)
+        return self.generar_factura_pdf(datos_factura)
     
     def obtener_historial_alquileres(self, id_usuario):
         """
@@ -664,15 +664,8 @@ class Empresa():
         pdf.set_text_color(0, 0, 0)  # Negro
         pdf.cell(0, 10, txt="Gracias por elegirnos. ¡Esperamos verte pronto!", ln=True, align="C")
 
-        # Guardar el archivo PDF en la carpeta 'data'
-        nombre_archivo = f"factura_{alquiler['id_alquiler']}.pdf"
-        ruta_factura = self._ruta_archivo(nombre_archivo)  # Construir la ruta completa
-        try:
-            pdf.output(ruta_factura)
-            print(f"Factura generada exitosamente: {ruta_factura}")
-        except Exception as e:
-            print(f"Error al guardar la factura: {e}")
-        
+        # Devolver el PDF como bytes en lugar de guardarlo en el servidor
+        return pdf.output(dest='S').encode('latin1')
     
     def mostrar_categorias_tipo(self):
         

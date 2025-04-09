@@ -1,7 +1,7 @@
 import sys
 import os
 from flask import Flask, request, jsonify
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt, make_response
 import datetime
 
 # Agrega el directorio raíz del proyecto al PATH (para que encuentre `source`)
@@ -288,10 +288,13 @@ def alquilar_coches():
             email = get_jwt_identity()
 
         # Llamar al método alquilar_coche de la clase Empresa
-        empresa.alquilar_coche(matricula=matricula, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, email=email)
+        pdf_bytes = empresa.alquilar_coche(matricula=matricula, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, email=email)
 
-        return jsonify({'mensaje': 'Alquiler registrado exitosamente'}), 201
-
+        response = make_response(pdf_bytes)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = 'attachment; filename=factura.pdf'
+        return response
+        
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
