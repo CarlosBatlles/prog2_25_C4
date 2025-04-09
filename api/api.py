@@ -245,31 +245,39 @@ def buscar_coches_disponibles():
 @app.route('/alquilar-coche', methods=['POST'])
 @jwt_required(optional=True)
 def alquilar_coches():
+    # Obtener los datos de la solicitud
     data = request.json
     matricula = data.get('matricula')
     fecha_inicio = data.get('fecha_inicio')
     fecha_fin = data.get('fecha_fin')
     email = data.get('email')
-    
-    # Validaciones necesarias
+
+    # Validaciones básicas
     if not matricula or not fecha_inicio or not fecha_fin:
-        return jsonify({'error': 'Debes introducir la matricula, la fecha de inicio y la fecha de fin'}), 400
-    
+        return jsonify({'error': 'Debes introducir la matrícula, la fecha de inicio y la fecha de fin'}), 400
+
     try:
         # Obtener claims del token si existe
         claims = get_jwt() if get_jwt() else {}
         rol = claims.get('rol')
-        
+
+        # Verificar si el usuario es admin
+        if rol == 'admin':
+            return jsonify({'error': 'Los administradores no pueden alquilar coches'}), 403
+
+        # Si el usuario está autenticado, obtener su email del token
         if rol and not email:
             email = get_jwt_identity()
-        
-        empresa.alquilar_coche(matricula=matricula,fecha_inicio=fecha_inicio,fecha_fin=fecha_fin, email=email)
-        
+
+        # Llamar al método alquilar_coche de la clase Empresa
+        empresa.alquilar_coche(matricula=matricula, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, email=email)
+
         return jsonify({'mensaje': 'Alquiler registrado exitosamente'}), 201
+
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error':f'Error interno del servidor: {str(e)}'}), 500
+        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
     
 
 @app.route('/alquileres/listar', methods=['GET'])
