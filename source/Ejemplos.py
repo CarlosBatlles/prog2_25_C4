@@ -1,10 +1,9 @@
 """ Ejemplos de la API"""
-from os import login_tty
 
 import requests
 import jwt
 
-BASE_URL="http://127.0.0.1:5050" # Cambiar por CarlosBatlles.pythonanywhere.com cuando queramos probar con la webapp
+BASE_URL="http://127.0.0.1:5000" # Cambiar por CarlosBatlles.pythonanywhere.com cuando queramos probar con la webapp
 TOKEN = None
 ROL = None
 
@@ -186,17 +185,36 @@ def iniciar_sesion_admin():
 def entrar_como_invitado():
     pass
 
-# Resto de endpoints
+
+def alquilar_coche():
+    print("\n--- Alquilar Coche ---")
+    matricula = input("Matrícula del coche: ").strip()
+    fecha_inicio = input("Fecha de inicio (YYYY-MM-DD): ").strip()
+    fecha_fin = input("Fecha de fin (YYYY-MM-DD): ").strip()
+    email = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
+
+    # Preparar los datos para la solicitud
+    data = {
+        "matricula": matricula,
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+    }
+    if email:
+        data["email"] = email
+
+    # Enviar la solicitud POST al endpoint /alquilar-coche
+    headers = get_headers(auth_required=True)  # Si es necesario autenticación
+    r = requests.post(f"{BASE_URL}/alquilar-coche", json=data, headers=headers)
+
+    # Procesar la respuesta
+    if r.status_code == 200:
+        # Guardar el archivo PDF recibido
+        with open("factura_descargada.pdf", "wb") as f:
+            f.write(r.content)
+        print("Factura descargada exitosamente como 'factura_descargada.pdf'")
+    else:
+        print(f"Error: {r.status_code} - {r.text}")
 
 if __name__ == "__main__":
-    while True:
-        menu_principal()
-        opcion = input("Elige una opción: ")
-        if opcion == "0":
-            print("👋 Saliendo...")
-            break
-        accion = acciones_principales.get(opcion)
-        if accion:
-            accion()
-        else:
-            print("Opción no válida.")
+    alquilar_coche()
+
