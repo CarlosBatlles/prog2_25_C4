@@ -501,7 +501,7 @@ def detalles_coche(matricula):
         return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
     
     
-@app.route('/coches/actualizar-matricula/<string:matricula>', methods=['PUT'])
+@app.route('/coches/actualizar-matricula/<string:id_coche>', methods=['PUT'])
 @jwt_required()
 def actualizar_matricula(id_coche):
     claims = get_jwt()
@@ -532,6 +532,35 @@ def actualizar_matricula(id_coche):
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/coches/eliminar/<string:id_coche>', methods=['DELETE'])
+@jwt_required()
+def eliminar_coche(id_coche):
+    # Obtener las claims del token
+    claims = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    # Obtener el rol del usuario
+    rol = claims.get('rol')
+
+    # Verificar si el rol es admin
+    if rol != 'admin':
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
+    try:
+        # Llamar al método eliminar_coche de la clase Empresa
+        if empresa.eliminar_coche(id_coche=id_coche):
+            return jsonify({'mensaje': f'Coche con ID {id_coche} eliminado con éxito'}), 200
+        else:
+            return jsonify({'error': f'No se encontró ningún coche con ID {id_coche}'}), 404
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
