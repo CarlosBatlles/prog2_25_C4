@@ -1,4 +1,4 @@
-id,marca,modelo,matricula,categoria_tipo,categoria_precio,año,precio_diario,kilometraje,color,combustible,cv,plazas,disponible
+﻿id,marca,modelo,matricula,categoria_tipo,categoria_precio,año,precio_diario,kilometraje,color,combustible,cv,plazas,disponible
 UID1,Bmw,Serie 1,8237 SPL,Familiar,Premium,2019,438,49480,Negro,Gasolina,94,2,True
 UID2,McLaren,GT,9676 LRX,Superdeportivo,Lujo,2021,712,9516,Naranja,Gasolina,741,2,True
 UID3,Aston Martin,Valhalla,8147 THM,Superdeportivo,Lujo,2022,767,20352,Verde,Diésel,688,2,True
