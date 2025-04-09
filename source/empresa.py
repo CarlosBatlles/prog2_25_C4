@@ -418,6 +418,25 @@ class Empresa():
             'id_usuario': id_usuario
         }
         self.generar_factura_pdf(datos_factura)
+    
+    def obtener_historial_alquileres(self, id_usuario):
+        """
+        Obtiene el historial de alquileres de un usuario específico.
+        """
+        # Cargar los alquileres
+        df_alquileres = self.cargar_alquileres()
+        if df_alquileres is None or df_alquileres.empty:
+            raise ValueError("No hay alquileres registrados.")
+
+        # Filtrar los alquileres por el ID del usuario
+        alquileres_usuario = df_alquileres[df_alquileres['id_usuario'] == id_usuario]
+
+        # Si no hay alquileres, lanzar una excepción
+        if alquileres_usuario.empty:
+            raise ValueError(f"No se encontraron alquileres para el usuario con ID {id_usuario}.")
+
+        # Convertir el DataFrame a una lista de diccionarios
+        return alquileres_usuario.to_dict(orient='records')
 
     
     def calcular_precio_total(self,fecha_inicio:datetime, fecha_fin:datetime, matricula, email= None):
