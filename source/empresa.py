@@ -83,7 +83,7 @@ class Empresa():
 
             # Guardar los cambios en el archivo CSV
             try:
-                df_usuarios.to_csv('clientes.csv', index=False)
+                self._guardar_csv('clientes.csv', df_usuarios)
                 print(f"La contraseña del usuario con email {email} ha sido actualizada exitosamente.")
             except Exception as e:
                 raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
@@ -110,12 +110,36 @@ class Empresa():
 
         # Guardar los cambios en el archivo CSV
         try:
-            df_coches.to_csv('coches.csv', index=False)
+            self._guardar_csv("coches.csv", df_coches)
             print(f"La matricula del coche con ID {id_coche} ha sido actualizada exitosamente.")
         except Exception as e:
             raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
 
         return True
+    
+    def eliminar_coche(self, id_coche, matricula):
+        '''
+        Elimina un coche del sistema basándose en su id y matricula.
+        '''
+        # Cargar los usuarios actuales
+        df_coches = self.cargar_coches()
+        if df_coches is None:
+            raise ValueError("No se pudieron cargar los coches. Revisa el archivo CSV.")
+
+        # Verificar si el ID existe en el DataFrame
+        if id_coche not in df_coches['id'].values:
+            raise ValueError(f"El coche con matricula {id_coche} no está registrado.")
+
+        # Filtrar el DataFrame para excluir al coche con el id proporcionado
+        df_actualizado = df_coches[df_coches['id'] != id_coche]
+        
+        # Guardar los cambios usando el método auxiliar
+        try:
+            self._guardar_csv('coches.csv', df_actualizado)
+            print(f'El coche con matricula {matricula} ha sido eliminado exitosamente')
+            return True
+        except Exception as e:
+            raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
     
     # Metodos para cargar las bases de datos
     def cargar_coches(self):
