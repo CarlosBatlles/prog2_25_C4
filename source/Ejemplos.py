@@ -6,7 +6,7 @@ import jwt
 
 BASE_URL="http://127.0.0.1:5050" # Cambiar por CarlosBatlles.pythonanywhere.com cuando queramos probar con la webapp
 TOKEN = None
-
+ROL = None
 
 def get_headers(auth_required=False):
     """Devuelve los headers necesarios para las solicitudes HTTP."""
