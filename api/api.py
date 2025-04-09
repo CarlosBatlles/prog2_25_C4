@@ -472,5 +472,66 @@ def registrar_coche():
     except Exception as e:
         return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
 
+
+
+@app.route('/coches/detalles/<string:matricula>', methods=['GET'])
+def detalles_coche(matricula):
+    try:
+        # Cargar los alquileres
+        df_coches = empresa.cargar_coches()
+        if df_coches is None or df_coches.empty:
+            return jsonify({'error': 'No se encontraron coches registrados'}), 404
+
+        # Buscar el alquiler por ID
+        coche = df_coches[df_coches['matricula'] == matricula]
+        if coche.empty:
+            return jsonify({'error': 'Coche no encontrado'}), 404
+
+        # Convertir el alquiler a un diccionario
+        coche = coche.iloc[0].to_dict()
+
+        return jsonify({
+            'mensaje': 'Detalles del coche obtenidos exitosamente',
+            'coche': coche
+        }), 200
+
+    except FileNotFoundError:
+        return jsonify({'error': 'Archivo de coches no encontrado'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+    
+    
+@app.route('/coches/actualizar-matricula/<string:matricula>', methods=['PUT'])
+@jwt_required()
+def actualizar_matricula(id_coche):
+    claims = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+    
+    rol = claims.get('rol')
+    
+    # Comprobar que el usuario esta intentando cambiar sus propios datos
+    if rol != 'admin':
+        return jsonify({'error': 'Acceso no autorizado'}),403
+    
+    data = request.json
+    nueva_matricula = data.get('nueva_matricula')
+    
+    if not nueva_matricula:
+        return jsonify({'error': 'Debes proporcionar una nueva matricula'}), 400
+    
+    try: 
+        # Llamar al método actualizar_matricula de la clase Empresa
+        empresa.actualizar_matricula(id_coche=id_coche, nueva_matricula=nueva_matricula)
+        
+        return jsonify({'mensaje': f'Matrícula del coche con ID {id_coche} actualizada exitosamente'}), 200
+    
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
