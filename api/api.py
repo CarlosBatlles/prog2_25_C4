@@ -399,7 +399,49 @@ def finalizar_alquiler(id_alquiler):
         return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
     except Exception as e:
         return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
-    
+
+
+@app.route('/alquileres/historial/<string:email>', methods=['GET'])
+@jwt_required()
+def historial_alquileres(email):
+    # Obtener las claims del token
+    claims = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    # Obtener el rol y el email del usuario autenticado
+    rol = claims.get('rol')
+    email_usuario_autenticado = get_jwt_identity()
+
+    try:
+        # Cargar los usuarios para validar el email
+        df_usuarios = empresa.cargar_usuarios()
+        if df_usuarios is None or df_usuarios.empty:
+            return jsonify({'error': 'No se pudieron cargar los usuarios'}), 500
+
+        # Verificar si el email existe en el sistema
+        if email not in df_usuarios['email'].values:
+            return jsonify({'error': f'El usuario con email {email} no está registrado'}), 404
+
+        # Verificar permisos
+        if rol != 'admin' and email != email_usuario_autenticado:
+            return jsonify({'error': 'Acceso no autorizado'}), 403
+
+        # Obtener el historial de alquileres del usuario
+        historial = empresa.obtener_historial_alquileres(email)
+
+        return jsonify({
+            'mensaje': f'Historial de alquileres del usuario con email {email}',
+            'alquileres': historial
+        }), 200
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 # ---------------------------------------
 # ENDPOINTS RELACIONADOS CON COCHES
