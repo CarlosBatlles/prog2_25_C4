@@ -2,6 +2,7 @@ import sys
 import os
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
+import datetime
 
 # Agrega el directorio raíz del proyecto al PATH (para que encuentre `source`)
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -514,6 +515,14 @@ def registrar_coche():
         return jsonify({'error': 'El campo "disponible" debe ser True o False'}), 400
 
     try:
+        # Convertir el año a entero y validar su rango
+        try:
+            año = int(año)
+            if año < 1900 or año > datetime.now().year:
+                raise ValueError("El año debe estar entre 1900 y el año actual.")
+        except ValueError:
+            return jsonify({'error': 'El campo "año" debe ser un número entero válido'}), 400
+        
         # Llamar al método registrar_coche de la clase Empresa
         if empresa.registrar_coche(
             marca=marca,
