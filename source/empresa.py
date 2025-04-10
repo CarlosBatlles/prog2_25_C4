@@ -985,14 +985,14 @@ class Empresa():
         return True
         
         
-    def obtener_historial_alquileres(self, id_usuario: str) -> list[dict]:
+    def obtener_historial_alquileres(self, email: str) -> list[dict]:
         """
-        Obtiene el historial de alquileres de un usuario específico.
+        Obtiene el historial de alquileres de un usuario específico basándose en su email.
 
         Parameters
         ----------
-        id_usuario : str
-            ID único del usuario cuyo historial de alquileres se desea obtener.
+        email : str
+            Correo electrónico del usuario cuyo historial de alquileres se desea obtener.
 
         Returns
         -------
@@ -1011,6 +1011,18 @@ class Empresa():
         - El método utiliza el archivo CSV como fuente de datos, por lo que los cambios son persistentes.
         - Si el usuario no tiene alquileres registrados, se lanza una excepción.
         """
+        # Cargar los usuarios y verificar si el email existe
+        df_usuarios = self.cargar_usuarios()
+        if df_usuarios is None or df_usuarios.empty:
+            raise ValueError("No se pudieron cargar los usuarios.")
+
+        # Verificar si el email existe en el sistema
+        if email not in df_usuarios['email'].values:
+            raise ValueError(f"El usuario con email {email} no está registrado.")
+
+        # Obtener el ID del usuario a partir del email
+        id_usuario = df_usuarios[df_usuarios['email'] == email].iloc[0]['id_usuario']
+
         # Cargar los alquileres
         df_alquileres = self.cargar_alquileres()
         if df_alquileres is None or df_alquileres.empty:
@@ -1021,7 +1033,7 @@ class Empresa():
 
         # Si no hay alquileres, lanzar una excepción
         if alquileres_usuario.empty:
-            raise ValueError(f"No se encontraron alquileres para el usuario con ID {id_usuario}.")
+            raise ValueError(f"No se encontraron alquileres para el usuario con email {email}.")
 
         # Convertir el DataFrame a una lista de diccionarios
         return alquileres_usuario.to_dict(orient='records')
