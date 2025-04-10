@@ -540,6 +540,7 @@ def actualizar_usuario(email: str) -> tuple[dict, int]:
 # ENDPOINTS RELACIONADOS CON BUSQUEDAS
 # ---------------------------------------
 
+
 @app.route('/coches-disponibles', methods=['GET'])
 def buscar_coches_disponibles() -> tuple[dict, int]:
     """
