@@ -2,7 +2,7 @@ import sys
 import os
 from flask import Flask, request, jsonify, make_response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
-import datetime
+from datetime import *
 
 # Agrega el directorio raíz del proyecto al PATH (para que encuentre `source`)
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -273,6 +273,13 @@ def alquilar_coches():
     if not matricula or not fecha_inicio or not fecha_fin:
         return jsonify({'error': 'Debes introducir la matrícula, la fecha de inicio y la fecha de fin'}), 400
     
+        # Validar formato de las fechas
+    try:
+        fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({'error': 'Las fechas deben estar en formato YYYY-MM-DD'}), 400
+    
     try:
         # Obtener claims del token si existe
         claims = get_jwt() if get_jwt() else {}
@@ -287,7 +294,12 @@ def alquilar_coches():
             email = get_jwt_identity()
 
         # Registrar el alquiler y obtener el PDF
-        pdf_bytes = empresa.alquilar_coche(matricula=matricula, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, email=email)
+        pdf_bytes = empresa.alquilar_coche(
+            matricula=matricula,
+            fecha_inicio=fecha_inicio.strftime('%Y-%m-%d'),
+            fecha_fin=fecha_fin.strftime('%Y-%m-%d'),
+            email=email
+        )
 
         # Crear una respuesta con el archivo PDF
         response = make_response(pdf_bytes)
@@ -298,7 +310,8 @@ def alquilar_coches():
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+        print(f"Error interno: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor. Por favor, inténtalo de nuevo más tarde.'}), 500
     
 
 @app.route('/alquileres/listar', methods=['GET'])

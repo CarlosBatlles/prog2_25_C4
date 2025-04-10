@@ -1,11 +1,13 @@
 
 # Clase Empresa que va a gestionar todo el alquiler de coches 
 import pandas as pd
+import tkinter as tk
 from datetime import datetime
 import re
 from fpdf import FPDF
 import hashlib
 import os
+from tkinter import filedialog
 
 class Empresa():
     def __init__(self,nombre):
@@ -413,9 +415,12 @@ class Empresa():
                 'coste_total': nuevo_alquiler['coste_total'],
                 'id_usuario': id_usuario
             }
-            return self.generar_factura_pdf(datos_factura)  # Devuelve el PDF como bytes
+            
+            # Guardar el PDF como bytes
+            pdf_bytes = self.generar_factura_pdf(datos_factura)  
+            return pdf_bytes
+            
         except Exception as e:
-            print(f"Error al guardar los cambios o generar la factura: {e}")
             raise ValueError(f"Error interno del servidor: {str(e)}")
     
     def obtener_historial_alquileres(self, id_usuario):
@@ -665,6 +670,7 @@ class Empresa():
 
         # Devolver el PDF como bytes en lugar de guardarlo en el servidor
         return pdf.output(dest='S').encode('latin1')
+    
     
     def mostrar_categorias_tipo(self):
         
