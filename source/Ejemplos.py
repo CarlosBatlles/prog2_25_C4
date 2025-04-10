@@ -332,7 +332,6 @@ def mostrar_menu_por_rol(rol: str) -> None:
     - Muestra un mensaje de error si el rol no es reconocido.
     - El nombre del rol se muestra con la primera letra en mayúscula.
     """
-    print(f"\n--- Menú para {rol.capitalize()} ---")
     if rol == "admin":
         menu_admin()
     elif rol == "cliente":
@@ -382,6 +381,8 @@ def registrar_coche() -> None:
     - Requiere la biblioteca `requests` y la constante global BASE_URL.
     - Maneja excepciones de red e imprime errores si ocurren.
     """
+    global TOKEN
+    
     marca = input('Marca: ')
     modelo = input('Modelo: ')
     matricula = input('Matricula: ')
@@ -395,25 +396,29 @@ def registrar_coche() -> None:
     cv = int(input('Caballos: '))
     plazas = int(input('Plazas: '))
     disponible = True
+     # Crear el payload con los datos del coche
+    data = {
+        'marca': marca,
+        'modelo': modelo,
+        'matricula': matricula,
+        'categoria_tipo': categoria_tipo,
+        'categoria_precio': categoria_precio,
+        'año': año,
+        'precio_diario': precio_diario,
+        'kilometraje': kilometraje,
+        'color': color,
+        'combustible': combustible,
+        'cv': cv,
+        'plazas': plazas,
+        'disponible': disponible
+    }
+
+    # Obtener los headers con el token JWT
+    headers = get_headers(auth_required=True)
+
+    # Realizar la solicitud POST
     try:
-        r = requests.post(
-            f'{BASE_URL}/coches/registrar',
-            json={
-                'marca': marca,
-                'modelo': modelo,
-                'matricula': matricula,
-                'categoria tipo': categoria_tipo,
-                'categoria precio': categoria_precio,
-                'año': año,
-                'precio diario': precio_diario,
-                'kilometraje': kilometraje,
-                'color': color,
-                'combustible': combustible,
-                'cv': cv,
-                'plazas': plazas,
-                'disponible': disponible
-            }
-        )
+        r = requests.post(f'{BASE_URL}/coches/registrar', json=data, headers=headers)
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print(f'Error al registrar el coche: {e}')
@@ -422,24 +427,34 @@ def registrar_coche() -> None:
 def eliminar_coche() -> None:
     """
     Elimina un coche del sistema enviando una solicitud al servidor.
-
-    Returns
-    -------
-    None
-        La función no retorna valores, pero imprime la respuesta del servidor.
-
-    Notes
-    -----
-    - Solicita al usuario el ID del coche a eliminar mediante entrada estándar.
-    - Realiza una solicitud DELETE al endpoint /coches/eliminar/{id_coche}.
-    - Requiere la biblioteca `requests` y la constante global BASE_URL.
-    - Maneja excepciones de red e imprime errores si ocurren.
-    - El cuerpo JSON con {'id coche': id_coche} podría no ser necesario en una
-      solicitud DELETE típica, dependiendo de la API.
     """
-    id_coche = input('Id coche: ')
+    global TOKEN  # Acceder a la variable global TOKEN
+
+    # Verificar si hay un token JWT válido
+    if not TOKEN:
+        print("No has iniciado sesión. Por favor, inicia sesión primero.")
+        return
+
+    print(f"Token JWT actual: {TOKEN}")  # Depuración: Mostrar el token JWT
+
+    # Solicitar el ID del coche a eliminar
+    id_coche = input('ID del coche a eliminar: ').strip()
+
+    # Validar que el ID no esté vacío
+    if not id_coche:
+        print("El ID del coche es obligatorio.")
+        return
+
+    # Obtener los headers con el token JWT
+    headers = get_headers(auth_required=True)
+    print(f"Headers generados: {headers}")  # Depuración: Mostrar los headers
+
+    # Realizar la solicitud DELETE
     try:
-        r = requests.delete(f'{BASE_URL}/coches/eliminar/{id_coche}', json={'id coche': id_coche})
+        r = requests.delete(
+            f'{BASE_URL}/coches/eliminar/{id_coche}',
+            headers=headers  # Incluir los headers con el token JWT
+        )
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
