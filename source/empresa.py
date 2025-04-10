@@ -1652,13 +1652,14 @@ class Empresa():
         pdf.cell(100, 10, "Valor", border=1, fill=True, ln=True)
 
         # Datos de la tabla
-        campos_obligatorios = [
-            "ID de Alquiler", "Marca", "Modelo", "Matrícula", "Fecha de Inicio", "Fecha de Fin"
-        ]
-        for campo in campos_obligatorios:
-            valor = alquiler.get(campo.lower().replace(" ", "_"))
-            if not valor:
-                raise ValueError(f"Falta el campo obligatorio en el alquiler: {campo}")
+        for campo, valor in [
+            ("ID de Alquiler", alquiler['id_alquiler']),
+            ("Marca", alquiler['marca']),
+            ("Modelo", alquiler['modelo']),
+            ("Matrícula", alquiler['matricula']),
+            ("Fecha de Inicio", alquiler['fecha_inicio']),
+            ("Fecha de Fin", alquiler['fecha_fin'])
+        ]:
             pdf.set_x(posicion_x)  # Centrar cada fila
             pdf.cell(50, 10, campo, border=1)
             pdf.cell(100, 10, str(valor), border=1, ln=True)
