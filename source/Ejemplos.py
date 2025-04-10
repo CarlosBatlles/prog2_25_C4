@@ -253,7 +253,48 @@ def ver_historial_alquileres():
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
 
+def alquilar_coche():
+    print("\n--- Alquilar Coche ---")
+    matricula = input("Matrícula del coche: ").strip()
+    fecha_inicio = input("Fecha de inicio (YYYY-MM-DD): ").strip()
+    fecha_fin = input("Fecha de fin (YYYY-MM-DD): ").strip()
+    email = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
 
+    # Preparar los datos para la solicitud
+    data = {
+        "matricula": matricula,
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+    }
+    if email:
+        data["email"] = email
+
+    # Enviar la solicitud POST al endpoint /alquilar-coche
+    r = requests.post(f"{BASE_URL}/alquilar-coche", json=data)
+
+    # Procesar la respuesta
+    if r.status_code == 200:
+        # Guardar el archivo PDF recibido
+        root = tk.Tk()
+        root.withdraw()  # Ocultar la ventana principal
+
+        # Abrir un cuadro de diálogo para elegir la ubicación
+        ruta_guardado = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF Files", "*.pdf")],
+            initialdir="~/Downloads",
+            title="Guardar factura PDF",
+            initialfile="factura.pdf"
+        )
+
+        if ruta_guardado:
+            with open(ruta_guardado, "wb") as f:
+                f.write(r.content)
+            print("Factura descargada exitosamente.")
+        else:
+            print("Guardado cancelado por el usuario.")
+    else:
+        print(f"Error: {r.status_code} - {r.text}")
 
 
 
