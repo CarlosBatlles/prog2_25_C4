@@ -660,6 +660,12 @@ def eliminar_coche(id_coche):
 
 @app.route('/coches/categorias/precio', methods=['GET'])
 def categorias_precio():
+    """
+    Endpoint para obtener las categorías de precio disponibles.
+
+    Returns:
+        JSON: Una lista de categorías de precio únicas disponibles.
+    """
     try:
         # Llamar al método de la clase Empresa para obtener las categorías de precio
         categorias = empresa.mostrar_categorias_precio()
@@ -677,6 +683,34 @@ def categorias_precio():
     
 @app.route('/coches/categorias/tipo', methods=['GET'])
 def categorias_tipo():
+    """
+    Endpoint para obtener las categorías de tipo disponibles.
+
+    Este endpoint permite recuperar una lista de todas las categorías de tipo 
+    de coches disponibles en el sistema. Las categorías se obtienen a través del 
+    método `mostrar_categorias_tipo` de la clase `Empresa`.
+
+    Methods
+    -------
+    GET
+        Obtiene una lista de categorías de tipo disponibles.
+
+    Returns
+    -------
+    JSON
+        Un objeto JSON con la siguiente estructura:
+        {
+            "mensaje": "Categorías de tipo obtenidas exitosamente",
+            "categorias_tipo": ["Compacto", "SUV", "Deportivo", "Familiar"]
+        }
+
+    Raises
+    ------
+    HTTP 404 Not Found
+        Si no hay datos disponibles o si ocurre un error al cargar las categorías.
+    HTTP 500 Internal Server Error
+        Si ocurre un error inesperado durante la ejecución.
+    """
     try:
         # Llamar al método de la clase Empresa para obtener las categorías de tipo
         categorias = empresa.mostrar_categorias_tipo()
