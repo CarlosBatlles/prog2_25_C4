@@ -27,8 +27,6 @@ def decode_token(token):
     except Exception as e:
         print(f"Error al decodificar el token: {e}")
         return {}
-
-
     
 
 
@@ -58,7 +56,7 @@ def mostrar_menu_principal():
             break
         else:
             print("Opción no válida. Inténtalo de nuevo.")
-
+    
 
 
 def menu_admin():
@@ -198,7 +196,6 @@ def entrar_como_invitado():
     print("\nHas entrado como invitado.")
     menu_cliente()  # Los invitados pueden usar el menú de cliente
 
-
 def registrar_coche():
     marca = input('Marca: ')
     modelo = input('Modelo: ')
@@ -214,11 +211,7 @@ def registrar_coche():
     plazas = int(input('Plazas: '))
     disponible = True
     try:
-        r = requests.post(f'{BASE_URL}/coches/registrar',
-                          json={'marca': marca, 'modelo': modelo, 'matricula': matricula,
-                                'categoria tipo': categoria_tipo, 'categoria precio': categoria_precio, 'año': año,
-                                'precio diario': precio_diario, 'kilometraje': kilometraje, 'color': color,
-                                'combustible': combustible, 'cv': cv, 'plazas': plazas, 'disponible': disponible})
+        r = requests.post(f'{BASE_URL}/coches/registrar',json={'marca':marca,'modelo':modelo,'matricula':matricula,'categoria tipo':categoria_tipo,'categoria precio':categoria_precio,'año':año,'precio diario':precio_diario,'kilometraje':kilometraje,'color':color,'combustible':combustible,'cv':cv, 'plazas':plazas,'disponible':disponible})
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print(f'Error al registrar el coche: {e}')
@@ -227,7 +220,7 @@ def registrar_coche():
 def eliminar_coche():
     id_coche = input('Id coche: ')
     try:
-        r = requests.delete(f'{BASE_URL}/coches/eliminar/<string:id_coche>', json={'id coche': id_coche})
+        r =requests.delete(f'{BASE_URL}/coches/eliminar/<string:id_coche>', json={'id coche':id_coche})
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
@@ -262,6 +255,13 @@ def eliminar_usuario():
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
+def eliminar_coche():
+    id_coche = input('Id coche: ')
+    try:
+        r = requests.delete(f'{BASE_URL}/coches/eliminar/<string:id_coche>', json={'id coche': id_coche})
+        print('Respuesta: ', r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print(f'Error al eliminar el coche: {e}')
 
 def listar_usuarios():
     try:
@@ -407,3 +407,5 @@ def listar_precios():
 def main():
     """Función principal."""
     mostrar_menu_principal()
+
+main()
