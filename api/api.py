@@ -28,80 +28,231 @@ def check_if_token_revoked(jwt_header, jwt_payload):
 # ---------------------------------------
 
 @app.route('/signup', methods=['POST'])
-def signup(): # Registrar
+def signup() -> tuple[dict, int]:
+    """
+    Endpoint para registrar un nuevo usuario en el sistema.
+
+    Este endpoint permite registrar un nuevo usuario con un nombre, correo electrónico, 
+    contraseña y tipo de usuario. El tipo de usuario puede ser "admin" o "cliente". 
+    Si no se especifica, el tipo predeterminado será "cliente".
+
+    Methods
+    -------
+    POST
+        Registra un nuevo usuario en el sistema.
+
+    Parameters
+    ----------
+    nombre : str
+        Nombre del usuario.
+    tipo : str, optional
+        Tipo de usuario ("admin" o "cliente"). Por defecto es "cliente".
+    email : str
+        Correo electrónico del usuario.
+    contraseña : str
+        Contraseña del usuario (se almacenará como hash).
+
+    Returns
+    -------
+    JSON
+        Un objeto JSON con la siguiente estructura:
+        {
+            "mensaje": "Usuario registrado exitosamente"
+        }
+
+    Raises
+    ------
+    HTTP 400 Bad Request
+        Si faltan campos obligatorios, el correo electrónico no es válido o el tipo de usuario no es correcto.
+    HTTP 500 Internal Server Error
+        Si ocurre un error inesperado durante la ejecución.
+    """
     data = request.json
     nombre = data.get('nombre')
-    tipo = data.get('tipo','cliente') # Por defecto aplicamos cliente
+    tipo = data.get('tipo', 'cliente')  # Por defecto aplicamos cliente
     email = data.get('email')
     contraseña = data.get('contraseña')
-    
+
     # Validar campos obligatorios
     if not nombre or not email or not contraseña:
         return jsonify({'error': 'Todos los campos son obligatorios'}), 400
-    
+
     # Validar el correo electrónico
     if not empresa.es_email_valido(email):
         return jsonify({'error': 'El correo electrónico no es válido'}), 400
-    
+
     # Validar el tipo de usuario
     if tipo not in ['admin', 'cliente']:
         return jsonify({'error': 'El tipo de usuario debe ser "admin" o "cliente"'}), 400
-    
+
     try:
         # Registrar el usuario
-        if empresa.registrar_usuario(nombre=nombre,tipo=tipo,email=email,contraseña=contraseña):
-            return jsonify({'mensaje': 'Usuario registrado exitosamente' }), 201
+        if empresa.registrar_usuario(nombre=nombre, tipo=tipo, email=email, contraseña=contraseña):
+            return jsonify({'mensaje': 'Usuario registrado exitosamente'}), 201
         else:
             return jsonify({'error': 'No se pudo registrar el usuario'}), 500
     except ValueError as e:
-        return jsonify({'error':str(e)}), 400
+        return jsonify({'error': str(e)}), 400
 
 
 @app.route('/login', methods=['POST'])
-def login(): # iniciar sesion
+def login() -> tuple[dict, int]:
+    """
+    Endpoint para iniciar sesión en el sistema.
+
+    Este endpoint permite a un usuario iniciar sesión proporcionando su correo electrónico 
+    y contraseña. Si las credenciales son válidas, se genera un token JWT que incluye el 
+    rol del usuario (por ejemplo, "admin" o "cliente").
+
+    Methods
+    -------
+    POST
+        Inicia sesión en el sistema.
+
+    Parameters
+    ----------
+    email : str
+        Correo electrónico del usuario.
+    contraseña : str
+        Contraseña del usuario.
+
+    Returns
+    -------
+    JSON
+        Un objeto JSON con la siguiente estructura:
+        {
+            "mensaje": "Inicio de sesion exitoso",
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        }
+
+    Raises
+    ------
+    HTTP 400 Bad Request
+        Si faltan campos obligatorios o el correo electrónico no es válido.
+    HTTP 401 Unauthorized
+        Si las credenciales son inválidas.
+    HTTP 500 Internal Server Error
+        Si ocurre un error inesperado durante la ejecución.
+    """
     data = request.json
     email = data.get('email')
     contraseña = data.get('contraseña')
-    
-    # validar campos 
+
+    # Validar campos obligatorios
     if not email or not contraseña:
         return jsonify({'error': 'Correo electronico y contraseña son obligatorios'}), 400
-    
+
     # Validar el formato del correo electrónico
     if not empresa.es_email_valido(email):
         return jsonify({'error': 'El correo electrónico no es válido'}), 400
-    
+
     try:
-        # verificar las credenciales
-        if empresa.iniciar_sesion(email,contraseña):
+        # Verificar las credenciales
+        if empresa.iniciar_sesion(email, contraseña):
             # Obtener el rol de usuario
             df_usuarios = empresa.cargar_usuarios()
             usuario = df_usuarios[df_usuarios['email'] == email]
             rol = usuario.iloc[0]['tipo']
-            
-            # generar token con el rol
-            token = create_access_token(identity=email, additional_claims={'rol':rol})
-            return jsonify({'mensaje': 'Inicio de sesion exitoso', 'token':token}), 200
+
+            # Generar token con el rol
+            token = create_access_token(identity=email, additional_claims={'rol': rol})
+            return jsonify({'mensaje': 'Inicio de sesion exitoso', 'token': token}), 200
         else:
-            return jsonify({'error':'Credenciales invalidas'}), 401
+            return jsonify({'error': 'Credenciales invalidas'}), 401
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/logout',methods=['POST'])
+@app.route('/logout', methods=['POST'])
 @jwt_required()
-def logout():
-    # Obtener el identificar unico
-    jti = get_jwt()['jti']
-    
-    # Agregamos el token a la lista de tokens usados
-    token_blocklist.add(jti)
-    
-    return jsonify({'mensaje':'Sesion cerrada exitosamente'}), 200
+def logout() -> tuple[dict, int]:
+    """
+    Endpoint para cerrar sesión en el sistema.
+
+    Este endpoint permite al usuario cerrar su sesión actual. Cuando se llama a este endpoint,
+    el token JWT utilizado para autenticar la solicitud se invalida agregándolo a una lista 
+    de tokens revocados (blocklist). Esto asegura que el token no pueda ser utilizado nuevamente.
+
+    Methods
+    -------
+    POST
+        Cierra la sesión del usuario.
+
+    Returns
+    -------
+    JSON
+        Un objeto JSON con la siguiente estructura:
+        {
+            "mensaje": "Sesion cerrada exitosamente"
+        }
+
+    Raises
+    ------
+    HTTP 401 Unauthorized
+        Si el token JWT no es válido o está ausente.
+    HTTP 500 Internal Server Error
+        Si ocurre un error inesperado durante la ejecución.
+    """
+    try:
+        # Obtener el identificador único del token JWT
+        jti = get_jwt()['jti']
+
+        # Agregar el token a la lista de tokens usados (blocklist)
+        token_blocklist.add(jti)
+
+        return jsonify({'mensaje': 'Sesion cerrada exitosamente'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/usuarios/eliminar', methods=['DELETE'])
 @jwt_required()
-def eliminar_usuario():
+def eliminar_usuario() -> tuple[dict, int]:
+    """
+    Endpoint para eliminar un usuario del sistema.
+
+    Este endpoint permite a un administrador eliminar un usuario del sistema 
+    proporcionando su correo electrónico. Solo los usuarios con rol "admin" pueden 
+    acceder a este endpoint. El correo electrónico se obtiene como parámetro de la URL.
+
+    Methods
+    -------
+    DELETE
+        Elimina un usuario del sistema.
+
+    Parameters
+    ----------
+    email : str
+        Correo electrónico del usuario que se desea eliminar. Se pasa como parámetro 
+        en la URL (query string).
+
+    Headers
+    -------
+    Authorization : str
+        Token JWT válido con claims que incluyan el rol del usuario. El token debe 
+        ser proporcionado en el encabezado de la solicitud en el formato:
+        `Authorization: Bearer <token_jwt>`.
+
+    Returns
+    -------
+    JSON
+        Un objeto JSON con la siguiente estructura:
+        {
+            "mensaje": "Usuario con correo usuario@example.com eliminado con éxito"
+        }
+
+    Raises
+    ------
+    HTTP 400 Bad Request
+        Si falta el parámetro `email` o el correo electrónico no es válido.
+    HTTP 403 Forbidden
+        Si el usuario que realiza la solicitud no tiene rol de administrador.
+    HTTP 404 Not Found
+        Si no se encuentra ningún usuario con el correo electrónico proporcionado.
+    HTTP 500 Internal Server Error
+        Si ocurre un error inesperado durante la ejecución.
+    """
     # Obtener las claims del token
     claims = get_jwt()
 
@@ -109,8 +260,6 @@ def eliminar_usuario():
     if not isinstance(claims, dict):
         return jsonify({'error': 'Error al leer las claims del token'}), 500
 
-    if not empresa.es_email_valido(email):
-        return jsonify({'error': 'El correo electrónico no es válido'}), 400
     # Obtener el rol del usuario
     rol = claims.get('rol')
 
@@ -123,6 +272,10 @@ def eliminar_usuario():
     if not email:
         return jsonify({'mensaje': 'El correo electrónico es obligatorio'}), 400
 
+    # Validar el formato del correo electrónico
+    if not empresa.es_email_valido(email):
+        return jsonify({'error': 'El correo electrónico no es válido'}), 400
+
     try:
         # Llamar al método dar_baja_usuario de la clase Empresa
         if empresa.dar_baja_usuario(email):
@@ -132,17 +285,62 @@ def eliminar_usuario():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-
 @app.route('/listar-usuarios', methods=['GET'])
 @jwt_required()
-def listar_usuarios():
+def listar_usuarios() -> tuple[dict, int]:
+    """
+    Endpoint para listar todos los usuarios registrados en el sistema.
+
+    Este endpoint permite a un administrador obtener una lista de todos los usuarios 
+    registrados en el sistema. Solo los usuarios con rol "admin" pueden acceder a este 
+    endpoint. Los datos de los usuarios se devuelven en formato JSON.
+
+    Methods
+    -------
+    GET
+        Obtiene una lista de todos los usuarios registrados.
+
+    Headers
+    -------
+    Authorization : str
+        Token JWT válido con claims que incluyan el rol del usuario. El token debe 
+        ser proporcionado en el encabezado de la solicitud en el formato:
+        `Authorization: Bearer <token_jwt>`.
+
+    Returns
+    -------
+    JSON
+        Un objeto JSON con la siguiente estructura:
+        {
+            "mensaje": "Lista de usuarios obtenida exitosamente",
+            "usuarios": [
+                {
+                    "id_usuario": "U001",
+                    "nombre": "Juan Pérez",
+                    "tipo": "cliente",
+                    "email": "juan@example.com",
+                    "contraseña": "hash_contraseña"
+                },
+                ...
+            ]
+        }
+
+    Raises
+    ------
+    HTTP 403 Forbidden
+        Si el usuario que realiza la solicitud no tiene rol de administrador.
+    HTTP 404 Not Found
+        Si no hay usuarios registrados en el sistema.
+    HTTP 500 Internal Server Error
+        Si ocurre un error inesperado durante la ejecución.
+    """
     # Obtener las claims del token
     claims = get_jwt()
 
     # Verificar si las claims son un diccionario
     if not isinstance(claims, dict):
         return jsonify({'error': 'Error al leer las claims del token'}), 500
-    
+
     # Obtener el rol del usuario
     rol = claims.get('rol')
 
@@ -151,21 +349,22 @@ def listar_usuarios():
         return jsonify({'error': 'Acceso no autorizado'}), 403
 
     try:
-        # cargar usuarios
+        # Cargar usuarios
         df_usuarios = empresa.cargar_usuarios()
         if df_usuarios is None or df_usuarios.empty:
             return jsonify({'error': 'No hay usuarios registrados'}), 200
-        
+
         usuarios = df_usuarios.to_dict(orient='records')
-        
+
         return jsonify({
             'mensaje': 'Lista de usuarios obtenida exitosamente',
             'usuarios': usuarios
         }), 200
+
     except FileNotFoundError:
         return jsonify({'error': 'Archivo de usuarios no encontrado'}), 500
     except Exception as e:
-        return jsonify({'error':{str(e)}}), 500
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/usuarios/detalles/<string:email>', methods=['GET'])
