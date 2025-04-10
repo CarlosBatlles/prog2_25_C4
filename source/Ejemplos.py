@@ -364,29 +364,23 @@ def entrar_como_invitado() -> None:
         print("\n--- Menú de Invitado ---")
         print("1. Alquilar coche")
         print("2. Buscar coches disponibles")
-        print('3. Datos usuario')
-        print('4. Actualizar contraseña')
-        print('5. Obtener detalles de un coche')
-        print('6. Categorias de coche')
-        print('7. Categorias de precio')
-        print("8. Volver al menú principal")
+        print('3. Obtener detalles de un coche')
+        print('4. Categorias de coche')
+        print('5. Categorias de precio')
+        print("6. Volver al menú principal")
         opcion = input("Selecciona una opción: ")
 
         if opcion == "1":
             alquilar_coche()
         elif opcion == "2":
             buscar_coches_disponibles()
-        elif opcion == "3":
-            detalles_usuario()
-        elif opcion == '4':
-            actualizar_contraseña()
-        elif opcion == '5':
+        elif opcion == '3':
             detalles_coche()
-        elif opcion == '6':
+        elif opcion == '4':
             listar_tipos()
-        elif opcion == '7':
+        elif opcion == '5':
             listar_precios()
-        elif opcion == '8':
+        elif opcion == '6':
             break
         else:
             print("Opción no válida. Inténtalo de nuevo.")
