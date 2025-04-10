@@ -606,7 +606,7 @@ def buscar_coches_disponibles() -> tuple[dict, int]:
         modelo = request.args.get('modelo')
 
         # Obtener los detalles de los coches
-        detalles = empresa.obtener_detalles_coches(categoria_precio, categoria_tipo, marca, modelo)
+        detalles = empresa.obtener_detalles_coches(categoria_precio=categoria_precio, categoria_tipo=categoria_tipo, marca=marca, modelo=modelo)
         return jsonify(detalles), 200
 
     except ValueError as e:
