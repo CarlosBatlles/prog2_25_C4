@@ -522,7 +522,7 @@ class Empresa():
         return True   
     
     
-    def eliminar_coche(self, id_coche: str, matricula: str) -> bool:
+    def eliminar_coche(self, id_coche: str) -> bool:
         """
         Elimina un coche del sistema basándose en su ID y matrícula.
 
@@ -533,8 +533,6 @@ class Empresa():
         ----------
         id_coche : str
             El ID único del coche que se desea eliminar.
-        matricula : str
-            La matrícula del coche que se desea eliminar (usada solo para mensajes).
 
         Returns
         -------

@@ -427,6 +427,19 @@ def registrar_coche() -> None:
 def eliminar_coche() -> None:
     """
     Elimina un coche del sistema enviando una solicitud al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita al usuario el ID del coche a eliminar mediante entrada estándar.
+    - Realiza una solicitud DELETE al endpoint /coches/eliminar/{id_coche}.
+    - Requiere la biblioteca `requests`, las variables globales BASE_URL y TOKEN,
+      y la función get_headers para generar los encabezados con autenticación.
+    - Maneja excepciones de red e imprime errores si ocurren.
     """
     global TOKEN  # Acceder a la variable global TOKEN
 
@@ -434,8 +447,6 @@ def eliminar_coche() -> None:
     if not TOKEN:
         print("No has iniciado sesión. Por favor, inicia sesión primero.")
         return
-
-    print(f"Token JWT actual: {TOKEN}")  # Depuración: Mostrar el token JWT
 
     # Solicitar el ID del coche a eliminar
     id_coche = input('ID del coche a eliminar: ').strip()
@@ -447,7 +458,6 @@ def eliminar_coche() -> None:
 
     # Obtener los headers con el token JWT
     headers = get_headers(auth_required=True)
-    print(f"Headers generados: {headers}")  # Depuración: Mostrar los headers
 
     # Realizar la solicitud DELETE
     try:
@@ -557,33 +567,6 @@ def eliminar_usuario() -> None:
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def eliminar_coche() -> None:
-    """
-    Elimina un coche del sistema enviando una solicitud al servidor.
-
-    Returns
-    -------
-    None
-        La función no retorna valores, pero imprime la respuesta del servidor.
-
-    Notes
-    -----
-    - Solicita al usuario el ID del coche a eliminar mediante entrada estándar.
-    - Realiza una solicitud DELETE al endpoint /coches/eliminar/{id_coche}.
-    - Requiere la biblioteca `requests` y la constante global BASE_URL.
-    - Maneja excepciones de red e imprime errores si ocurren.
-    - El cuerpo JSON con {'id coche': id_coche} podría no ser necesario en una
-      solicitud DELETE típica, ya que el ID se pasa en la URL.
-    """
-    id_coche = input('Id coche: ')
-    try:
-        r = requests.delete(
-            f'{BASE_URL}/coches/eliminar/{id_coche}',
-            json={'id coche': id_coche}
-        )
-        print('Respuesta: ', r.status_code, r.json())
-    except requests.exceptions.RequestException as e:
-        print(f'Error al eliminar el coche: {e}')
 
 def listar_usuarios() -> None:
     """
