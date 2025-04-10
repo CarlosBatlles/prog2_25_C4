@@ -307,7 +307,7 @@ def signup() -> None:
     passwd = input("Contraseña: ")
     email = input("Correo: ")
     tipo = input("Tipo: ")
-    r = requests.post(f"{BASE_URL}/signup", json={"user": user, "passwd": passwd, 'email': email, 'tipo': tipo})
+    r = requests.post(f"{BASE_URL}/signup", json={"user": user,'tipo': tipo , 'email': email, "passwd": passwd})
     print("Respuesta:", r.status_code, r.json())
 
 
