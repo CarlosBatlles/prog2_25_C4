@@ -407,4 +407,3 @@ def listar_precios():
 def main():
     """Función principal."""
     mostrar_menu_principal()
-
