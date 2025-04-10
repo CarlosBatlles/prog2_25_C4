@@ -505,30 +505,35 @@ def buscar_coches_disponibles() -> None:
     - Solicita al usuario criterios de búsqueda (categoría de precio, tipo,
       marca y modelo) mediante entrada estándar.
     - Realiza una solicitud GET al endpoint /coches-disponibles con los
-      parámetros en el cuerpo JSON.
-    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+      parámetros como query parameters en la URL.
+    - Requiere la biblioteca requests y la constante global BASE_URL.
     - Maneja excepciones de red e imprime errores si ocurren.
-    - Nota: En una API REST típica, los parámetros de búsqueda suelen enviarse
-      como query parameters en la URL en lugar de en el cuerpo JSON para GET.
     """
-    categoria_precio = input('Categoria precio: ')
-    categoria_tipo = input('Categoria tipo: ')
-    marca = input('Marca: ')
-    modelo = input('Modelo: ')
+    # Solicitar los criterios de búsqueda al usuario
+    categoria_precio = input('Categoría de precio: ').strip()
+    categoria_tipo = input('Categoría de tipo: ').strip()
+    marca = input('Marca: ').strip()
+    modelo = input('Modelo: ').strip()
 
     try:
-        r = requests.get(
-            f'{BASE_URL}/coches-disponibles',
-            json={
-                'categoria tipo': categoria_tipo,
-                'categoria precio': categoria_precio,
-                'marca': marca,
-                'modelo': modelo
-            }
-        )
+          # Construir los query parameters
+        params = {
+            'categoria_precio': categoria_precio or None,
+            'categoria_tipo': categoria_tipo or None,
+            'marca': marca or None,
+            'modelo': modelo or None
+        }
+
+        # Eliminar parámetros vacíos
+        params = {k: v for k, v in params.items() if v is not None}
+
+        # Realizar la solicitud GET con los query parameters
+        r = requests.get(f'{BASE_URL}/coches-disponibles', params=params)
+
+        # Procesar la respuesta
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
-        print(f'Error al buscar coches disponibles: {e}')
+        print(f'Error al buscar coches disponibles: {e}')
 
 
 def eliminar_usuario() -> None:
