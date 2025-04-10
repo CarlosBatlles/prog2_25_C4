@@ -94,9 +94,3 @@ Categorias de coche (opción 7 del menú de cliente)
 /coches/categorias/tipo: Muestra a un cliente las categorias de coches
 Categorias de precio (opción 8 del menú de cliente)
 /coches/categorias/precio: Muestra a un cliente las categorias de precio
-
-
-
-
-
-
