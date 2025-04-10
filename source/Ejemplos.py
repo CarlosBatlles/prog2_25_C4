@@ -1,7 +1,8 @@
 """ Ejemplos de la API"""
-
 import requests
 import jwt
+import tkinter as tk
+from tkinter import filedialog
 
 BASE_URL="http://127.0.0.1:5000" # Cambiar por CarlosBatlles.pythonanywhere.com cuando queramos probar con la webapp
 TOKEN = None
@@ -203,15 +204,29 @@ def alquilar_coche():
         data["email"] = email
 
     # Enviar la solicitud POST al endpoint /alquilar-coche
-    headers = get_headers(auth_required=True)  # Si es necesario autenticación
-    r = requests.post(f"{BASE_URL}/alquilar-coche", json=data, headers=headers)
+    r = requests.post(f"{BASE_URL}/alquilar-coche", json=data)
 
     # Procesar la respuesta
     if r.status_code == 200:
         # Guardar el archivo PDF recibido
-        with open("factura_descargada.pdf", "wb") as f:
-            f.write(r.content)
-        print("Factura descargada exitosamente como 'factura_descargada.pdf'")
+        root = tk.Tk()
+        root.withdraw()  # Ocultar la ventana principal
+
+        # Abrir un cuadro de diálogo para elegir la ubicación
+        ruta_guardado = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF Files", "*.pdf")],
+            initialdir="~/Downloads",
+            title="Guardar factura PDF",
+            initialfile="factura.pdf"
+        )
+
+        if ruta_guardado:
+            with open(ruta_guardado, "wb") as f:
+                f.write(r.content)
+            print("Factura descargada exitosamente.")
+        else:
+            print("Guardado cancelado por el usuario.")
     else:
         print(f"Error: {r.status_code} - {r.text}")
 
