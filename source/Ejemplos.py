@@ -30,6 +30,8 @@ def decode_token(token):
 
 
     
+
+
 def mostrar_menu_principal():
     """Muestra el menú principal."""
     while True:
@@ -59,6 +61,8 @@ def mostrar_menu_principal():
 
 
     
+
+
 def menu_admin():
     """Menú para administradores."""
     while True:
@@ -81,13 +85,13 @@ def menu_admin():
         elif opcion == "3":
             listar_usuarios()
         elif opcion == "4":
-            obtener_detalles_usuario()
+            detalles_usuario()
         elif opcion == '5':
-            actualizar_datos_coche()
+            actualizar_coche()
         elif opcion == '6':
             listar_alquileres()
         elif opcion == '7':
-            detalles_alquiler()
+            alquiler_detalles()
         elif opcion == '8':
             finalizar_alquiler()
         elif opcion == '9':
@@ -104,7 +108,7 @@ def menu_cliente():
         print("2. Ver historial de alquileres")
         print("3. Buscar coches disponibles")
         print('4. Datos usuario')
-        print('5. Actualizar datos usuario')
+        print('5. Actualizar contraseña')
         print('6. Obtener detalles de un coche')
         print('7. Categorias de coche')
         print('8. Categorias de precio')
@@ -118,15 +122,15 @@ def menu_cliente():
         elif opcion == "3":
             buscar_coches_disponibles()
         elif opcion == "4":
-            datos_usuario()
+            detalles_usuario()
         elif opcion == '5':
-            actualizar_datos()
+            actualizar_contraseña()
         elif opcion == '6':
             detalles_coche()
         elif opcion == '7':
-            categoria_coche()
+            listar_tipos()
         elif opcion == '8':
-            categoria_precio()
+            listar_precios()
         elif opcion == '9':
             break
         else:
@@ -281,6 +285,162 @@ def ver_historial_alquileres():
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
 
+def eliminar_usuario():
+    try:
+        email = input("Correo electrónico del usuario a eliminar: ").strip()
+        r = requests.delete(f"{BASE_URL}/usuarios/eliminar", params={"email": email}, headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def eliminar_coche():
+    id_coche = input('Id coche: ')
+    try:
+        r = requests.delete(f'{BASE_URL}/coches/eliminar/<string:id_coche>', json={'id coche': id_coche})
+        print('Respuesta: ', r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print(f'Error al eliminar el coche: {e}')
+
+def listar_usuarios():
+    try:
+        r = requests.get(f"{BASE_URL}/listar-usuarios", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def detalles_usuario():
+    try:
+        email = input("Correo del usuario: ").strip()
+        r = requests.get(f"{BASE_URL}/usuarios/detalles/{email}", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def actualizar_contraseña():
+    try:
+        nueva_contraseña = input("Nueva contraseña: ").strip()
+        email = input("Tu correo electrónico: ").strip()
+        r = requests.put(f"{BASE_URL}/usuarios/actualizar-contraseña/{email}",
+                         json={"nueva_contraseña": nueva_contraseña},
+                         headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def logout():
+    try:
+        r = requests.post(f"{BASE_URL}/logout", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def detalles_coche():
+    try:
+        matricula = input("Matrícula del coche: ").strip()
+        r = requests.get(f"{BASE_URL}/coches/detalles/{matricula}", headers=get_headers())
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def actualizar_coche():
+    try:
+        id_coche = input("ID del coche a actualizar: ").strip()
+        nueva_matricula = input("Nueva matrícula: ").strip()
+        r = requests.put(f"{BASE_URL}/coches/actualizar-matricula/{id_coche}",
+                         json={"nueva_matricula": nueva_matricula},
+                         headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def listar_alquileres():
+    try:
+        r = requests.get(f"{BASE_URL}/alquileres/listar", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def alquiler_detalles():
+    try:
+        id_alquiler = input("ID del alquiler: ").strip()
+        r = requests.get(f"{BASE_URL}/alquileres/detalles/{id_alquiler}", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def finalizar_alquiler():
+    try:
+        id_alquiler = input("🆔 ID del alquiler a finalizar: ").strip()
+        r = requests.put(f"{BASE_URL}/alquileres/finalizar/{id_alquiler}", headers=get_headers(auth_required=True))
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def ver_historial_alquileres():
+    email = input('Email: ')
+
+    try:
+        r = requests.get(f'{BASE_URL}/alquileres/historial/<string:email>', json={'email': email})
+        print('Respuesta: ', r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print(f'Error al eliminar el coche: {e}')
+
+def alquilar_coche():
+    print("\n--- Alquilar Coche ---")
+    matricula = input("Matrícula del coche: ").strip()
+    fecha_inicio = input("Fecha de inicio (YYYY-MM-DD): ").strip()
+    fecha_fin = input("Fecha de fin (YYYY-MM-DD): ").strip()
+    email = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
+
+    # Preparar los datos para la solicitud
+    data = {
+        "matricula": matricula,
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+    }
+    if email:
+        data["email"] = email
+
+    # Enviar la solicitud POST al endpoint /alquilar-coche
+    r = requests.post(f"{BASE_URL}/alquilar-coche", json=data)
+
+    # Procesar la respuesta
+    if r.status_code == 200:
+        # Guardar el archivo PDF recibido
+        root = tk.Tk()
+        root.withdraw()  # Ocultar la ventana principal
+
+        # Abrir un cuadro de diálogo para elegir la ubicación
+        ruta_guardado = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF Files", "*.pdf")],
+            initialdir="~/Downloads",
+            title="Guardar factura PDF",
+            initialfile="factura.pdf"
+        )
+
+        if ruta_guardado:
+            with open(ruta_guardado, "wb") as f:
+                f.write(r.content)
+            print("Factura descargada exitosamente.")
+        else:
+            print("Guardado cancelado por el usuario.")
+    else:
+        print(f"Error: {r.status_code} - {r.text}")
+
+def listar_tipos():
+    try:
+        r = requests.get(f"{BASE_URL}/coches/categorias/tipo")
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
+
+def listar_precios():
+    try:
+        r = requests.get(f"{BASE_URL}/coches/categorias/precio")
+        print("Respuesta:", r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print("Error de conexión:", e)
 
 def main():
     """Función principal."""
@@ -339,10 +499,5 @@ def ver_historial_alquileres():
 def main():
     """Función principal."""
     mostrar_menu_principal()
-
-
-
-
-
 
 
