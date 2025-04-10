@@ -1,8 +1,8 @@
 import sys
 import os
-from flask import Flask, request, jsonify
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt, make_response
-import datetime
+from flask import Flask, request, jsonify, make_response
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
+from datetime import *
 
 # Agrega el directorio raíz del proyecto al PATH (para que encuentre `source`)
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -263,22 +263,28 @@ def buscar_coches_disponibles():
 @app.route('/alquilar-coche', methods=['POST'])
 @jwt_required(optional=True)
 def alquilar_coches():
-    # Obtener los datos de la solicitud
     data = request.json
     matricula = data.get('matricula')
     fecha_inicio = data.get('fecha_inicio')
     fecha_fin = data.get('fecha_fin')
     email = data.get('email')
 
-    # Validaciones básicas
+    # Validaciones necesarias
     if not matricula or not fecha_inicio or not fecha_fin:
         return jsonify({'error': 'Debes introducir la matrícula, la fecha de inicio y la fecha de fin'}), 400
-
+    
+        # Validar formato de las fechas
+    try:
+        fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({'error': 'Las fechas deben estar en formato YYYY-MM-DD'}), 400
+    
     try:
         # Obtener claims del token si existe
         claims = get_jwt() if get_jwt() else {}
         rol = claims.get('rol')
-
+        
         # Verificar si el usuario es admin
         if rol == 'admin':
             return jsonify({'error': 'Los administradores no pueden alquilar coches'}), 403
@@ -287,18 +293,25 @@ def alquilar_coches():
         if rol and not email:
             email = get_jwt_identity()
 
-        # Llamar al método alquilar_coche de la clase Empresa
-        pdf_bytes = empresa.alquilar_coche(matricula=matricula, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin, email=email)
+        # Registrar el alquiler y obtener el PDF
+        pdf_bytes = empresa.alquilar_coche(
+            matricula=matricula,
+            fecha_inicio=fecha_inicio.strftime('%Y-%m-%d'),
+            fecha_fin=fecha_fin.strftime('%Y-%m-%d'),
+            email=email
+        )
 
+        # Crear una respuesta con el archivo PDF
         response = make_response(pdf_bytes)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = 'attachment; filename=factura.pdf'
         return response
-        
+
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+        print(f"Error interno: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor. Por favor, inténtalo de nuevo más tarde.'}), 500
     
 
 @app.route('/alquileres/listar', methods=['GET'])

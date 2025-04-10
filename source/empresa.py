@@ -1,11 +1,13 @@
 
 # Clase Empresa que va a gestionar todo el alquiler de coches 
 import pandas as pd
+import tkinter as tk
 from datetime import datetime
 import re
 from fpdf import FPDF
 import hashlib
 import os
+from tkinter import filedialog
 
 class Empresa():
     def __init__(self,nombre):
@@ -334,8 +336,7 @@ class Empresa():
             return False
         
         
-    def alquilar_coche(self,matricula, fecha_inicio:datetime, fecha_fin:datetime,email=None):
-        
+    def alquilar_coche(self, matricula, fecha_inicio: datetime, fecha_fin: datetime, email=None):
         # Cargar los archivos CSV
         df_coches = self.cargar_coches()
         if df_coches is None:
@@ -344,19 +345,19 @@ class Empresa():
         df_clientes = self.cargar_usuarios()
         if df_clientes is None:
             raise ValueError("Error al cargar el archivo de usuarios.")
-        
+
         df_alquiler = self.cargar_alquileres()
         if df_alquiler is None:
             raise ValueError('Error al cargar el archivo de alquileres')
-        
+
         coche = df_coches[df_coches['matricula'] == matricula]
         if coche.empty:
             raise ValueError(f"No se encontró ningún coche con la matrícula: {matricula}.")
         coche = coche.iloc[0]
-        
+
         if email and not self.es_email_valido(email):
             raise ValueError("El correo electrónico no es válido.")
-        
+
         # Convertir las fechas a objetos datetime
         try:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
@@ -367,25 +368,25 @@ class Empresa():
         # Validar que la fecha de inicio sea anterior a la fecha de fin
         if fecha_inicio >= fecha_fin:
             raise ValueError("La fecha de inicio debe ser anterior a la fecha de fin.")
-        
+
         # Verificar disponibilidad
         if not coche['disponible']:
             raise ValueError(f"El coche {coche['marca']} - {coche['modelo']} no está disponible para alquilar.")
         else:
             print(f'El {coche["marca"]}-{coche["modelo"]} está disponible. Procesando alquiler...')
-        
-        precio_total = self.calcular_precio_total(fecha_inicio,fecha_fin,matricula,email)
+
+        precio_total = self.calcular_precio_total(fecha_inicio, fecha_fin, matricula, email)
         df_coches.loc[df_coches['matricula'] == matricula, 'disponible'] = False
-        
+
         id_usuario = 'INVITADO'
         if email:
             user = df_clientes[df_clientes['email'] == email]
             if user.empty:
-                raise ValueError(f'No se encontro ningun usuario con el email: {email}')
-            id_usuario = user.iloc[0]['id_usuario']    
-            
+                raise ValueError(f'No se encontró ningún usuario con el email: {email}')
+            id_usuario = user.iloc[0]['id_usuario']
+
         nuevo_alquiler = {
-            'id_alquiler' : self.generar_id_alquiler(),
+            'id_alquiler': self.generar_id_alquiler(),
             'id_coche': coche['id'],
             'id_usuario': id_usuario,
             'fecha_inicio': fecha_inicio.strftime('%Y-%m-%d'),  # Convertir a formato de cadena
@@ -393,31 +394,34 @@ class Empresa():
             'coste_total': precio_total,
             'activo': True
         }
-        
+
         df_nuevo_alquiler = pd.DataFrame([nuevo_alquiler])
-        df_actualizado = pd.concat([df_alquiler,df_nuevo_alquiler], ignore_index = True)
-        
-        # Guardar los cambios usando métodos auxiliares
+        df_actualizado = pd.concat([df_alquiler, df_nuevo_alquiler], ignore_index=True)
+
+        # Guardar los cambios y generar la factura en PDF
         try:
             self._guardar_csv('coches.csv', df_coches)
             self._guardar_csv('alquileres.csv', df_actualizado)
             print("Alquiler registrado exitosamente.")
-        except Exception as e:
-            print(f"Error al guardar los cambios: {e}")
-            return
+
+            # Generar la factura en PDF
+            datos_factura = {
+                'id_alquiler': nuevo_alquiler['id_alquiler'],
+                'marca': coche['marca'],
+                'modelo': coche['modelo'],
+                'matricula': coche['matricula'],
+                'fecha_inicio': nuevo_alquiler['fecha_inicio'],
+                'fecha_fin': nuevo_alquiler['fecha_fin'],
+                'coste_total': nuevo_alquiler['coste_total'],
+                'id_usuario': id_usuario
+            }
             
-        # Generar la factura en PDF
-        datos_factura = {
-            'id_alquiler': nuevo_alquiler['id_alquiler'],
-            'marca': coche['marca'],
-            'modelo': coche['modelo'],
-            'matricula': coche['matricula'],
-            'fecha_inicio': nuevo_alquiler['fecha_inicio'],
-            'fecha_fin': nuevo_alquiler['fecha_fin'],
-            'coste_total': nuevo_alquiler['coste_total'],
-            'id_usuario': id_usuario
-        }
-        return self.generar_factura_pdf(datos_factura)
+            # Guardar el PDF como bytes
+            pdf_bytes = self.generar_factura_pdf(datos_factura)  
+            return pdf_bytes
+            
+        except Exception as e:
+            raise ValueError(f"Error interno del servidor: {str(e)}")
     
     def obtener_historial_alquileres(self, id_usuario):
         """
@@ -605,11 +609,11 @@ class Empresa():
 
         # Añadir logo
         try:
-            logo_path = self._ruta_archivo('Logo.png')  # Usar el método auxiliar para construir la ruta
+            logo_path = 'Logo.png'  # Ruta relativa al logo
             if os.path.exists(logo_path):
                 pdf.image(logo_path, x=10, y=10, w=50)
             else:
-                print(f"El archivo Logo.png no se encontró en {logo_path}. Se omitirá el logo.")
+                print(f"El archivo Logo.png no se encontró. Se omitirá el logo.")
         except Exception as e:
             print(f"Error al cargar el logo: {e}")
 
@@ -666,6 +670,7 @@ class Empresa():
 
         # Devolver el PDF como bytes en lugar de guardarlo en el servidor
         return pdf.output(dest='S').encode('latin1')
+    
     
     def mostrar_categorias_tipo(self):
         
