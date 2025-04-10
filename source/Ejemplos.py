@@ -348,12 +348,10 @@ def entrar_como_invitado() -> None:
     -------
     None
         La función no retorna valores, pero actualiza la variable global ROL
-        y muestra el menú de cliente.
 
     Notes
     -----
     - Establece la variable global ROL como 'invitado'.
-    - Invoca `menu_cliente()` para proporcionar acceso limitado al sistema.
     - No requiere autenticación ni credenciales.
     - Diseñada para permitir exploración básica del sistema sin registro.
     """
@@ -888,15 +886,39 @@ def ver_historial_alquileres() -> None:
     except requests.exceptions.RequestException as e:
         print(f'Error al obtener el historial de alquileres: {e}')
 
-def alquilar_coche():
+def alquilar_coche() -> None:
+    """
+    Permite al usuario alquilar un coche y descargar la factura en formato PDF.
+
+    Esta función solicita al usuario la matrícula del coche, las fechas de inicio y fin del alquiler, 
+    y el email del usuario (opcional). Luego, envía una solicitud POST a una API para registrar el alquiler. 
+    Si la solicitud es exitosa (código de estado 200), se descarga un archivo PDF con la factura del alquiler 
+    utilizando un cuadro de diálogo para elegir la ubicación de guardado.
+
+    La URL de la API se construye utilizando la variable global `BASE_URL`. Los datos del alquiler se envían 
+    en formato JSON en el cuerpo de la solicitud.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+
+    Notes
+    -----
+    - Se utiliza el método `strip()` para eliminar espacios en blanco innecesarios en las entradas del usuario.
+    - Si el campo de email se deja en blanco, se asume que el usuario es un invitado y no se incluye el email en la solicitud.
+    - Para guardar el archivo PDF, se utiliza el módulo `tkinter.filedialog`, que abre un cuadro de diálogo gráfico.
+    - La función imprime mensajes informativos sobre el resultado de la operación.
+    """
     print("\n--- Alquilar Coche ---")
-    matricula = input("Matrícula del coche: ").strip()
-    fecha_inicio = input("Fecha de inicio (YYYY-MM-DD): ").strip()
-    fecha_fin = input("Fecha de fin (YYYY-MM-DD): ").strip()
-    email = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
+    matricula: str = input("Matrícula del coche: ").strip()
+    fecha_inicio: str = input("Fecha de inicio (YYYY-MM-DD): ").strip()
+    fecha_fin: str = input("Fecha de fin (YYYY-MM-DD): ").strip()
+    email: str | None = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
 
     # Preparar los datos para la solicitud
-    data = {
+    data: dict[str, str | None] = {
         "matricula": matricula,
         "fecha_inicio": fecha_inicio,
         "fecha_fin": fecha_fin,
@@ -904,32 +926,35 @@ def alquilar_coche():
     if email:
         data["email"] = email
 
-    # Enviar la solicitud POST al endpoint /alquilar-coche
-    r = requests.post(f"{BASE_URL}/alquilar-coche", json=data)
+    try:
+        # Enviar la solicitud POST al endpoint /alquilar-coche
+        r: requests.Response = requests.post(f"{BASE_URL}/alquilar-coche", json=data)
 
-    # Procesar la respuesta
-    if r.status_code == 200:
-        # Guardar el archivo PDF recibido
-        root = tk.Tk()
-        root.withdraw()  # Ocultar la ventana principal
+        # Procesar la respuesta
+        if r.status_code == 200:
+            # Guardar el archivo PDF recibido
+            root = tk.Tk()
+            root.withdraw()  # Ocultar la ventana principal
 
-        # Abrir un cuadro de diálogo para elegir la ubicación
-        ruta_guardado = filedialog.asksaveasfilename(
-            defaultextension=".pdf",
-            filetypes=[("PDF Files", "*.pdf")],
-            initialdir="~/Downloads",
-            title="Guardar factura PDF",
-            initialfile="factura.pdf"
-        )
+            # Abrir un cuadro de diálogo para elegir la ubicación
+            ruta_guardado = filedialog.asksaveasfilename(
+                defaultextension=".pdf",
+                filetypes=[("PDF Files", "*.pdf")],
+                initialdir="~/Downloads",
+                title="Guardar factura PDF",
+                initialfile="factura.pdf"
+            )
 
-        if ruta_guardado:
-            with open(ruta_guardado, "wb") as f:
-                f.write(r.content)
-            print("Factura descargada exitosamente.")
+            if ruta_guardado:
+                with open(ruta_guardado, "wb") as f:
+                    f.write(r.content)
+                print("Factura descargada exitosamente.")
+            else:
+                print("Guardado cancelado por el usuario.")
         else:
-            print("Guardado cancelado por el usuario.")
-    else:
-        print(f"Error: {r.status_code} - {r.text}")
+            print(f"Error: {r.status_code} - {r.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error de conexión: {e}")
 
 
 def listar_tipos() -> None:
