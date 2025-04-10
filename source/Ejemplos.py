@@ -60,8 +60,6 @@ def mostrar_menu_principal():
             print("Opción no válida. Inténtalo de nuevo.")
 
 
-    
-
 
 def menu_admin():
     """Menú para administradores."""
@@ -234,35 +232,6 @@ def eliminar_coche():
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
 
-def registrar_coche():
-    marca = input('Marca: ')
-    modelo = input('Modelo: ')
-    matricula = input('Matricula: ')
-    categoria_tipo = input('Categoria: ')
-    categoria_precio = input('Categoria precio: ')
-    año = input('Año:')
-    precio_diario = float(input('Precio diario: '))
-    kilometraje = int(input('Kilometraje: '))
-    color = input('Color: ')
-    combustible = input('Combustible: ')
-    cv = int(input('Caballos: '))
-    plazas = int(input('Plazas: '))
-    disponible = True
-    try:
-        r = requests.post(f'{BASE_URL}/coches/registrar',json={'marca':marca,'modelo':modelo,'matricula':matricula,'categoria tipo':categoria_tipo,'categoria precio':categoria_precio,'año':año,'precio diario':precio_diario,'kilometraje':kilometraje,'color':color,'combustible':combustible,'cv':cv, 'plazas':plazas,'disponible':disponible})
-        print('Respuesta: ', r.status_code, r.json())
-    except requests.exceptions.RequestException as e:
-        print(f'Error al registrar el coche: {e}')
-
-
-def eliminar_coche():
-    id_coche = input('Id coche: ')
-    try:
-        r =requests.delete(f'{BASE_URL}/coches/eliminar/<string:id_coche>', json={'id coche':id_coche})
-        print('Respuesta: ', r.status_code, r.json())
-    except requests.exceptions.RequestException as e:
-        print(f'Error al eliminar el coche: {e}')
-
 
 def buscar_coches_disponibles():
     categoria_precio = input('Categoria precio: ')
@@ -293,13 +262,6 @@ def eliminar_usuario():
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def eliminar_coche():
-    id_coche = input('Id coche: ')
-    try:
-        r = requests.delete(f'{BASE_URL}/coches/eliminar/<string:id_coche>', json={'id coche': id_coche})
-        print('Respuesta: ', r.status_code, r.json())
-    except requests.exceptions.RequestException as e:
-        print(f'Error al eliminar el coche: {e}')
 
 def listar_usuarios():
     try:
@@ -445,59 +407,4 @@ def listar_precios():
 def main():
     """Función principal."""
     mostrar_menu_principal()
-
-
-def buscar_coches_disponibles():
-    categoria_precio = input('Categoria precio: ')
-    categoria_tipo = input('Categoria tipo: ')
-    marca = input('Marca: ')
-    modelo = input('Modelo: ')
-
-    try:
-        r = requests.get(f'{BASE_URL}/coches-disponibles',
-                         json={'categoria tipo': categoria_tipo, 'categoria precio': categoria_precio, 'marca': marca,
-                               'modelo': modelo})
-        print('Respuesta: ', r.status_code, r.json())
-    except requests.exceptions.RequestException as e:
-        print(f'Error al eliminar el coche: {e}')
-
-
-def ver_historial_alquileres():
-    email = input('Email: ')
-
-    try:
-        r = requests.get(f'{BASE_URL}/alquileres/historial/<string:email>', json={'email': email})
-        print('Respuesta: ', r.status_code, r.json())
-    except requests.exceptions.RequestException as e:
-        print(f'Error al eliminar el coche: {e}')
-
-
-
-
-
-        # Abrir un cuadro de diálogo para elegir la ubicación
-        ruta_guardado = filedialog.asksaveasfilename(
-            defaultextension=".pdf",
-            filetypes=[("PDF Files", "*.pdf")],
-            initialdir="~/Downloads",
-            title="Guardar factura PDF",
-            initialfile="factura.pdf"
-        )
-
-        if ruta_guardado:
-            with open(ruta_guardado, "wb") as f:
-                f.write(r.content)
-            print("Factura descargada exitosamente.")
-        else:
-            print("Guardado cancelado por el usuario.")
-    else:
-        print(f"Error: {r.status_code} - {r.text}")
-
-
-
-
-def main():
-    """Función principal."""
-    mostrar_menu_principal()
-
 
