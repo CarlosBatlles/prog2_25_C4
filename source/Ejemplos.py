@@ -303,11 +303,11 @@ def signup() -> None:
     - Imprime el código de estado HTTP y la respuesta JSON del servidor.
     - No maneja explícitamente excepciones de red, lo que podría mejorarse.
     """
-    user = input("Usuario nuevo: ")
-    passwd = input("Contraseña: ")
+    nombre = input("Usuario nuevo: ")
+    contraseña = input("Contraseña: ")
     email = input("Correo: ")
     tipo = input("Tipo: ")
-    r = requests.post(f"{BASE_URL}/signup", json={"user": user,'tipo': tipo , 'email': email, "passwd": passwd})
+    r = requests.post(f"{BASE_URL}/signup", json={"nombre": nombre,'tipo': tipo , 'email': email, "contraseña": contraseña})
     print("Respuesta:", r.status_code, r.json())
 
 
