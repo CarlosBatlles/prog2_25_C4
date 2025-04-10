@@ -509,34 +509,6 @@ def buscar_coches_disponibles() -> None:
     except requests.exceptions.RequestException as e:
         print(f'Error al buscar coches disponibles: {e}')
 
-def ver_historial_alquileres() -> None:
-    """
-    Consulta el historial de alquileres de un usuario según su email.
-
-    Returns
-    -------
-    None
-        La función no retorna valores, pero imprime la respuesta del servidor.
-
-    Notes
-    -----
-    - Solicita al usuario un email mediante entrada estándar.
-    - Realiza una solicitud GET al endpoint /alquileres/historial/{email}.
-    - Requiere la biblioteca `requests` y la constante global BASE_URL.
-    - Maneja excepciones de red e imprime errores si ocurren.
-    - Nota: En una API REST típica, el email podría pasarse como parte de la
-      URL o como query parameter en lugar de en el cuerpo JSON para GET.
-    """
-    email = input('Email: ')
-
-    try:
-        r = requests.get(
-            f'{BASE_URL}/alquileres/historial/{email}',
-            json={'email': email}
-        )
-        print('Respuesta: ', r.status_code, r.json())
-    except requests.exceptions.RequestException as e:
-        print(f'Error al consultar el historial de alquileres: {e}')
 
 def eliminar_usuario() -> None:
     """
