@@ -10,16 +10,58 @@ TOKEN = None
 ROL = None
 
 
-def get_headers(auth_required=False):
-    """Devuelve los headers necesarios para las solicitudes HTTP."""
+def get_headers(auth_required: bool = False) -> dict[str, str]:
+    """
+    Devuelve los headers necesarios para las solicitudes HTTP.
+
+    Parameters
+    ----------
+    auth_required : bool, optional
+        Indica si se requiere autenticación para la solicitud. 
+        Por defecto es False.
+
+    Returns
+    -------
+    dict[str, str]
+        Diccionario con los headers HTTP, incluyendo 'Content-Type' y 
+        opcionalmente 'Authorization' si se requiere autenticación y 
+        existe un TOKEN.
+
+    Notes
+    -----
+    - El header 'Content-Type' se establece siempre como 'application/json'.
+    - El header 'Authorization' se añade solo si auth_required es True 
+      y la variable global TOKEN está definida y no es None.
+    """
     headers = {"Content-Type": "application/json"}
     if auth_required and TOKEN:
         headers["Authorization"] = f"Bearer {TOKEN}"
     return headers
 
 
-def decode_token(token):
-    """Decodifica el token JWT para extraer las claims."""
+def decode_token(token: str) -> dict:
+    """
+    Decodifica un token JWT para extraer sus claims.
+
+    Parameters
+    ----------
+    token : str
+        El token JWT que se desea decodificar.
+
+    Returns
+    -------
+    dict
+        Diccionario con las claims decodificadas del token si tiene éxito,
+        o un diccionario vacío si ocurre un error.
+
+    Notes
+    -----
+    - La decodificación se realiza sin verificar la firma del token,
+      lo cual solo debe usarse con fines educativos o de depuración.
+    - Requiere que la biblioteca `jwt` (PyJWT) esté instalada.
+    - Los errores durante la decodificación se capturan y se imprimen,
+      retornando un diccionario vacío en tales casos.
+    """
     try:
         # Decodificar el token sin verificar la firma (solo para fines educativos)
         decoded = jwt.decode(token, options={"verify_signature": False})
@@ -30,8 +72,26 @@ def decode_token(token):
     
 
 
-def mostrar_menu_principal():
-    """Muestra el menú principal."""
+def mostrar_menu_principal() -> None:
+    """
+    Muestra y gestiona el menú principal interactivo del sistema.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, solo ejecuta un bucle interactivo
+        hasta que el usuario elige salir.
+
+    Notes
+    -----
+    - La función utiliza un bucle infinito hasta que el usuario selecciona
+      la opción de salir (5).
+    - Depende de las funciones externas: login(), signup(), 
+      entrar_como_invitado(), logout() y mostrar_menu_por_rol().
+    - Utiliza la variable global ROL para determinar el rol del usuario tras
+      el inicio de sesión.
+    - Las opciones válidas son cadenas de texto del "1" al "5".
+    """
     while True:
         print("\n--- Menú Principal ---")
         print("1. Iniciar sesión")
@@ -59,8 +119,26 @@ def mostrar_menu_principal():
     
 
 
-def menu_admin():
-    """Menú para administradores."""
+def menu_admin() -> None:
+    """
+    Muestra y gestiona el menú interactivo para administradores.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, ejecuta un bucle interactivo hasta
+        que el usuario elige volver al menú principal (opción 9).
+
+    Notes
+    -----
+    - La función presenta un bucle infinito hasta que se selecciona la opción
+      de salida (9).
+    - Depende de las funciones externas: registrar_coche(), eliminar_coche(),
+      listar_usuarios(), detalles_usuario(), actualizar_coche(),
+      listar_alquileres(), alquiler_detalles() y finalizar_alquiler().
+    - Las opciones válidas son cadenas de texto del "1" al "9".
+    - Diseñada para usuarios con privilegios administrativos. 
+    """
     while True:
         print("\n--- Menú de Administrador ---")
         print("1. Registrar coche")
@@ -96,8 +174,27 @@ def menu_admin():
             print("Opción no válida. Inténtalo de nuevo.")
 
 
-def menu_cliente():
-    """Menú para clientes."""
+def menu_cliente() -> None:
+    """
+    Muestra y gestiona el menú interactivo para clientes.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, ejecuta un bucle interactivo hasta
+        que el usuario elige volver al menú principal (opción 9).
+
+    Notes
+    -----
+    - La función mantiene un bucle infinito hasta que se selecciona la opción
+      de salida (9).
+    - Depende de las funciones externas: alquilar_coche(), 
+      ver_historial_alquileres(), buscar_coches_disponibles(), 
+      detalles_usuario(), actualizar_contraseña(), detalles_coche(), 
+      listar_tipos() y listar_precios().
+    - Las opciones válidas son cadenas de texto del "1" al "9".
+    - Diseñada para usuarios con rol de cliente en el sistema. 
+    """
     while True:
         print("\n--- Menú de Cliente ---")
         print("1. Alquilar coche")
@@ -133,8 +230,26 @@ def menu_cliente():
             print("Opción no válida. Inténtalo de nuevo.")
 
 
-def login():
-    """Iniciar sesión y obtener el token JWT."""
+def login() -> None:
+    """
+    Inicia sesión en el sistema y obtiene un token JWT.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero actualiza las variables globales
+        TOKEN y ROL si el inicio de sesión es exitoso.
+
+    Notes
+    -----
+    - Modifica las variables globales TOKEN y ROL.
+    - Requiere las bibliotecas `requests` y la función `decode_token()`.
+    - Depende de la constante BASE_URL definida globalmente.
+    - Realiza una solicitud POST al endpoint /login con las credenciales
+      proporcionadas por el usuario.
+    - Maneja diferentes códigos de estado HTTP (200, 400, 401) y excepciones
+      de conexión.
+    """
     global TOKEN, ROL
     print("\n--- Iniciar Sesión ---")
     email = input("Correo electrónico: ").strip()
@@ -171,15 +286,50 @@ def login():
         print(f"Error al conectar con el servidor: {e}")
 
 
-def signup():
+def signup() -> None:
+    """
+    Registra un nuevo usuario en el sistema enviando una solicitud al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita al usuario un nombre de usuario y contraseña mediante entrada estándar.
+    - Realiza una solicitud POST al endpoint /signup con los datos proporcionados.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Imprime el código de estado HTTP y la respuesta JSON del servidor.
+    - No maneja explícitamente excepciones de red, lo que podría mejorarse.
+    """
     user = input("Usuario nuevo: ")
     passwd = input("Contraseña: ")
     r = requests.post(f"{BASE_URL}/signup", json={"user": user, "passwd": passwd})
     print("Respuesta:", r.status_code, r.json())
 
 
-def mostrar_menu_por_rol(rol):
-    """Muestra un menú específico según el rol del usuario."""
+def mostrar_menu_por_rol(rol: str) -> None:
+    """
+    Muestra un menú específico según el rol del usuario.
+
+    Parameters
+    ----------
+    rol : str
+        El rol del usuario, debe ser 'admin' o 'cliente'.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, solo ejecuta el menú correspondiente.
+
+    Notes
+    -----
+    - Llama a `menu_admin()` si el rol es 'admin'.
+    - Llama a `menu_cliente()` si el rol es 'cliente'.
+    - Muestra un mensaje de error si el rol no es reconocido.
+    - El nombre del rol se muestra con la primera letra en mayúscula.
+    """
     print(f"\n--- Menú para {rol.capitalize()} ---")
     if rol == "admin":
         menu_admin()
@@ -189,14 +339,47 @@ def mostrar_menu_por_rol(rol):
         print("Rol no reconocido.")
 
 
-def entrar_como_invitado():
-    """Entrar como invitado."""
+def entrar_como_invitado() -> None:
+    """
+    Permite al usuario entrar al sistema como invitado.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero actualiza la variable global ROL
+        y muestra el menú de cliente.
+
+    Notes
+    -----
+    - Establece la variable global ROL como 'invitado'.
+    - Invoca `menu_cliente()` para proporcionar acceso limitado al sistema.
+    - No requiere autenticación ni credenciales.
+    - Diseñada para permitir exploración básica del sistema sin registro.
+    """
     global ROL
     ROL = "invitado"
     print("\nHas entrado como invitado.")
     menu_cliente()  # Los invitados pueden usar el menú de cliente
 
-def registrar_coche():
+def registrar_coche() -> None:
+    """
+    Registra un nuevo coche en el sistema enviando los datos al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita al usuario los detalles del coche mediante entrada estándar.
+    - Convierte ciertos campos a tipos específicos: precio_diario (float),
+      kilometraje (int), cv (int), plazas (int).
+    - Establece el campo 'disponible' como True por defecto.
+    - Realiza una solicitud POST al endpoint /coches/registrar.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    """
     marca = input('Marca: ')
     modelo = input('Modelo: ')
     matricula = input('Matricula: ')
@@ -211,151 +394,521 @@ def registrar_coche():
     plazas = int(input('Plazas: '))
     disponible = True
     try:
-        r = requests.post(f'{BASE_URL}/coches/registrar',json={'marca':marca,'modelo':modelo,'matricula':matricula,'categoria tipo':categoria_tipo,'categoria precio':categoria_precio,'año':año,'precio diario':precio_diario,'kilometraje':kilometraje,'color':color,'combustible':combustible,'cv':cv, 'plazas':plazas,'disponible':disponible})
+        r = requests.post(
+            f'{BASE_URL}/coches/registrar',
+            json={
+                'marca': marca,
+                'modelo': modelo,
+                'matricula': matricula,
+                'categoria tipo': categoria_tipo,
+                'categoria precio': categoria_precio,
+                'año': año,
+                'precio diario': precio_diario,
+                'kilometraje': kilometraje,
+                'color': color,
+                'combustible': combustible,
+                'cv': cv,
+                'plazas': plazas,
+                'disponible': disponible
+            }
+        )
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print(f'Error al registrar el coche: {e}')
 
 
-def eliminar_coche():
+def eliminar_coche() -> None:
+    """
+    Elimina un coche del sistema enviando una solicitud al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita al usuario el ID del coche a eliminar mediante entrada estándar.
+    - Realiza una solicitud DELETE al endpoint /coches/eliminar/{id_coche}.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    - El cuerpo JSON con {'id coche': id_coche} podría no ser necesario en una
+      solicitud DELETE típica, dependiendo de la API.
+    """
     id_coche = input('Id coche: ')
     try:
-        r =requests.delete(f'{BASE_URL}/coches/eliminar/<string:id_coche>', json={'id coche':id_coche})
+        r = requests.delete(f'{BASE_URL}/coches/eliminar/{id_coche}', json={'id coche': id_coche})
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
 
 
-def buscar_coches_disponibles():
+def buscar_coches_disponibles() -> None:
+    """
+    Busca coches disponibles en el sistema según criterios especificados.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita al usuario criterios de búsqueda (categoría de precio, tipo,
+      marca y modelo) mediante entrada estándar.
+    - Realiza una solicitud GET al endpoint /coches-disponibles con los
+      parámetros en el cuerpo JSON.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    - Nota: En una API REST típica, los parámetros de búsqueda suelen enviarse
+      como query parameters en la URL en lugar de en el cuerpo JSON para GET.
+    """
     categoria_precio = input('Categoria precio: ')
     categoria_tipo = input('Categoria tipo: ')
     marca = input('Marca: ')
     modelo = input('Modelo: ')
 
     try:
-        r = requests.get(f'{BASE_URL}/coches-disponibles',json={'categoria tipo' : categoria_tipo, 'categoria precio': categoria_precio, 'marca': marca, 'modelo': modelo})
+        r = requests.get(
+            f'{BASE_URL}/coches-disponibles',
+            json={
+                'categoria tipo': categoria_tipo,
+                'categoria precio': categoria_precio,
+                'marca': marca,
+                'modelo': modelo
+            }
+        )
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
-        print(f'Error al eliminar el coche: {e}')
+        print(f'Error al buscar coches disponibles: {e}')
 
-def ver_historial_alquileres():
+def ver_historial_alquileres() -> None:
+    """
+    Consulta el historial de alquileres de un usuario según su email.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita al usuario un email mediante entrada estándar.
+    - Realiza una solicitud GET al endpoint /alquileres/historial/{email}.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    - Nota: En una API REST típica, el email podría pasarse como parte de la
+      URL o como query parameter en lugar de en el cuerpo JSON para GET.
+    """
     email = input('Email: ')
 
     try:
-        r = requests.get(f'{BASE_URL}/alquileres/historial/<string:email>', json={'email':email})
-        print('Respuesta: ', r.status_code,r.json())
+        r = requests.get(
+            f'{BASE_URL}/alquileres/historial/{email}',
+            json={'email': email}
+        )
+        print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
-        print(f'Error al eliminar el coche: {e}')
+        print(f'Error al consultar el historial de alquileres: {e}')
 
-def eliminar_usuario():
+def eliminar_usuario() -> None:
+    """
+    Elimina un usuario del sistema enviando una solicitud al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita el correo electrónico del usuario a eliminar mediante entrada estándar.
+    - Realiza una solicitud DELETE al endpoint /usuarios/eliminar con el email como
+      parámetro de consulta.
+    - Utiliza `get_headers()` para incluir autenticación en los headers si es necesario.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    """
     try:
         email = input("Correo electrónico del usuario a eliminar: ").strip()
-        r = requests.delete(f"{BASE_URL}/usuarios/eliminar", params={"email": email}, headers=get_headers(auth_required=True))
+        r = requests.delete(
+            f"{BASE_URL}/usuarios/eliminar",
+            params={"email": email},
+            headers=get_headers(auth_required=True)
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def eliminar_coche():
+def eliminar_coche() -> None:
+    """
+    Elimina un coche del sistema enviando una solicitud al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita al usuario el ID del coche a eliminar mediante entrada estándar.
+    - Realiza una solicitud DELETE al endpoint /coches/eliminar/{id_coche}.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    - El cuerpo JSON con {'id coche': id_coche} podría no ser necesario en una
+      solicitud DELETE típica, ya que el ID se pasa en la URL.
+    """
     id_coche = input('Id coche: ')
     try:
-        r = requests.delete(f'{BASE_URL}/coches/eliminar/<string:id_coche>', json={'id coche': id_coche})
+        r = requests.delete(
+            f'{BASE_URL}/coches/eliminar/{id_coche}',
+            json={'id coche': id_coche}
+        )
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
 
-def listar_usuarios():
+def listar_usuarios() -> None:
+    """
+    Lista todos los usuarios registrados en el sistema mediante una solicitud al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Realiza una solicitud GET al endpoint /listar-usuarios.
+    - Utiliza `get_headers()` con autenticación requerida para incluir el token en los headers.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    - Se asume que el endpoint retorna una lista de usuarios en formato JSON.
+    """
     try:
-        r = requests.get(f"{BASE_URL}/listar-usuarios", headers=get_headers(auth_required=True))
+        r = requests.get(
+            f"{BASE_URL}/listar-usuarios",
+            headers=get_headers(auth_required=True)
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def detalles_usuario():
+def detalles_usuario() -> None:
+    """
+    Obtiene los detalles de un usuario específico enviando una solicitud al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita el correo electrónico del usuario mediante entrada estándar.
+    - Realiza una solicitud GET al endpoint /usuarios/detalles/{email}.
+    - Utiliza `get_headers()` con autenticación requerida para incluir el token en los headers.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    - Se asume que el endpoint retorna los detalles del usuario en formato JSON.
+    """
     try:
         email = input("Correo del usuario: ").strip()
-        r = requests.get(f"{BASE_URL}/usuarios/detalles/{email}", headers=get_headers(auth_required=True))
+        r = requests.get(
+            f"{BASE_URL}/usuarios/detalles/{email}",
+            headers=get_headers(auth_required=True)
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def actualizar_contraseña():
+def actualizar_contraseña() -> None:
+    """
+    Actualiza la contraseña de un usuario enviando una solicitud al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Solicita la nueva contraseña y el correo electrónico del usuario mediante entrada estándar.
+    - Realiza una solicitud PUT al endpoint /usuarios/actualizar-contraseña/{email}.
+    - Envía la nueva contraseña en el cuerpo JSON.
+    - Utiliza `get_headers()` con autenticación requerida para incluir el token en los headers.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    """
     try:
         nueva_contraseña = input("Nueva contraseña: ").strip()
         email = input("Tu correo electrónico: ").strip()
-        r = requests.put(f"{BASE_URL}/usuarios/actualizar-contraseña/{email}",
-                         json={"nueva_contraseña": nueva_contraseña},
-                         headers=get_headers(auth_required=True))
+        r = requests.put(
+            f"{BASE_URL}/usuarios/actualizar-contraseña/{email}",
+            json={"nueva_contraseña": nueva_contraseña},
+            headers=get_headers(auth_required=True)
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def logout():
+def logout() -> None:
+    """
+    Cierra la sesión del usuario enviando una solicitud al servidor.
+
+    Returns
+    -------
+    None
+        La función no retorna valores, pero imprime la respuesta del servidor.
+
+    Notes
+    -----
+    - Realiza una solicitud POST al endpoint /logout.
+    - Utiliza `get_headers()` con autenticación requerida para incluir el token en los headers.
+    - Requiere la biblioteca `requests` y la constante global BASE_URL.
+    - Maneja excepciones de red e imprime errores si ocurren.
+    - Se asume que el servidor invalida el token tras esta solicitud.
+    """
     try:
-        r = requests.post(f"{BASE_URL}/logout", headers=get_headers(auth_required=True))
+        r = requests.post(
+            f"{BASE_URL}/logout",
+            headers=get_headers(auth_required=True)
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def detalles_coche():
+def detalles_coche() -> None:
+    """
+    Consulta y muestra los detalles de un coche utilizando su matrícula.
+
+    Esta función solicita al usuario la matrícula de un coche, realiza una petición GET a una API 
+    para obtener los detalles del coche correspondiente y muestra la respuesta. Si ocurre un error 
+    de conexión durante la solicitud, se captura la excepción y se muestra un mensaje de error.
+
+    La URL de la API se construye utilizando la variable global `BASE_URL` y los encabezados necesarios 
+    se obtienen mediante la función `get_headers()`.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+
+    Notes
+    -----
+    - Se utiliza el método `strip()` para eliminar espacios en blanco innecesarios en la entrada de la matrícula.
+    - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
+    """
     try:
-        matricula = input("Matrícula del coche: ").strip()
-        r = requests.get(f"{BASE_URL}/coches/detalles/{matricula}", headers=get_headers())
+        matricula: str = input("Matrícula del coche: ").strip()
+        r: requests.Response = requests.get(
+            f"{BASE_URL}/coches/detalles/{matricula}", headers=get_headers()
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def actualizar_coche():
+def actualizar_coche() -> None:
+    """
+    Actualiza la matrícula de un coche identificado por su ID.
+
+    Esta función solicita al usuario el ID del coche y la nueva matrícula, realiza una petición PUT 
+    a una API para actualizar la matrícula del coche correspondiente y muestra la respuesta. Si ocurre 
+    un error de conexión durante la solicitud, se captura la excepción y se muestra un mensaje de error.
+
+    La URL de la API se construye utilizando la variable global `BASE_URL`, y los encabezados necesarios 
+    se obtienen mediante la función `get_headers()` con el parámetro `auth_required=True`.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+
+    Notes
+    -----
+    - Se utiliza el método `strip()` para eliminar espacios en blanco innecesarios en las entradas del ID y la nueva matrícula.
+    - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
+    - El cuerpo de la solicitud contiene un objeto JSON con la clave `"nueva_matricula"` y el valor proporcionado por el usuario.
+    """
     try:
-        id_coche = input("ID del coche a actualizar: ").strip()
-        nueva_matricula = input("Nueva matrícula: ").strip()
-        r = requests.put(f"{BASE_URL}/coches/actualizar-matricula/{id_coche}",
-                         json={"nueva_matricula": nueva_matricula},
-                         headers=get_headers(auth_required=True))
+        id_coche: str = input("ID del coche a actualizar: ").strip()
+        nueva_matricula: str = input("Nueva matrícula: ").strip()
+        r: requests.Response = requests.put(
+            f"{BASE_URL}/coches/actualizar-matricula/{id_coche}",
+            json={"nueva_matricula": nueva_matricula},
+            headers=get_headers(auth_required=True)
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def listar_alquileres():
+def listar_alquileres() -> None:
+    """
+    Lista todos los alquileres disponibles realizando una solicitud GET a la API.
+
+    Esta función realiza una petición GET a una API para obtener una lista de todos los alquileres 
+    registrados. La URL de la API se construye utilizando la variable global `BASE_URL`, y los encabezados 
+    necesarios se obtienen mediante la función `get_headers()` con el parámetro `auth_required=True`.
+
+    Si la solicitud es exitosa, se imprime la respuesta de la API, que incluye el código de estado HTTP 
+    y los datos en formato JSON. Si ocurre un error de conexión durante la solicitud, se captura la excepción 
+    y se muestra un mensaje de error.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+
+    Notes
+    -----
+    - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
+    - Se requiere autenticación para acceder a este endpoint, por lo que se utiliza `auth_required=True` 
+      en la función `get_headers()`.
+    """
     try:
-        r = requests.get(f"{BASE_URL}/alquileres/listar", headers=get_headers(auth_required=True))
+        r: requests.Response = requests.get(
+            f"{BASE_URL}/alquileres/listar", headers=get_headers(auth_required=True)
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def alquiler_detalles():
+def alquiler_detalles() -> None:
+    """
+    Obtiene y muestra los detalles de un alquiler específico utilizando su ID.
+
+    Esta función solicita al usuario el ID de un alquiler, realiza una petición GET a una API 
+    para obtener los detalles del alquiler correspondiente y muestra la respuesta. Si ocurre un error 
+    de conexión durante la solicitud, se captura la excepción y se muestra un mensaje de error.
+
+    La URL de la API se construye utilizando la variable global `BASE_URL`, y los encabezados necesarios 
+    se obtienen mediante la función `get_headers()` con el parámetro `auth_required=True`.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+
+    Notes
+    -----
+    - Se utiliza el método `strip()` para eliminar espacios en blanco innecesarios en la entrada del ID.
+    - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
+    - Se requiere autenticación para acceder a este endpoint, por lo que se utiliza `auth_required=True` 
+      en la función `get_headers()`.
+    """
     try:
-        id_alquiler = input("ID del alquiler: ").strip()
-        r = requests.get(f"{BASE_URL}/alquileres/detalles/{id_alquiler}", headers=get_headers(auth_required=True))
+        id_alquiler: str = input("ID del alquiler: ").strip()
+        r: requests.Response = requests.get(
+            f"{BASE_URL}/alquileres/detalles/{id_alquiler}", headers=get_headers(auth_required=True)
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def finalizar_alquiler():
+def finalizar_alquiler() -> None:
+    """
+    Finaliza un alquiler específico identificado por su ID.
+
+    Esta función solicita al usuario el ID del alquiler que se desea finalizar, realiza una petición PUT 
+    a una API para marcar el alquiler como finalizado y muestra la respuesta. Si ocurre un error de conexión 
+    durante la solicitud, se captura la excepción y se muestra un mensaje de error.
+
+    La URL de la API se construye utilizando la variable global `BASE_URL`, y los encabezados necesarios 
+    se obtienen mediante la función `get_headers()` con el parámetro `auth_required=True`.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+
+    Notes
+    -----
+    - Se utiliza el método `strip()` para eliminar espacios en blanco innecesarios en la entrada del ID.
+    - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
+    - Se requiere autenticación para acceder a este endpoint, por lo que se utiliza `auth_required=True` 
+      en la función `get_headers()`.
+    """
     try:
-        id_alquiler = input("🆔 ID del alquiler a finalizar: ").strip()
-        r = requests.put(f"{BASE_URL}/alquileres/finalizar/{id_alquiler}", headers=get_headers(auth_required=True))
+        id_alquiler: str = input("🆔 ID del alquiler a finalizar: ").strip()
+        r: requests.Response = requests.put(
+            f"{BASE_URL}/alquileres/finalizar/{id_alquiler}", headers=get_headers(auth_required=True)
+        )
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def ver_historial_alquileres():
-    email = input('Email: ')
+def ver_historial_alquileres() -> None:
+    """
+    Muestra el historial de alquileres de un usuario identificado por su email.
+
+    Esta función solicita al usuario el email asociado a los alquileres que desea consultar, 
+    realiza una petición GET a una API para obtener el historial de alquileres correspondiente 
+    y muestra la respuesta. Si ocurre un error de conexión durante la solicitud, se captura la 
+    excepción y se muestra un mensaje de error.
+
+    La URL de la API se construye utilizando la variable global `BASE_URL`. El cuerpo de la solicitud 
+    incluye un objeto JSON con la clave `"email"` y el valor proporcionado por el usuario.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+
+    Notes
+    -----
+    - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
+    - El endpoint `/alquileres/historial/<string:email>` parece estar mal construido en el código original, 
+      ya que no es necesario incluir `<string:email>` en la URL si el email se envía en el cuerpo de la solicitud.
+    """
+    email: str = input('Email: ')
 
     try:
-        r = requests.get(f'{BASE_URL}/alquileres/historial/<string:email>', json={'email': email})
+        r: requests.Response = requests.get(
+            f'{BASE_URL}/alquileres/historial', json={'email': email}
+        )
         print('Respuesta: ', r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
 
-def alquilar_coche():
+def alquilar_coche() -> None:
+    """
+    Permite al usuario alquilar un coche y descargar la factura en formato PDF.
+
+    Esta función solicita al usuario la matrícula del coche, las fechas de inicio y fin del alquiler, 
+    y el email del usuario (opcional). Luego, envía una solicitud POST a una API para registrar el alquiler. 
+    Si la solicitud es exitosa (código de estado 200), se descarga un archivo PDF con la factura del alquiler 
+    utilizando un cuadro de diálogo para elegir la ubicación de guardado.
+
+    La URL de la API se construye utilizando la variable global `BASE_URL`. Los datos del alquiler se envían 
+    en formato JSON en el cuerpo de la solicitud.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+
+    Notes
+    -----
+    - Se utiliza el método `strip()` para eliminar espacios en blanco innecesarios en las entradas del usuario.
+    - Si el campo de email se deja en blanco, se asume que el usuario es un invitado y no se incluye el email en la solicitud.
+    - Para guardar el archivo PDF, se utiliza el módulo `tkinter.filedialog`, que abre un cuadro de diálogo gráfico.
+    - La función imprime mensajes informativos sobre el resultado de la operación.
+    """
     print("\n--- Alquilar Coche ---")
-    matricula = input("Matrícula del coche: ").strip()
-    fecha_inicio = input("Fecha de inicio (YYYY-MM-DD): ").strip()
-    fecha_fin = input("Fecha de fin (YYYY-MM-DD): ").strip()
-    email = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
+    matricula: str = input("Matrícula del coche: ").strip()
+    fecha_inicio: str = input("Fecha de inicio (YYYY-MM-DD): ").strip()
+    fecha_fin: str = input("Fecha de fin (YYYY-MM-DD): ").strip()
+    email: str | None = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
 
     # Preparar los datos para la solicitud
-    data = {
+    data: dict[str, str | None] = {
         "matricula": matricula,
         "fecha_inicio": fecha_inicio,
         "fecha_fin": fecha_fin,
@@ -363,49 +916,96 @@ def alquilar_coche():
     if email:
         data["email"] = email
 
-    # Enviar la solicitud POST al endpoint /alquilar-coche
-    r = requests.post(f"{BASE_URL}/alquilar-coche", json=data)
+    try:
+        # Enviar la solicitud POST al endpoint /alquilar-coche
+        r: requests.Response = requests.post(f"{BASE_URL}/alquilar-coche", json=data)
 
-    # Procesar la respuesta
-    if r.status_code == 200:
-        # Guardar el archivo PDF recibido
-        root = tk.Tk()
-        root.withdraw()  # Ocultar la ventana principal
+        # Procesar la respuesta
+        if r.status_code == 200:
+            # Guardar el archivo PDF recibido
+            root = tk.Tk()
+            root.withdraw()  # Ocultar la ventana principal
 
-        # Abrir un cuadro de diálogo para elegir la ubicación
-        ruta_guardado = filedialog.asksaveasfilename(
-            defaultextension=".pdf",
-            filetypes=[("PDF Files", "*.pdf")],
-            initialdir="~/Downloads",
-            title="Guardar factura PDF",
-            initialfile="factura.pdf"
-        )
+            # Abrir un cuadro de diálogo para elegir la ubicación
+            ruta_guardado = filedialog.asksaveasfilename(
+                defaultextension=".pdf",
+                filetypes=[("PDF Files", "*.pdf")],
+                initialdir="~/Downloads",
+                title="Guardar factura PDF",
+                initialfile="factura.pdf"
+            )
 
-        if ruta_guardado:
-            with open(ruta_guardado, "wb") as f:
-                f.write(r.content)
-            print("Factura descargada exitosamente.")
+            if ruta_guardado:
+                with open(ruta_guardado, "wb") as f:
+                    f.write(r.content)
+                print("Factura descargada exitosamente.")
+            else:
+                print("Guardado cancelado por el usuario.")
         else:
-            print("Guardado cancelado por el usuario.")
-    else:
-        print(f"Error: {r.status_code} - {r.text}")
+            print(f"Error: {r.status_code} - {r.text}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error de conexión: {e}")
 
-def listar_tipos():
+def listar_tipos() -> None:
+    """
+    Lista los tipos de categorías de coches disponibles realizando una solicitud GET a la API.
+
+    Esta función realiza una petición GET a una API para obtener una lista de los tipos de categorías 
+    de coches registrados. La URL de la API se construye utilizando la variable global `BASE_URL`.
+
+    Si la solicitud es exitosa, se imprime la respuesta de la API, que incluye el código de estado HTTP 
+    y los datos en formato JSON. Si ocurre un error de conexión durante la solicitud, se captura la excepción 
+    y se muestra un mensaje de error.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+    """
     try:
-        r = requests.get(f"{BASE_URL}/coches/categorias/tipo")
+        r: requests.Response = requests.get(f"{BASE_URL}/coches/categorias/tipo")
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def listar_precios():
+def listar_precios() -> None:
+    """
+    Lista los precios de las categorías de coches disponibles realizando una solicitud GET a la API.
+
+    Esta función realiza una petición GET a una API para obtener una lista de los precios asociados 
+    a las categorías de coches registradas. La URL de la API se construye utilizando la variable global `BASE_URL`.
+
+    Si la solicitud es exitosa, se imprime la respuesta de la API, que incluye el código de estado HTTP 
+    y los datos en formato JSON. Si ocurre un error de conexión durante la solicitud, se captura la excepción 
+    y se muestra un mensaje de error.
+
+    Raises
+    ------
+    requests.exceptions.RequestException
+        Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
+        timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
+    """
     try:
-        r = requests.get(f"{BASE_URL}/coches/categorias/precio")
+        r: requests.Response = requests.get(f"{BASE_URL}/coches/categorias/precio")
         print("Respuesta:", r.status_code, r.json())
     except requests.exceptions.RequestException as e:
         print("Error de conexión:", e)
 
-def main():
-    """Función principal."""
+def main() -> None:
+    """
+    Función principal que inicia la aplicación.
+
+    Esta función es el punto de entrada de la aplicación. Llama a la función `mostrar_menu_principal()` 
+    para presentar al usuario un menú interactivo desde el cual puede realizar diversas operaciones, como 
+    gestionar coches, alquileres o consultar información.
+
+    Notes
+    -----
+    - La función no devuelve ningún valor.
+    - Dependiendo de la implementación de `mostrar_menu_principal()`, esta función podría incluir un bucle 
+      infinito hasta que el usuario decida salir de la aplicación.
+    """
     mostrar_menu_principal()
 
 main()
