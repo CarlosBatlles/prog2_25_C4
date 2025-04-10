@@ -1,15 +1,18 @@
 
 # Clase Empresa que va a gestionar todo el alquiler de coches 
 import pandas as pd
-import tkinter as tk
 from datetime import datetime
-import re
 from fpdf import FPDF
+import re
 import hashlib
 import os
-from tkinter import filedialog
 
 class Empresa():
+    
+    # ---------------------------------------
+    # Métodos de Inicialización y Configuración
+    # ---------------------------------------
+    
     def __init__(self,nombre):
         self.nombre = nombre
         self.coches = []
@@ -22,6 +25,12 @@ class Empresa():
         Construye la ruta completa al archivo CSV en la carpeta 'data'.
         """
         return os.path.join(self.data_dir, archivo)
+
+    
+    # ---------------------------------------
+    # Métodos de Carga/Guardado de Datos
+    # ---------------------------------------
+
 
     def _cargar_csv(self, archivo):
         """
@@ -47,8 +56,25 @@ class Empresa():
             print(f"Archivo guardado exitosamente.")
         except Exception as e:
             print(f"Error al guardar el archivo {ruta}: {e}")
-        
-    # METODOS PARA VALIDAR
+            
+            
+    def cargar_coches(self):
+        ''' Carga los coches desde un archivo CSV'''
+        return self._cargar_csv('coches.csv')
+
+    def cargar_usuarios(self):
+        ''' Carga los usuarios desde un archivo CSV'''
+        return self._cargar_csv('clientes.csv')
+
+    def cargar_alquileres(self):
+        ''' Carga los alquileres desde un archivo CSV'''
+        return self._cargar_csv('alquileres.csv')
+    
+    
+    # ---------------------------------------
+    # Métodos de Validación
+    # ---------------------------------------
+    
     
     @staticmethod
     def es_email_valido(email):
@@ -61,102 +87,11 @@ class Empresa():
         """
         return hashlib.sha256(contraseña.encode()).hexdigest()
     
-    def actualizar_usuario(self, email, nueva_contraseña=None):
-        """
-        Actualiza los datos de un usuario existente.
-        Solo permite cambiar la contraseña del usuario autenticado.
-        """
-        # Cargar los usuarios actuales
-        df_usuarios = self.cargar_usuarios()
-        if df_usuarios is None:
-            raise ValueError("No se pudieron cargar los usuarios. Revisa el archivo CSV.")
-
-        # Verificar si el email existe en el DataFrame
-        if email not in df_usuarios['email'].values:
-            raise ValueError(f"El correo electrónico {email} no está registrado.")
-
-        # Si se proporciona una nueva contraseña, validarla y actualizarla
-        if nueva_contraseña:
-            # Hashear la nueva contraseña
-            contraseña_hasheada = self.hash_contraseña(nueva_contraseña)
-
-            # Actualizar la contraseña en el DataFrame
-            df_usuarios.loc[df_usuarios['email'] == email, 'contraseña'] = contraseña_hasheada
-
-            # Guardar los cambios en el archivo CSV
-            try:
-                self._guardar_csv('clientes.csv', df_usuarios)
-                print(f"La contraseña del usuario con email {email} ha sido actualizada exitosamente.")
-            except Exception as e:
-                raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
-
-        return True
     
-    def actualizar_matricula(self, id_coche, nueva_matricula):
-
-        # Cargar los coches actuales
-        df_coches = self.cargar_coches()
-        if df_coches is None:
-            raise ValueError("No se pudieron cargar los coches. Revisa el archivo CSV.")
-
-        # Verificar si el ID existe en el DataFrame
-        if id_coche not in df_coches['id'].values:
-            raise ValueError(f"El coche con matricula {id_coche} no está registrado.")
-        
-        # Verificar si la nueva matrícula ya existe
-        if nueva_matricula in df_coches['matricula'].values:
-            raise ValueError(f"La matrícula {nueva_matricula} ya está registrada en otro coche.")
-
-        # Actualizar la matricula en el DataFrame
-        df_coches.loc[df_coches['id'] == id_coche, 'matricula'] = nueva_matricula
-
-        # Guardar los cambios en el archivo CSV
-        try:
-            self._guardar_csv("coches.csv", df_coches)
-            print(f"La matricula del coche con ID {id_coche} ha sido actualizada exitosamente.")
-        except Exception as e:
-            raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
-
-        return True
+    # ---------------------------------------
+    # Métodos de Generación de IDs
+    # ---------------------------------------
     
-    def eliminar_coche(self, id_coche, matricula):
-        '''
-        Elimina un coche del sistema basándose en su id y matricula.
-        '''
-        # Cargar los usuarios actuales
-        df_coches = self.cargar_coches()
-        if df_coches is None:
-            raise ValueError("No se pudieron cargar los coches. Revisa el archivo CSV.")
-
-        # Verificar si el ID existe en el DataFrame
-        if id_coche not in df_coches['id'].values:
-            raise ValueError(f"El coche con matricula {id_coche} no está registrado.")
-
-        # Filtrar el DataFrame para excluir al coche con el id proporcionado
-        df_actualizado = df_coches[df_coches['id'] != id_coche]
-        
-        # Guardar los cambios usando el método auxiliar
-        try:
-            self._guardar_csv('coches.csv', df_actualizado)
-            print(f'El coche con matricula {matricula} ha sido eliminado exitosamente')
-            return True
-        except Exception as e:
-            raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
-    
-    # Metodos para cargar las bases de datos
-    def cargar_coches(self):
-        ''' Carga los coches desde un archivo CSV'''
-        return self._cargar_csv('coches.csv')
-
-    def cargar_usuarios(self):
-        ''' Carga los usuarios desde un archivo CSV'''
-        return self._cargar_csv('clientes.csv')
-
-    def cargar_alquileres(self):
-        ''' Carga los alquileres desde un archivo CSV'''
-        return self._cargar_csv('alquileres.csv')
-            
-    # Metodos para generar IDs de usuario y coche automaticamente  
     
     def generar_id_usuario(self):
         '''Genera un ID unico para un nuevo usuario'''
@@ -180,8 +115,12 @@ class Empresa():
         ultimo_id = df['id'].iloc[-1]
         num = int(ultimo_id[1:]) + 1
         return f'UID{num:02d}'
-        
-    # METODOS PARA REGISTRAR
+    
+    
+    # ---------------------------------------------------------
+    # Métodos de Registro/Actualización/Eliminación de Entidades
+    # ----------------------------------------------------------
+    
     
     def registrar_coche(self,marca,modelo,matricula,categoria_tipo,categoria_precio,año,precio_diario,kilometraje,color,combustible,cv,plazas,disponible):
         ''' Añade un nuevo coche al sistema '''
@@ -238,7 +177,60 @@ class Empresa():
         except Exception as e:
             print(f'Error al guardar el coche en el archivo CSV: {e}')
             return False
-            
+        
+        
+    def actualizar_matricula(self, id_coche, nueva_matricula):
+
+        # Cargar los coches actuales
+        df_coches = self.cargar_coches()
+        if df_coches is None:
+            raise ValueError("No se pudieron cargar los coches. Revisa el archivo CSV.")
+
+        # Verificar si el ID existe en el DataFrame
+        if id_coche not in df_coches['id'].values:
+            raise ValueError(f"El coche con matricula {id_coche} no está registrado.")
+        
+        # Verificar si la nueva matrícula ya existe
+        if nueva_matricula in df_coches['matricula'].values:
+            raise ValueError(f"La matrícula {nueva_matricula} ya está registrada en otro coche.")
+
+        # Actualizar la matricula en el DataFrame
+        df_coches.loc[df_coches['id'] == id_coche, 'matricula'] = nueva_matricula
+
+        # Guardar los cambios en el archivo CSV
+        try:
+            self._guardar_csv("coches.csv", df_coches)
+            print(f"La matricula del coche con ID {id_coche} ha sido actualizada exitosamente.")
+        except Exception as e:
+            raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
+
+        return True    
+    
+    
+    def eliminar_coche(self, id_coche, matricula):
+        '''
+        Elimina un coche del sistema basándose en su id y matricula.
+        '''
+        # Cargar los usuarios actuales
+        df_coches = self.cargar_coches()
+        if df_coches is None:
+            raise ValueError("No se pudieron cargar los coches. Revisa el archivo CSV.")
+
+        # Verificar si el ID existe en el DataFrame
+        if id_coche not in df_coches['id'].values:
+            raise ValueError(f"El coche con matricula {id_coche} no está registrado.")
+
+        # Filtrar el DataFrame para excluir al coche con el id proporcionado
+        df_actualizado = df_coches[df_coches['id'] != id_coche]
+        
+        # Guardar los cambios usando el método auxiliar
+        try:
+            self._guardar_csv('coches.csv', df_actualizado)
+            print(f'El coche con matricula {matricula} ha sido eliminado exitosamente')
+            return True
+        except Exception as e:
+            raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
+        
     
     def registrar_usuario(self,nombre,tipo,email,contraseña):
         
@@ -281,6 +273,39 @@ class Empresa():
         except Exception as e:
             print(f'Error al guardar el usuario en el archivo CSV: {e}')
             return False
+        
+                
+    def actualizar_usuario(self, email, nueva_contraseña=None):
+        """
+        Actualiza los datos de un usuario existente.
+        Solo permite cambiar la contraseña del usuario autenticado.
+        """
+        # Cargar los usuarios actuales
+        df_usuarios = self.cargar_usuarios()
+        if df_usuarios is None:
+            raise ValueError("No se pudieron cargar los usuarios. Revisa el archivo CSV.")
+
+        # Verificar si el email existe en el DataFrame
+        if email not in df_usuarios['email'].values:
+            raise ValueError(f"El correo electrónico {email} no está registrado.")
+
+        # Si se proporciona una nueva contraseña, validarla y actualizarla
+        if nueva_contraseña:
+            # Hashear la nueva contraseña
+            contraseña_hasheada = self.hash_contraseña(nueva_contraseña)
+
+            # Actualizar la contraseña en el DataFrame
+            df_usuarios.loc[df_usuarios['email'] == email, 'contraseña'] = contraseña_hasheada
+
+            # Guardar los cambios en el archivo CSV
+            try:
+                self._guardar_csv('clientes.csv', df_usuarios)
+                print(f"La contraseña del usuario con email {email} ha sido actualizada exitosamente.")
+            except Exception as e:
+                raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
+
+        return True
+    
     
     def dar_baja_usuario(self, email):
         '''
@@ -309,33 +334,7 @@ class Empresa():
             print(f'Error al guardar los cambios en el archivo CSV: {e}')
             return False
         
-    def iniciar_sesion(self, email, contraseña):
-        """
-        Verifica si un usuario con el correo electrónico y contraseña dados existe en la base de datos.
-        Devuelve True si las credenciales son válidas, False en caso contrario.
-        """
-        df_usuarios = self.cargar_usuarios()
-        if df_usuarios is None or df_usuarios.empty:
-            print(f'No se pudieron cargar los usuarios. Revisa el archivo CSV')
-            return False
-        
-        usuario = df_usuarios[df_usuarios['email'] == email]
-        if usuario.empty: 
-            print(f'No se encontró ningun usuario con el correo: {email}')
-            return False
-        
-        contraseña_almacenada = usuario.iloc[0]['contraseña']
-        
-        contraseña_hasheada = self.hash_contraseña(contraseña)
-        
-        if contraseña_almacenada == contraseña_hasheada:
-            print(f"Bienvenido {usuario.iloc[0]['nombre']}")
-            return True
-        else:
-            print('Contraseña incorrecta')
-            return False
-        
-        
+    
     def alquilar_coche(self, matricula, fecha_inicio: datetime, fecha_fin: datetime, email=None):
         # Cargar los archivos CSV
         df_coches = self.cargar_coches()
@@ -422,7 +421,74 @@ class Empresa():
             
         except Exception as e:
             raise ValueError(f"Error interno del servidor: {str(e)}")
+        
+        
+    def finalizar_alquiler(self, id_alquiler):
+        
+        # Cargar la base de datos de alquileres
+        df_alquiler = self.cargar_alquileres()
+        df_coches = self.cargar_coches()
+        
+        # Validaciones
+        if df_alquiler is None or df_alquiler.empty:
+            raise ValueError('No se pudo cargar el archivo de alquileres o está vacío.')
+        if df_coches is None or df_coches.empty:
+            raise ValueError('No se han podido cargar los coches o esta vacio')
+        
+        alquiler = df_alquiler[df_alquiler['id_alquiler'] == id_alquiler]
+        if alquiler.empty:
+            raise ValueError(f'No existe ningun alquiler con el ID: {id_alquiler}')
+        
+        if not alquiler.iloc[0]['activo']:
+            raise ValueError(f'El alquiler con ID {id_alquiler} ya está finalizado')
+        
+        id_coche = alquiler.iloc[0]['id_coche']
+        
+        df_alquiler.loc[df_alquiler['id_alquiler'] == id_alquiler, 'activo'] = False
+        df_coches.loc[df_coches['id'] == id_coche, 'disponible'] = True
+        
+        # Guardar los cambios usando el método auxiliar
+        try:
+            self._guardar_csv('alquileres.csv', df_alquiler)
+            self._guardar_csv('coches.csv', df_coches)
+            print(f"Alquiler con ID {id_alquiler} finalizado exitosamente.")
+            print(f"El coche con ID {id_coche} ha sido marcado como disponible.")
+        except Exception as e:
+            raise ValueError(f"Error al guardar los cambios en los archivos CSV: {e}")
+        
+        
+    # -------------------------------
+    # Métodos de Sesión e Historial
+    # -------------------------------
     
+    
+    def iniciar_sesion(self, email, contraseña):
+        """
+        Verifica si un usuario con el correo electrónico y contraseña dados existe en la base de datos.
+        Devuelve True si las credenciales son válidas, False en caso contrario.
+        """
+        df_usuarios = self.cargar_usuarios()
+        if df_usuarios is None or df_usuarios.empty:
+            print(f'No se pudieron cargar los usuarios. Revisa el archivo CSV')
+            return False
+        
+        usuario = df_usuarios[df_usuarios['email'] == email]
+        if usuario.empty: 
+            print(f'No se encontró ningun usuario con el correo: {email}')
+            return False
+        
+        contraseña_almacenada = usuario.iloc[0]['contraseña']
+        
+        contraseña_hasheada = self.hash_contraseña(contraseña)
+        
+        if contraseña_almacenada == contraseña_hasheada:
+            print(f"Bienvenido {usuario.iloc[0]['nombre']}")
+            return True
+        else:
+            print('Contraseña incorrecta')
+            return False
+        
+        
     def obtener_historial_alquileres(self, id_usuario):
         """
         Obtiene el historial de alquileres de un usuario específico.
@@ -442,6 +508,11 @@ class Empresa():
         # Convertir el DataFrame a una lista de diccionarios
         return alquileres_usuario.to_dict(orient='records')
 
+    
+    # -------------------------------
+    # Métodos de Cálculo
+    # -------------------------------
+    
     
     def calcular_precio_total(self,fecha_inicio:datetime, fecha_fin:datetime, matricula, email= None):
         
@@ -486,54 +557,56 @@ class Empresa():
         descuento = descuentos.get(tipo_usuario,1)
         precio_total = coche['precio_diario'] * rango_de_dias * descuento
         
-        return precio_total    
+        return precio_total   
+    
+     
+    # -------------------------------
+    # Métodos de Búsqueda/Filtrado
+    # -------------------------------    
+    
+    
+    def mostrar_categorias_tipo(self):
         
-    def finalizar_alquiler(self, id_alquiler):
-        
-        # Cargar la base de datos de alquileres
-        df_alquiler = self.cargar_alquileres()
         df_coches = self.cargar_coches()
         
-        # Validaciones
-        if df_alquiler is None or df_alquiler.empty:
-            raise ValueError('No se pudo cargar el archivo de alquileres o está vacío.')
+        # Validar que el DataFrame no esté vacío
         if df_coches is None or df_coches.empty:
-            raise ValueError('No se han podido cargar los coches o esta vacio')
+            raise ValueError('No hay datos disponibles para mostrar categorías')
         
-        alquiler = df_alquiler[df_alquiler['id_alquiler'] == id_alquiler]
-        if alquiler.empty:
-            raise ValueError(f'No existe ningun alquiler con el ID: {id_alquiler}')
+        categorias_tipo = df_coches['categoria_tipo'].unique()
+        print("-- Categorías de tipo disponibles --")
+        for categoria in categorias_tipo:
+            print(f"- {categoria}")
+            
+            
+    def mostrar_categorias_precio(self):
         
-        if not alquiler.iloc[0]['activo']:
-            raise ValueError(f'El alquiler con ID {id_alquiler} ya está finalizado')
+        df_coches = self.cargar_coches()
         
-        id_coche = alquiler.iloc[0]['id_coche']
+        # Validar que el DataFrame no esté vacío
+        if df_coches is None or df_coches.empty:
+            raise ValueError('No hay datos disponibles para mostrar categorías')
         
-        df_alquiler.loc[df_alquiler['id_alquiler'] == id_alquiler, 'activo'] = False
-        df_coches.loc[df_coches['id'] == id_coche, 'disponible'] = True
-        
-        # Guardar los cambios usando el método auxiliar
-        try:
-            self._guardar_csv('alquileres.csv', df_alquiler)
-            self._guardar_csv('coches.csv', df_coches)
-            print(f"Alquiler con ID {id_alquiler} finalizado exitosamente.")
-            print(f"El coche con ID {id_coche} ha sido marcado como disponible.")
-        except Exception as e:
-            raise ValueError(f"Error al guardar los cambios en los archivos CSV: {e}")
-        
-        
+        categorias_precio = df_coches['categoria_precio'].unique()
+        print("-- Categorías de precio disponibles --")
+        for categoria in categorias_precio:
+            print(f"- {categoria}")
+            
+            
     def cargar_coches_disponibles(self):
         """Carga los coches disponibles desde el archivo CSV."""
         df = self.cargar_coches()
         if df is None or df.empty:
             raise ValueError("No hay coches disponibles o el archivo no se pudo cargar.")
         return df[df['disponible'] == True]  # Filtrar solo coches disponibles
-
+    
+    
     def obtener_categorias_precio(self):
         """Devuelve una lista de categorías de precio disponibles."""
         df = self.cargar_coches_disponibles()
         return df['categoria_precio'].unique().tolist()
 
+    
     def filtrar_por_categoria_precio(self, categoria_precio):
         """Filtra coches disponibles por categoría de precio."""
         df = self.cargar_coches_disponibles()
@@ -541,11 +614,13 @@ class Empresa():
             raise ValueError("La categoría de precio seleccionada no es válida.")
         return df[df['categoria_precio'] == categoria_precio]
 
+    
     def obtener_categorias_tipo(self, categoria_precio):
         """Devuelve una lista de categorías de tipo disponibles para una categoría de precio."""
         df_filtrado = self.filtrar_por_categoria_precio(categoria_precio)
         return df_filtrado['categoria_tipo'].unique().tolist()
 
+    
     def filtrar_por_categoria_tipo(self, categoria_precio, categoria_tipo):
         """Filtra coches disponibles por categoría de tipo dentro de una categoría de precio."""
         df_filtrado = self.filtrar_por_categoria_precio(categoria_precio)
@@ -553,10 +628,12 @@ class Empresa():
             raise ValueError("La categoría de tipo seleccionada no es válida.")
         return df_filtrado[df_filtrado['categoria_tipo'] == categoria_tipo]
 
+    
     def obtener_marcas(self, categoria_precio, categoria_tipo):
         """Devuelve una lista de marcas disponibles para una categoría de precio y tipo."""
         df_filtrado = self.filtrar_por_categoria_tipo(categoria_precio, categoria_tipo)
         return df_filtrado['marca'].unique().tolist()
+
 
     def filtrar_por_marca(self, categoria_precio, categoria_tipo, marca):
         """Filtra coches disponibles por marca dentro de una categoría de precio y tipo."""
@@ -565,10 +642,12 @@ class Empresa():
             raise ValueError("La marca seleccionada no es válida.")
         return df_filtrado[df_filtrado['marca'] == marca]
 
+
     def obtener_modelos(self, categoria_precio, categoria_tipo, marca):
         """Devuelve una lista de modelos disponibles para una marca, categoría de precio y tipo."""
         df_filtrado = self.filtrar_por_marca(categoria_precio, categoria_tipo, marca)
         return df_filtrado['modelo'].unique().tolist()
+
 
     def filtrar_por_modelo(self, categoria_precio, categoria_tipo, marca, modelo):
         """Filtra coches disponibles por modelo dentro de una marca, categoría de precio y tipo."""
@@ -576,6 +655,7 @@ class Empresa():
         if modelo not in df_filtrado['modelo'].unique():
             raise ValueError("El modelo seleccionado no está disponible.")
         return df_filtrado[df_filtrado['modelo'] == modelo]
+
 
     def obtener_detalles_coches(self, categoria_precio, categoria_tipo, marca, modelo):
         """Devuelve los detalles de los coches filtrados por modelo."""
@@ -600,7 +680,11 @@ class Empresa():
         return detalles
     
         
-    # Metodo para generar una factura en pdf
+    # -------------------------------
+    # Métodos de Generación de Informes
+    # ------------------------------- 
+
+
     def generar_factura_pdf(self, alquiler):
         pdf = FPDF()
 
@@ -671,38 +755,3 @@ class Empresa():
         # Devolver el PDF como bytes en lugar de guardarlo en el servidor
         return pdf.output(dest='S').encode('latin1')
     
-    
-    def mostrar_categorias_tipo(self):
-        
-        df_coches = self.cargar_coches()
-        
-        # Validar que el DataFrame no esté vacío
-        if df_coches is None or df_coches.empty:
-            raise ValueError('No hay datos disponibles para mostrar categorías')
-        
-        categorias_tipo = df_coches['categoria_tipo'].unique()
-        print("-- Categorías de tipo disponibles --")
-        for categoria in categorias_tipo:
-            print(f"- {categoria}")
-            
-    def mostrar_categorias_precio(self):
-        
-        df_coches = self.cargar_coches()
-        
-        # Validar que el DataFrame no esté vacío
-        if df_coches is None or df_coches.empty:
-            raise ValueError('No hay datos disponibles para mostrar categorías')
-        
-        categorias_precio = df_coches['categoria_precio'].unique()
-        print("-- Categorías de precio disponibles --")
-        for categoria in categorias_precio:
-            print(f"- {categoria}")
-            
-
-a = Empresa('RentACar')
-
-#a.registrar_usuario("Riki", "cliente", "jperez@example.com", "contraseña_segura")
-#a.alquilar_coche('4195 SSY','2023-10-01','2023-10-05',"riki@example.com")
-#a.finalizar_alquiler('A001')
-#a.dar_baja_usuario('riki@example.com')
-#a.buscar_coches_disponibles()
