@@ -29,6 +29,7 @@ def decode_token(token):
         return {}
 
 
+    
 def mostrar_menu_principal():
     """Muestra el menú principal."""
     while True:
@@ -57,6 +58,7 @@ def mostrar_menu_principal():
             print("Opción no válida. Inténtalo de nuevo.")
 
 
+    
 def menu_admin():
     """Menú para administradores."""
     while True:
@@ -228,6 +230,62 @@ def eliminar_coche():
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
 
+def registrar_coche():
+    marca = input('Marca: ')
+    modelo = input('Modelo: ')
+    matricula = input('Matricula: ')
+    categoria_tipo = input('Categoria: ')
+    categoria_precio = input('Categoria precio: ')
+    año = input('Año:')
+    precio_diario = float(input('Precio diario: '))
+    kilometraje = int(input('Kilometraje: '))
+    color = input('Color: ')
+    combustible = input('Combustible: ')
+    cv = int(input('Caballos: '))
+    plazas = int(input('Plazas: '))
+    disponible = True
+    try:
+        r = requests.post(f'{BASE_URL}/coches/registrar',json={'marca':marca,'modelo':modelo,'matricula':matricula,'categoria tipo':categoria_tipo,'categoria precio':categoria_precio,'año':año,'precio diario':precio_diario,'kilometraje':kilometraje,'color':color,'combustible':combustible,'cv':cv, 'plazas':plazas,'disponible':disponible})
+        print('Respuesta: ', r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print(f'Error al registrar el coche: {e}')
+
+
+def eliminar_coche():
+    id_coche = input('Id coche: ')
+    try:
+        r =requests.delete(f'{BASE_URL}/coches/eliminar/<string:id_coche>', json={'id coche':id_coche})
+        print('Respuesta: ', r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print(f'Error al eliminar el coche: {e}')
+
+
+def buscar_coches_disponibles():
+    categoria_precio = input('Categoria precio: ')
+    categoria_tipo = input('Categoria tipo: ')
+    marca = input('Marca: ')
+    modelo = input('Modelo: ')
+
+    try:
+        r = requests.get(f'{BASE_URL}/coches-disponibles',json={'categoria tipo' : categoria_tipo, 'categoria precio': categoria_precio, 'marca': marca, 'modelo': modelo})
+        print('Respuesta: ', r.status_code, r.json())
+    except requests.exceptions.RequestException as e:
+        print(f'Error al eliminar el coche: {e}')
+
+def ver_historial_alquileres():
+    email = input('Email: ')
+
+    try:
+        r = requests.get(f'{BASE_URL}/alquileres/historial/<string:email>', json={'email':email})
+        print('Respuesta: ', r.status_code,r.json())
+    except requests.exceptions.RequestException as e:
+        print(f'Error al eliminar el coche: {e}')
+
+
+def main():
+    """Función principal."""
+    mostrar_menu_principal()
+
 
 def buscar_coches_disponibles():
     categoria_precio = input('Categoria precio: ')
@@ -253,30 +311,9 @@ def ver_historial_alquileres():
     except requests.exceptions.RequestException as e:
         print(f'Error al eliminar el coche: {e}')
 
-def alquilar_coche():
-    print("\n--- Alquilar Coche ---")
-    matricula = input("Matrícula del coche: ").strip()
-    fecha_inicio = input("Fecha de inicio (YYYY-MM-DD): ").strip()
-    fecha_fin = input("Fecha de fin (YYYY-MM-DD): ").strip()
-    email = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
 
-    # Preparar los datos para la solicitud
-    data = {
-        "matricula": matricula,
-        "fecha_inicio": fecha_inicio,
-        "fecha_fin": fecha_fin,
-    }
-    if email:
-        data["email"] = email
 
-    # Enviar la solicitud POST al endpoint /alquilar-coche
-    r = requests.post(f"{BASE_URL}/alquilar-coche", json=data)
 
-    # Procesar la respuesta
-    if r.status_code == 200:
-        # Guardar el archivo PDF recibido
-        root = tk.Tk()
-        root.withdraw()  # Ocultar la ventana principal
 
         # Abrir un cuadro de diálogo para elegir la ubicación
         ruta_guardado = filedialog.asksaveasfilename(
