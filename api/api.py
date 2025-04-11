@@ -16,6 +16,10 @@ app.config["JWT_SECRET_KEY"] = "grupo_4!"
 jwt = JWTManager(app)
 token_blocklist = set()
 
+@app.route('/')
+def home():
+    return "Bienvenido a la API de Alquiler de Coches", 200
+
 empresa = Empresa(nombre='RentAcar')
 
 @jwt.token_in_blocklist_loader
