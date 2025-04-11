@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 
-BASE_URL = "https://alexiss1.pythonanywhere.com/"  # Cambiar por CarlosBatlles.pythonanywhere.com cuando queramos probar con la webapp
+BASE_URL = "https://alexiss1.pythonanywhere.com/"
 TOKEN = None
 ROL = None
 
