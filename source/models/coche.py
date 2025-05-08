@@ -1,4 +1,5 @@
-
+import mysql.connector
+from mysql.connector import Error
 import pandas as pd
 
 class Coche:
@@ -19,9 +20,18 @@ class Coche:
         self.cv = cv
         self.plazas = plazas
         self.disponible = disponible
+        
+        
+    @staticmethod
+    def obtener_todos(connection):
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM coches")
+        resultados = cursor.fetchall()
+        
+        return [Coche(**row)for row in resultados]
 
     @staticmethod
-    def registrar_coche(empresa, marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,
+    def registrar_coche(connection,marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,
                         año: int, precio_diario: float, kilometraje: float, color: str, combustible: str, cv: int,
                         plazas: int, disponible: bool) -> bool:
         """
@@ -44,44 +54,34 @@ class Coche:
         if not isinstance(disponible, bool):
             raise TypeError("El campo 'disponible' debe ser True o False.")
 
-        # Cargar los coches existentes
-        df_coches = empresa.cargar_coches()
-        if df_coches is None:
-            raise ValueError("No se pudieron cargar los coches. Verifica el archivo CSV.")
-
-        # Generar un ID único para el coche
-        id_coche = empresa.generar_id_coche()
-
-        # Crear un diccionario con los datos del nuevo coche
-        nuevo_coche = {
-            'id': id_coche,
-            'marca': marca,
-            'modelo': modelo,
-            'matricula': matricula,
-            'categoria_tipo': categoria_tipo,
-            'categoria_precio': categoria_precio,
-            'año': año,
-            'precio_diario': precio_diario,
-            'kilometraje': kilometraje,
-            'color': color,
-            'combustible': combustible,
-            'cv': cv,
-            'plazas': plazas,
-            'disponible': disponible
-        }
-
-        # Crear un DataFrame con el nuevo coche y actualizar el archivo CSV
-        df_nuevo_coche = pd.DataFrame([nuevo_coche])
-        df_actualizado = pd.concat([df_coches, df_nuevo_coche], ignore_index=True)
-
+        
         try:
-            empresa._guardar_csv('coches.csv', df_actualizado)
-            return True
-        except Exception as e:
-            raise ValueError(f"Error al guardar el coche en el archivo CSV: {e}")
+            cursor = connection.cursor()
+            query = """
+            INSERT INTO coches (
+                marca, modelo, matricula, categoria_tipo, categoria_precio, año, 
+                precio_diario, kilometraje, color, combustible, cv, plazas, disponible
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+
+            valores = (
+                marca, modelo, matricula, categoria_tipo, categoria_precio,
+                año, precio_diario, kilometraje, color, combustible, cv, plazas, disponible
+            )
+            cursor.execute(query, valores)
+            connection.commit()
+            return cursor.lastrowid  # Devuelve el ID generado por MySQL
+            
+        except Error as e:
+            connection.rollback()
+            raise ValueError(f"Error al registrar coche en la base de datos: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+                
         
     @staticmethod
-    def actualizar_matricula(empresa, id_coche: str, nueva_matricula: str) -> bool:
+    def actualizar_matricula(connection,id_coche: int, nueva_matricula: str) -> bool:
         """
         Actualiza la matrícula de un coche existente en el sistema.
 
@@ -92,7 +92,7 @@ class Coche:
         ----------
         empresa : Empresa
             Instancia de la clase Empresa para cargar/guardar datos.
-        id_coche : str
+        id_coche : int
             El ID único del coche cuya matrícula se desea actualizar.
         nueva_matricula : str
             La nueva matrícula que se asignará al coche.
@@ -109,33 +109,40 @@ class Coche:
         Exception
             Si ocurre un error al guardar los cambios en el archivo CSV.
         """
-        # Cargar los coches actuales
-        df_coches = empresa.cargar_coches()
-        if df_coches is None:
-            raise ValueError("No se pudieron cargar los coches. Revisa el archivo CSV.")
-
-        # Verificar si el ID existe en el DataFrame
-        if id_coche not in df_coches['id'].values:
-            raise ValueError(f"El coche con ID {id_coche} no está registrado.")
         
-        # Verificar si la nueva matrícula ya existe
-        if nueva_matricula in df_coches['matricula'].values:
-            raise ValueError(f"La matrícula {nueva_matricula} ya está registrada en otro coche.")
-
-        # Actualizar la matrícula en el DataFrame
-        df_coches.loc[df_coches['id'] == id_coche, 'matricula'] = nueva_matricula
-
-        # Guardar los cambios en el archivo CSV
         try:
-            empresa._guardar_csv("coches.csv", df_coches)
-        except Exception as e:
-            raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
-
-        return True
+            cursor = connection.cursor()
+            
+            # Verificar si el coche existe
+            cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_coche))
+            if not cursor.fetchone()[0]:
+                raise ValueError(f"El coche con ID {id_coche} no existe")
+            
+            # Verificar si la nueva matricula ya esta en uso
+            cursor.execute("SELECT COUNT(*) FROM coches WHERE matricula = %s",(nueva_matricula))
+            if cursor.fetchone()[0] > 0:
+                raise ValueError(f"La matricula {nueva_matricula} ya está registrada")
+            
+            query = ("UPDATE coches SET matricula=%s WHERE id = %s")
+            valores = (nueva_matricula,id_coche)
+            
+            cursor.execute(query, valores)
+            connection.commit()
+            
+            if cursor.rowcount > 0:
+                return True
+            else:
+                raise ValueError(f"No se ha podido actualizar la matricula del coche con id: {id_coche}")
+        except Error as e:
+            connection.rollback()
+            raise ValueError(f"Error al actualizar la matricula: {e}")
+        finally:
+            if cursor:
+                cursor.close()
     
     
     @staticmethod
-    def eliminar_coche(empresa, id_coche: str) -> bool:
+    def eliminar_coche(connection, empresa, id_coche: int) -> bool:
         """
         Elimina un coche del sistema basándose en su ID.
 
@@ -164,38 +171,173 @@ class Coche:
         - Antes de eliminar el coche, se verifica que el ID exista en el sistema.
         - El método utiliza el archivo CSV como fuente de datos, por lo que los cambios son persistentes.
         """
-        # Cargar los coches actuales
-        df_coches = empresa.cargar_coches()
-        if df_coches is None:
-            raise ValueError("No se pudieron cargar los coches. Revisa el archivo CSV.")
-
-        # Verificar si el ID existe en el DataFrame
-        if id_coche not in df_coches['id'].values:
-            raise ValueError(f"El coche con ID {id_coche} no está registrado.")
-
-        # Filtrar el DataFrame para excluir al coche con el ID proporcionado
-        df_actualizado = df_coches[df_coches['id'] != id_coche]
-
-        # Guardar los cambios usando el método auxiliar
-        try:
-            empresa._guardar_csv('coches.csv', df_actualizado)
-            return True
-        except Exception as e:
-            raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
         
+        try:
+            cursor = connection.cursor()
+            
+            # Verificar si el coche existe
+            cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_coche))
+            if not cursor.fetchone()[0]:
+                raise ValueError(f"El coche con ID {id_coche} no existe")
+            
+            query = ('DELETE FROM coches WHERE id=%s')
+            cursor.execute(query,(id_coche))
+            connection.commit()
+            
+            if cursor.rowcount > 0:
+                return True
+            else:
+                raise ValueError(f"No se ha podido eliminar el coche con id: {id_coche}")
+        except Error as e:
+            connection.rollback()
+            raise ValueError(f"Error al eliminar el coche: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+            
         
     @staticmethod
-    def mostrar_categorias_tipo(empresa) -> list:
+    def cargar_coches_disponibles(connection) -> list:
+        """
+        Carga todos los coches disponibles desde la base de datos.
+        """
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = "SELECT * FROM coches WHERE disponible = TRUE"
+            cursor.execute(query)
+            return [dict(row) for row in cursor.fetchall()]
+        except Error as e:
+            raise ValueError(f"Error al cargar coches disponibles: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+            
+    
+    @staticmethod
+    def obtener_categorias_precio(connection) -> list:
+        """
+        Devuelve una lista única de categorías de precio disponibles.
+        """
+        try:
+            cursor = connection.cursor()
+            query = "SELECT DISTINCT categoria_precio FROM coches WHERE disponible = TRUE ORDER BY categoria_precio"
+            cursor.execute(query)
+            return [row[0] for row in cursor.fetchall()]
+        except Error as e:
+            raise ValueError(f"Error al obtener categorías de precio: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+                
+                
+    @staticmethod
+    def obtener_categorias_tipo(connection, categoria_precio: str) -> list:
+        """
+        Devuelve una lista de categorías de tipo únicas para una categoría de precio específica.
+        """
+        try:
+            cursor = connection.cursor()
+            query = """
+            SELECT DISTINCT categoria_tipo 
+            FROM coches 
+            WHERE disponible = TRUE AND categoria_precio = %s
+            ORDER BY categoria_tipo
+            """
+            cursor.execute(query, (categoria_precio,))
+            return [row[0] for row in cursor.fetchall()]
+        except Error as e:
+            raise ValueError(f"Error al obtener categorías de tipo: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+    
+    
+    @staticmethod
+    def obtener_marcas(connection, categoria_precio: str, categoria_tipo: str) -> list:
+        """
+        Devuelve una lista de marcas únicas para una combinación de categoría de precio y tipo.
+        """
+        try:
+            cursor = connection.cursor()
+            query = """
+            SELECT DISTINCT marca 
+            FROM coches 
+            WHERE disponible = TRUE 
+            AND categoria_precio = %s 
+            AND categoria_tipo = %s
+            ORDER BY marca
+            """
+            cursor.execute(query, (categoria_precio, categoria_tipo))
+            return [row[0] for row in cursor.fetchall()]
+        except Error as e:
+            raise ValueError(f"Error al obtener marcas: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+    
+    
+    @staticmethod
+    def obtener_modelos(connection, categoria_precio: str, categoria_tipo: str, marca: str) -> list:
+        """
+        Devuelve una lista de modelos únicos para una marca, categoría de precio y tipo específicos.
+        """
+        try:
+            cursor = connection.cursor()
+            query = """
+            SELECT DISTINCT modelo 
+            FROM coches 
+            WHERE disponible = TRUE 
+            AND categoria_precio = %s 
+            AND categoria_tipo = %s 
+            AND marca = %s
+            ORDER BY modelo
+            """
+            cursor.execute(query, (categoria_precio, categoria_tipo, marca))
+            return [row[0] for row in cursor.fetchall()]
+        except Error as e:
+            raise ValueError(f"Error al obtener modelos: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+    
+    
+    @staticmethod
+    def filtrar_por_modelo(connection, categoria_precio: str, categoria_tipo: str, marca: str, modelo: str) -> list:
+        """
+        Devuelve los coches disponibles que coinciden con todos los criterios:
+        categoría de precio, categoría de tipo, marca y modelo.
+        """
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = """
+            SELECT * FROM coches 
+            WHERE disponible = TRUE 
+            AND categoria_precio = %s 
+            AND categoria_tipo = %s 
+            AND marca = %s 
+            AND modelo = %s
+            """
+            cursor.execute(query, (categoria_precio, categoria_tipo, marca, modelo))
+            return [dict(row) for row in cursor.fetchall()]
+        except Error as e:
+            raise ValueError(f"Error al filtrar por modelo: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+    
+    
+    @staticmethod
+    def mostrar_categorias_tipo(connection) -> list:
         """
         Muestra las categorías de tipo de los coches disponibles en el sistema.
 
-        Este método carga los datos de los coches desde el archivo CSV y devuelve una lista 
+        Este método consulta la base de datos y devuelve una lista 
         de las categorías de tipo únicas disponibles.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
+        connection : mysql.connection.MySQLConnection
+            Conexión activa a la base de datos.
 
         Returns
         -------
@@ -205,33 +347,39 @@ class Coche:
         Raises
         ------
         ValueError
-            Si no se pueden cargar los datos o si no hay coches disponibles.
+            Si no se pueden obtener las categorías de tipo desde la base de datos.
         """
-        # Cargar los datos de los coches
-        df_coches = empresa.cargar_coches()
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = "SELECT DISTINCT categoria_tipo FROM coches WHERE disponible = TRUE ORDER BY categoria_tipo"
+            cursor.execute(query)
+            resultados = cursor.fetchall()
 
-        # Validar que el DataFrame no esté vacío
-        if df_coches is None or df_coches.empty:
-            raise ValueError('No hay datos disponibles para mostrar categorías.')
+            if not resultados:
+                raise ValueError("No hay categorías de tipo disponibles en la base de datos.")
 
-        # Obtener las categorías de tipo únicas
-        categorias_tipo = df_coches['categoria_tipo'].unique()
+            return [row['categoria_tipo'] for row in resultados]
 
-        return list(categorias_tipo)
+        except Error as e:
+            raise ValueError(f"Error al obtener las categorías de tipo: {e}")
+
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
     
     
     @staticmethod
-    def mostrar_categorias_precio(empresa) -> list:
+    def mostrar_categorias_precio(connection) -> list:
         """
         Muestra las categorías de precio de los coches disponibles en el sistema.
 
-        Este método carga los datos de los coches desde el archivo CSV y devuelve una lista 
+        Este método consulta la base de datos y devuelve una lista 
         de las categorías de precio únicas disponibles.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
+        connection : mysql.connection.MySQLConnection
+            Conexión activa a la base de datos.
 
         Returns
         -------
@@ -241,413 +389,24 @@ class Coche:
         Raises
         ------
         ValueError
-            Si no se pueden cargar los datos o si no hay coches disponibles.
+            Si no se pueden cargar los datos o si no hay categorías disponibles.
         """
-        # Cargar los datos de los coches
-        df_coches = empresa.cargar_coches()
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = "SELECT DISTINCT categoria_precio FROM coches WHERE disponible = TRUE ORDER BY categoria_precio"
+            cursor.execute(query)
+            resultados = cursor.fetchall()
 
-        # Validar que el DataFrame no esté vacío
-        if df_coches is None or df_coches.empty:
-            raise ValueError('No hay datos disponibles para mostrar categorías.')
+            if not resultados:
+                raise ValueError("No hay categorías de precio disponibles en la base de datos.")
 
-        # Obtener las categorías de precio únicas
-        categorias_precio = df_coches['categoria_precio'].unique()
+            return [row['categoria_precio'] for row in resultados]
 
-        return list(categorias_precio)
+        except Error as e:
+            raise ValueError(f"Error al obtener las categorías de precio: {e}")
+
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
     
     
-    @staticmethod
-    def cargar_coches_disponibles(empresa) -> pd.DataFrame:
-        """
-        Carga los coches disponibles desde el archivo CSV.
-
-        Este método carga los datos de los coches desde el archivo CSV y filtra solo 
-        aquellos que están marcados como disponibles.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-
-        Returns
-        -------
-        pd.DataFrame
-            Un DataFrame que contiene los coches disponibles.
-
-        Raises
-        ------
-        ValueError
-            Si no hay coches disponibles o si el archivo CSV no se pudo cargar.
-
-        Notes
-        -----
-        - Los coches disponibles son aquellos donde el campo 'disponible' es True.
-        - El método utiliza el archivo CSV como fuente de datos, por lo que los cambios son persistentes.
-        """
-        df = empresa.cargar_coches()
-        if df is None or df.empty:
-            raise ValueError("No hay coches disponibles o el archivo no se pudo cargar.")
-        return df[df['disponible'] == True]  # Filtrar solo coches disponibles
-    
-    
-    @staticmethod
-    def obtener_categorias_precio(empresa) -> list:
-        """
-        Devuelve una lista de categorías de precio disponibles.
-
-        Este método carga los coches disponibles y extrae las categorías de precio únicas.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-
-        Returns
-        -------
-        list
-            Una lista de las categorías de precio únicas disponibles.
-
-        Raises
-        ------
-        ValueError
-            Si no hay coches disponibles o si el archivo CSV no se pudo cargar.
-
-        Notes
-        -----
-        - Las categorías de precio son únicas y se extraen del campo 'categoria_precio' del DataFrame.
-        """
-        df = Coche.cargar_coches_disponibles(empresa)
-        return df['categoria_precio'].unique().tolist()
-    
-    
-    @staticmethod
-    def filtrar_por_categoria_precio(empresa, categoria_precio: str) -> pd.DataFrame:
-        """
-        Filtra coches disponibles por categoría de precio.
-
-        Este método carga los coches disponibles y filtra aquellos que pertenecen 
-        a la categoría de precio especificada.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-        categoria_precio : str
-            La categoría de precio por la cual se desea filtrar los coches.
-
-        Returns
-        -------
-        pd.DataFrame
-            Un DataFrame que contiene los coches filtrados por la categoría de precio.
-
-        Raises
-        ------
-        ValueError
-            Si la categoría de precio seleccionada no es válida o si no hay coches disponibles.
-
-        Notes
-        -----
-        - La categoría de precio debe ser una de las categorías disponibles en el sistema.
-        - El método utiliza el archivo CSV como fuente de datos, por lo que los cambios son persistentes.
-        """
-        df = Coche.cargar_coches_disponibles(empresa)
-        if categoria_precio not in df['categoria_precio'].unique():
-            raise ValueError("La categoría de precio seleccionada no es válida.")
-        return df[df['categoria_precio'] == categoria_precio]
-    
-    
-    @staticmethod
-    def obtener_categorias_tipo(empresa, categoria_precio: str) -> list:
-        """
-        Devuelve una lista de categorías de tipo disponibles para una categoría de precio.
-
-        Este método filtra los coches disponibles por la categoría de precio especificada 
-        y devuelve una lista de las categorías de tipo únicas dentro de esa categoría de precio.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-        categoria_precio : str
-            La categoría de precio por la cual se desea filtrar los coches.
-
-        Returns
-        -------
-        list
-            Una lista de las categorías de tipo únicas disponibles para la categoría de precio especificada.
-
-        Raises
-        ------
-        ValueError
-            Si la categoría de precio seleccionada no es válida o si no hay coches disponibles.
-
-        Notes
-        -----
-        - Las categorías de tipo son únicas y se extraen del campo 'categoria_tipo' del DataFrame filtrado.
-        """
-        df_filtrado = Coche.filtrar_por_categoria_precio(empresa, categoria_precio)
-        return df_filtrado['categoria_tipo'].unique().tolist()
-    
-    
-    @staticmethod
-    def filtrar_por_categoria_tipo(empresa, categoria_precio: str, categoria_tipo: str) -> pd.DataFrame:
-        """
-        Filtra coches disponibles por categoría de tipo dentro de una categoría de precio.
-
-        Este método filtra los coches disponibles primero por la categoría de precio y luego 
-        por la categoría de tipo especificada.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-        categoria_precio : str
-            La categoría de precio por la cual se desea filtrar los coches.
-        categoria_tipo : str
-            La categoría de tipo por la cual se desea filtrar los coches.
-
-        Returns
-        -------
-        pd.DataFrame
-            Un DataFrame que contiene los coches filtrados por la categoría de tipo dentro de la categoría de precio.
-
-        Raises
-        ------
-        ValueError
-            Si la categoría de precio o la categoría de tipo seleccionadas no son válidas.
-
-        Notes
-        -----
-        - La categoría de tipo debe ser una de las categorías disponibles dentro de la categoría de precio especificada.
-        """
-        df_filtrado = Coche.filtrar_por_categoria_precio(empresa, categoria_precio)
-        if categoria_tipo not in df_filtrado['categoria_tipo'].unique():
-            raise ValueError("La categoría de tipo seleccionada no es válida.")
-        return df_filtrado[df_filtrado['categoria_tipo'] == categoria_tipo]
-    
-    
-    @staticmethod
-    def obtener_marcas(empresa, categoria_precio: str, categoria_tipo: str) -> list:
-        """
-        Devuelve una lista de marcas disponibles para una categoría de precio y tipo.
-
-        Este método filtra los coches disponibles por la categoría de precio y tipo especificadas, 
-        y devuelve una lista de las marcas únicas dentro de esa combinación de categorías.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-        categoria_precio : str
-            La categoría de precio por la cual se desea filtrar los coches.
-        categoria_tipo : str
-            La categoría de tipo por la cual se desea filtrar los coches.
-
-        Returns
-        -------
-        list
-            Una lista de las marcas únicas disponibles para la categoría de precio y tipo especificadas.
-
-        Raises
-        ------
-        ValueError
-            Si la categoría de precio o la categoría de tipo seleccionadas no son válidas.
-
-        Notes
-        -----
-        - Las marcas son únicas y se extraen del campo 'marca' del DataFrame filtrado.
-        """
-        df_filtrado = Coche.filtrar_por_categoria_tipo(empresa, categoria_precio, categoria_tipo)
-        return df_filtrado['marca'].unique().tolist()
-    
-    
-    @staticmethod
-    def filtrar_por_marca(empresa, categoria_precio: str, categoria_tipo: str, marca: str) -> pd.DataFrame:
-        """
-        Filtra coches disponibles por marca dentro de una categoría de precio y tipo.
-
-        Este método filtra los coches disponibles primero por la categoría de precio y tipo, 
-        y luego por la marca especificada.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-        categoria_precio : str
-            La categoría de precio por la cual se desea filtrar los coches.
-        categoria_tipo : str
-            La categoría de tipo por la cual se desea filtrar los coches.
-        marca : str
-            La marca por la cual se desea filtrar los coches.
-
-        Returns
-        -------
-        pd.DataFrame
-            Un DataFrame que contiene los coches filtrados por la marca dentro de la categoría de precio y tipo.
-
-        Raises
-        ------
-        ValueError
-            Si la categoría de precio, la categoría de tipo o la marca seleccionadas no son válidas.
-
-        Notes
-        -----
-        - La marca debe ser una de las marcas disponibles dentro de la combinación de categoría de precio y tipo especificadas.
-        """
-        df_filtrado = Coche.filtrar_por_categoria_tipo(empresa, categoria_precio, categoria_tipo)
-        if marca not in df_filtrado['marca'].unique():
-            raise ValueError("La marca seleccionada no es válida.")
-        return df_filtrado[df_filtrado['marca'] == marca]
-    
-    
-    @staticmethod
-    def obtener_modelos(empresa, categoria_precio: str, categoria_tipo: str, marca: str) -> list:
-        """
-        Devuelve una lista de modelos disponibles para una marca, categoría de precio y tipo.
-
-        Este método filtra los coches disponibles por la categoría de precio, tipo y marca especificadas, 
-        y devuelve una lista de los modelos únicos dentro de esa combinación de categorías.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-        categoria_precio : str
-            La categoría de precio por la cual se desea filtrar los coches.
-        categoria_tipo : str
-            La categoría de tipo por la cual se desea filtrar los coches.
-        marca : str
-            La marca por la cual se desea filtrar los coches.
-
-        Returns
-        -------
-        list
-            Una lista de los modelos únicos disponibles para la combinación de categoría de precio, tipo y marca.
-
-        Raises
-        ------
-        ValueError
-            Si la categoría de precio, la categoría de tipo o la marca seleccionadas no son válidas.
-
-        Notes
-        -----
-        - Los modelos son únicos y se extraen del campo 'modelo' del DataFrame filtrado.
-        """
-        df_filtrado = Coche.filtrar_por_marca(empresa, categoria_precio, categoria_tipo, marca)
-        return df_filtrado['modelo'].unique().tolist()
-    
-    
-    @staticmethod
-    def filtrar_por_modelo(
-        empresa, categoria_precio: str, categoria_tipo: str, marca: str, modelo: str
-    ) -> pd.DataFrame:
-        """
-        Filtra coches disponibles por modelo dentro de una marca, categoría de precio y tipo.
-
-        Este método filtra los coches disponibles primero por la categoría de precio, tipo y marca, 
-        y luego por el modelo especificado.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-        categoria_precio : str
-            La categoría de precio por la cual se desea filtrar los coches.
-        categoria_tipo : str
-            La categoría de tipo por la cual se desea filtrar los coches.
-        marca : str
-            La marca por la cual se desea filtrar los coches.
-        modelo : str
-            El modelo por el cual se desea filtrar los coches.
-
-        Returns
-        -------
-        pd.DataFrame
-            Un DataFrame que contiene los coches filtrados por el modelo dentro de la combinación de categoría de precio, tipo y marca.
-
-        Raises
-        ------
-        ValueError
-            Si la categoría de precio, la categoría de tipo, la marca o el modelo seleccionados no son válidos.
-
-        Notes
-        -----
-        - El modelo debe ser uno de los modelos disponibles dentro de la combinación de categoría de precio, tipo y marca especificadas.
-        """
-        df_filtrado = Coche.filtrar_por_marca(empresa, categoria_precio, categoria_tipo, marca)
-        if modelo not in df_filtrado['modelo'].unique():
-            raise ValueError("El modelo seleccionado no está disponible.")
-        return df_filtrado[df_filtrado['modelo'] == modelo]
-    
-    
-    @staticmethod
-    def obtener_detalles_coches(
-        empresa, categoria_precio: str, categoria_tipo: str, marca: str, modelo: str
-    ) -> list[dict]:
-        """
-        Devuelve los detalles de los coches filtrados por modelo.
-
-        Este método filtra los coches disponibles por la combinación de categoría de precio, 
-        categoría de tipo, marca y modelo, y devuelve una lista de diccionarios con los detalles 
-        de cada coche que cumple con los criterios.
-
-        Parameters
-        ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-        categoria_precio : str
-            La categoría de precio por la cual se desea filtrar los coches.
-        categoria_tipo : str
-            La categoría de tipo por la cual se desea filtrar los coches.
-        marca : str
-            La marca por la cual se desea filtrar los coches.
-        modelo : str
-            El modelo por el cual se desea filtrar los coches.
-
-        Returns
-        -------
-        list[dict]
-            Una lista de diccionarios que contienen los detalles de los coches filtrados. 
-            Cada diccionario incluye las siguientes claves:
-            - matricula (str)
-            - marca (str)
-            - modelo (str)
-            - categoria_precio (str)
-            - categoria_tipo (str)
-            - disponible (bool)
-            - año (int)
-            - precio_diario (float)
-            - kilometraje (float)
-            - color (str)
-            - combustible (str)
-            - cv (int)
-            - plazas (int)
-
-        Raises
-        ------
-        ValueError
-            Si la categoría de precio, la categoría de tipo, la marca o el modelo seleccionados no son válidos.
-
-        Notes
-        -----
-        - Los detalles de los coches se extraen del DataFrame filtrado y se formatean como una lista de diccionarios.
-        """
-        df_filtrado = Coche.filtrar_por_modelo(empresa, categoria_precio, categoria_tipo, marca, modelo)
-        detalles = []
-        for _, coche in df_filtrado.iterrows():
-            detalles.append({
-                "matricula": coche['matricula'],
-                "marca": coche['marca'],
-                "modelo": coche['modelo'],
-                "categoria_precio": coche['categoria_precio'],
-                "categoria_tipo": coche['categoria_tipo'],
-                "disponible": coche['disponible'],
-                "año": coche['año'],
-                "precio_diario": coche['precio_diario'],
-                "kilometraje": coche['kilometraje'],
-                "color": coche['color'],
-                "combustible": coche['combustible'],
-                "cv": coche['cv'],
-                "plazas": coche['plazas']
-            })
-        return detalles

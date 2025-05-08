@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import datetime
 from fpdf import FPDF
 import os
+import mysql.connector
 from .models.coche import *
 from .models.usuario import *
 from .models.alquiler import *
@@ -40,6 +41,26 @@ class Empresa():
             El nombre de la empresa de alquiler de coches.
         """
         self.nombre = nombre
+        self.connection = self.conectar_mysql()
+        
+    
+    def conectar_mysql():
+        try:
+            connection = mysql.connector.connect(
+                host="Alexiss1.mysql.pythonanywhere-services.com",  # Reemplaza con tu nombre de usuario
+                user="Alexiss1",                                    # Reemplaza con tu nombre de usuario
+                password="grupoc425",                          # Usa la contraseña que configuraste
+                database="Alexiss1$rentacar"                       # Nombre de la base de datos
+            )
+            return connection
+        except mysql.connector.Error as err:
+            print(f"Error al conectar a MySQL: {err}")
+            return None
+        
+    def get_connection(self):
+        if not self.connection.is_connected():
+            self.connection.reconnect()
+        return self.connection
         
 
     def _ruta_archivo(self, archivo: str) -> str:
@@ -134,95 +155,35 @@ class Empresa():
         """
         Elimina un coche llamando al método estático de la clase Coche.
         """
-        return Coche.eliminar_coche(self, id_coche)
+        connection = self.get_connection()
+        return Coche.eliminar_coche(connection, id_coche)
+    
+    
+    def mostrar_categorias_precio(self) -> list:
+        """
+        Muestra las categorías de precio llamando al método estático de la clase Coche.
+        """
+        connection = self.get_connection()
+        return Coche.mostrar_categorias_precio(connection)
     
     
     def mostrar_categorias_tipo(self) -> list:
         """
         Muestra las categorías de tipo llamando al método estático de la clase Coche.
         """
-        return Coche.mostrar_categorias_tipo(self)
+        connection = self.get_connection()
+        return Coche.mostrar_categorias_tipo(connection)
     
     
-    def mostrar_categorias_tipo(self) -> list:
-        """
-        Muestra las categorías de tipo llamando al método estático de la clase Coche.
-        """
-        return Coche.mostrar_categorias_tipo(self)
+    def buscar_coches_por_filtros(self, categoria_precio, categoria_tipo, marca, modelo):
+        connection = self.get_connection()
+        return Coche.filtrar_por_modelo(connection, categoria_precio, categoria_tipo, marca, modelo)
     
     
-    def cargar_coches_disponibles(self) -> pd.DataFrame:
-        """
-        Carga los coches disponibles llamando al método estático de la clase Coche.
-        """
-        return Coche.cargar_coches_disponibles(self)
     
     
-    def obtener_categorias_precio(self) -> list:
-        """
-        Obtiene las categorías de precio llamando al método estático de la clase Coche.
-        """
-        return Coche.obtener_categorias_precio(self)
     
     
-    def filtrar_por_categoria_precio(self, categoria_precio: str) -> pd.DataFrame:
-        """
-        Filtra coches disponibles por categoría de precio llamando al método estático de la clase Coche.
-        """
-        return Coche.filtrar_por_categoria_precio(self, categoria_precio)
-    
-    
-    def obtener_categorias_tipo(self, categoria_precio: str) -> list:
-        """
-        Obtiene las categorías de tipo llamando al método estático de la clase Coche.
-        """
-        return Coche.obtener_categorias_tipo(self, categoria_precio)
-    
-    
-    def filtrar_por_categoria_tipo(self, categoria_precio: str, categoria_tipo: str) -> pd.DataFrame:
-        """
-        Filtra coches disponibles por categoría de tipo llamando al método estático de la clase Coche.
-        """
-        return Coche.filtrar_por_categoria_tipo(self, categoria_precio, categoria_tipo)
-    
-    
-    def obtener_marcas(self, categoria_precio: str, categoria_tipo: str) -> list:
-        """
-        Obtiene las marcas llamando al método estático de la clase Coche.
-        """
-        return Coche.obtener_marcas(self, categoria_precio, categoria_tipo)
-    
-    
-    def filtrar_por_marca(self, categoria_precio: str, categoria_tipo: str, marca: str) -> pd.DataFrame:
-        """
-        Filtra coches disponibles por marca llamando al método estático de la clase Coche.
-        """
-        return Coche.filtrar_por_marca(self, categoria_precio, categoria_tipo, marca)
-    
-    
-    def obtener_modelos(self, categoria_precio: str, categoria_tipo: str, marca: str) -> list:
-        """
-        Obtiene los modelos llamando al método estático de la clase Coche.
-        """
-        return Coche.obtener_modelos(self, categoria_precio, categoria_tipo, marca)
-    
-    
-    def filtrar_por_modelo(
-        self, categoria_precio: str, categoria_tipo: str, marca: str, modelo: str
-    ) -> pd.DataFrame:
-        """
-        Filtra coches disponibles por modelo llamando al método estático de la clase Coche.
-        """
-        return Coche.filtrar_por_modelo(self, categoria_precio, categoria_tipo, marca, modelo)
-    
-    
-    def obtener_detalles_coches(
-        self, categoria_precio: str, categoria_tipo: str, marca: str, modelo: str
-    ) -> list[dict]:
-        """
-        Obtiene los detalles de los coches llamando al método estático de la clase Coche.
-        """
-        return Coche.obtener_detalles_coches(self, categoria_precio, categoria_tipo, marca, modelo)
     
     
     def registrar_usuario(self, nombre: str, tipo: str, email: str, contraseña: str) -> bool:

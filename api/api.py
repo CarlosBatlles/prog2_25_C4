@@ -604,10 +604,14 @@ def buscar_coches_disponibles() -> tuple[dict, int]:
         categoria_tipo = request.args.get('categoria_tipo')
         marca = request.args.get('marca')
         modelo = request.args.get('modelo')
+        
+        # Validar que al menos se proporcione una categoría de precio
+        if not categoria_precio:
+            raise ValueError("Se requiere al menos el parámetro 'categoria_precio'.")
 
         # Obtener los detalles de los coches
-        detalles = empresa.obtener_detalles_coches(categoria_precio=categoria_precio, categoria_tipo=categoria_tipo, marca=marca, modelo=modelo)
-        return jsonify(detalles), 200
+        coches_filtrados = empresa.buscar_coches_por_filtros(categoria_precio=categoria_precio, categoria_tipo=categoria_tipo, marca=marca, modelo=modelo)
+        return jsonify(coches_filtrados), 200
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
