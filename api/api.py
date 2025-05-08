@@ -1,14 +1,9 @@
-import sys
-import os
+# Importaciones básicas
 from flask import Flask, request, jsonify, make_response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
-from datetime import *
+from datetime import datetime, timedelta
 
-# Agrega el directorio raíz del proyecto al PATH (para que encuentre `source`)
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_dir)
-
-# Ahora la importación debería funcionar
+# Importación relativa para acceder a la clase Empresa desde el módulo source
 from source.empresa import Empresa
 
 app = Flask(__name__)

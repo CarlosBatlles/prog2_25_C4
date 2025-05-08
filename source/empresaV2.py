@@ -1,12 +1,10 @@
 import pandas as pd
 from datetime import datetime
 from fpdf import FPDF
-import re
-import hashlib
 import os
-from coche import *
-from usuario import *
-from alquiler import *  
+from .models.coche import *
+from .models.usuario import *
+from .models.alquiler import *
 
 class Empresa():
     """
@@ -42,11 +40,7 @@ class Empresa():
             El nombre de la empresa de alquiler de coches.
         """
         self.nombre = nombre
-        self.coches = []
-        self.usuarios = []
-        self.alquileres = []
-        self.data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
-
+        
 
     def _ruta_archivo(self, archivo: str) -> str:
         """
@@ -77,7 +71,8 @@ class Empresa():
         - El método utiliza `os.path.join` para asegurar que la ruta sea compatible con el sistema operativo.
         - El atributo `self.data_dir` debe estar correctamente configurado para apuntar al directorio 'data'.
         """
-        return os.path.join(self.data_dir, archivo)
+        # Asumimos que el directorio 'data' está en el mismo nivel que 'source'
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', archivo)
 
     
     # ---------------------------------------
