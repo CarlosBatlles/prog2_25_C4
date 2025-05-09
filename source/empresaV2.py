@@ -135,20 +135,90 @@ class Empresa():
             raise ValueError(f"Error al cargar el archivo {ruta}: {e}") from e
         
     def registrar_coche(self, marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,
-                        año: int, precio_diario: float, kilometraje: float, color: str, combustible: str, cv: int,
-                        plazas: int, disponible: bool) -> bool:
+                    año: int, precio_diario: float, kilometraje: float, color: str, combustible: str, cv: int,
+                    plazas: int, disponible: bool) -> bool:
         """
         Registra un nuevo coche llamando al método estático de la clase Coche.
+        
+        Parameters
+        ----------
+        marca : str
+            Marca del coche.
+        modelo : str
+            Modelo del coche.
+        matricula : str
+            Matrícula única del coche.
+        categoria_tipo : str
+            Categoría tipo del coche (ej. SUV, Compacto).
+        categoria_precio : str
+            Categoría de precio del coche (ej. Económico, Medio, Lujo).
+        año : int
+            Año de fabricación del coche.
+        precio_diario : float
+            Precio diario del coche.
+        kilometraje : float
+            Kilometraje actual del coche.
+        color : str
+            Color del coche.
+        combustible : str
+            Tipo de combustible del coche.
+        cv : int
+            Potencia del coche en caballos de vapor.
+        plazas : int
+            Número de plazas del coche.
+        disponible : bool
+            Indica si el coche está disponible para alquilar.
+
+        Returns
+        -------
+        bool or int
+            Devuelve el ID generado por MySQL si se registró correctamente.
+
+        Raises
+        ------
+        ValueError
+            Si hay un error al registrar el coche.
         """
-        return Coche.registrar_coche(self, marca, modelo, matricula, categoria_tipo, categoria_precio, año,
-                                    precio_diario, kilometraje, color, combustible, cv, plazas, disponible)
+        connection = self.get_connection()
+        return Coche.registrar_coche(connection, marca, modelo, matricula, categoria_tipo, categoria_precio,
+                                año, precio_diario, kilometraje, color, combustible, cv, plazas, disponible)
         
         
     def actualizar_matricula(self, id_coche: str, nueva_matricula: str) -> bool:
         """
         Actualiza la matrícula de un coche llamando al método estático de la clase Coche.
+        
+        Parameters
+        ----------
+        id_coche : str
+            El ID del coche como cadena (ej. "UID01").
+        nueva_matricula : str
+            Nueva matrícula que se asignará al coche.
+
+        Returns
+        -------
+        bool
+            True si la matrícula se actualizó correctamente.
+
+        Raises
+        ------
+        ValueError
+            Si el ID no puede convertirse a entero o si hay errores en la actualización.
         """
-        return Coche.actualizar_matricula(self, id_coche, nueva_matricula)
+        try:
+            # Convertir el ID formateado ("UID01") a su parte numérica (1)
+            if not id_coche.startswith("UID"):
+                raise ValueError("Formato de ID inválido. Debe comenzar con 'UID'")
+            
+            id_numero = int(id_coche[3:])  # UID01 → 1
+
+            # Pasar solo los valores necesarios
+            connection = self.get_connection()
+            return Coche.actualizar_matricula(connection, id_numero, nueva_matricula)
+
+        except ValueError as ve:
+            # Captura errores de formato de ID o conversiones fallidas
+            raise ValueError(f"ID de coche inválido: {ve}")
     
     
     def eliminar_coche(self, id_coche: str) -> bool:

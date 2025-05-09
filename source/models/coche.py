@@ -1,6 +1,5 @@
-import mysql.connector
+
 from mysql.connector import Error
-import pandas as pd
 
 class Coche:
     def __init__(self, id: str, marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,
@@ -90,8 +89,8 @@ class Coche:
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar/guardar datos.
+        connection: mysql.connector.connection.MySQLConnection
+            Conexion activa a la base de datos
         id_coche : int
             El ID único del coche cuya matrícula se desea actualizar.
         nueva_matricula : str
@@ -133,6 +132,7 @@ class Coche:
                 return True
             else:
                 raise ValueError(f"No se ha podido actualizar la matricula del coche con id: {id_coche}")
+            
         except Error as e:
             connection.rollback()
             raise ValueError(f"Error al actualizar la matricula: {e}")
