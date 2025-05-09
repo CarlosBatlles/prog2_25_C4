@@ -3,18 +3,21 @@
 import hashlib
 import re
 import pandas as pd
+from mysql.connector import Error
+
 class Usuario:
-    
     TIPOS_USUARIOS = ['Cliente', 'Admin']
-    
-    def __init__(self, id_usuario, nombre, email, tipo,contraseña_hasheada):
-        
+
+    def __init__(self, id_usuario, nombre, email, tipo, contraseña_hasheada):
         if not nombre:
-            raise ValueError('El nombre no puede estar vacio')
-        self.validar_email(email)
+            raise ValueError("El nombre no puede estar vacío")
+
+        if not self.es_email_valido(email):
+            raise ValueError(f"Email '{email}' no es válido")
+
         if tipo not in self.TIPOS_USUARIOS:
-            raise ValueError(f'El tipo: {tipo} no esta disponible: Opciones: {self.TIPOS_USUARIOS}')
-        
+            raise ValueError(f"El tipo '{tipo}' no es válido. Opciones: {self.TIPOS_USUARIOS}")
+
         self.id_usuario = id_usuario
         self.nombre = nombre
         self.email = email
@@ -24,7 +27,7 @@ class Usuario:
 
 
     @staticmethod
-    def hash_contraseña(self, contraseña: str) -> str:
+    def hash_contraseña(contraseña: str) -> str:
         """
         Genera un hash SHA-256 de la contraseña proporcionada.
 
@@ -68,144 +71,137 @@ class Usuario:
         """
         patron = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
         return re.match(patron, email) is not None
-    
-    
-    @staticmethod
-    def registrar_usuario(
-        empresa, 
-        nombre: str, 
-        tipo: str, 
-        email: str, 
-        contraseña: str
-    ) -> bool:
-        """
-        Registra un nuevo usuario en el sistema.
 
-        Este método verifica si el correo electrónico ya está registrado, hashea la contraseña 
-        y guarda los datos del usuario en el archivo CSV correspondiente.
+
+    @staticmethod
+    def registrar_usuario(connection, nombre: str, tipo: str, email: str, contraseña: str) -> int:
+        """
+        Registra un nuevo usuario en la base de datos MySQL.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar/guardar datos.
+        connection : mysql.connection.MySQLConnection
+            Conexión activa a la base de datos.
         nombre : str
             Nombre completo del usuario.
         tipo : str
-            Tipo de usuario (por ejemplo, 'cliente', 'admin').
+            Tipo de usuario (debe ser 'Cliente' o 'Admin').
         email : str
-            Correo electrónico del usuario. Debe ser único y válido.
+            Correo electrónico del usuario (único y válido).
         contraseña : str
-            Contraseña del usuario. Se almacenará como un hash seguro.
+            Contraseña del usuario (se guardará como hash SHA-256).
 
         Returns
         -------
-        bool
-            True si el usuario se registró correctamente.
+        int
+            El ID del usuario recién registrado.
 
         Raises
         ------
         ValueError
-            Si algún campo obligatorio está vacío, si el correo electrónico no es válido 
-            o si el correo electrónico ya está registrado.
+            Si hay errores en los datos proporcionados o si el correo ya existe.
         Exception
-            Si ocurre un error al guardar los cambios en el archivo CSV.
-
-        Notes
-        -----
-        - El correo electrónico debe ser único en el sistema.
-        - La contraseña se almacena como un hash SHA-256 para mayor seguridad.
+            Si ocurre un error al insertar en la base de datos.
         """
-        # Cargar los usuarios actuales
-        df_usuarios = empresa.cargar_usuarios()
-        if df_usuarios is None or df_usuarios.empty:
-            df_usuarios = pd.DataFrame(columns=['id_usuario', 'nombre', 'tipo', 'email', 'contraseña'])
-
-        # Validaciones de campos obligatorios
-        if not all([nombre, tipo, email, contraseña]):
+        # Validaciones iniciales
+        if not nombre or not tipo or not email or not contraseña:
             raise ValueError("Debes rellenar todos los campos.")
 
+        if tipo not in Usuario.TIPOS_USUARIOS:
+            raise ValueError(f"El tipo '{tipo}' no es válido. Opciones: {Usuario.TIPOS_USUARIOS}")
+
         if not Usuario.es_email_valido(email):
-            raise ValueError("El correo electrónico no es válido.")
-
-        if email in df_usuarios['email'].values:
-            raise ValueError("El correo electrónico ya está registrado.")
-
-        # Generar un ID único para el usuario
-        id_user = empresa.generar_id_usuario()
-
-        # Hashear la contraseña
-        contraseña_hasheada = Usuario.hash_contraseña(contraseña)
-
-        # Crear un diccionario con los datos del nuevo usuario
-        new_user = {
-            'id_usuario': id_user,
-            'nombre': nombre,
-            'tipo': tipo,
-            'email': email,
-            'contraseña': contraseña_hasheada,
-        }
-
-        # Crear un DataFrame con el nuevo usuario y actualizar el archivo CSV
-        df_nuevo_usuario = pd.DataFrame([new_user])
-        df_actualizado = pd.concat([df_usuarios, df_nuevo_usuario], ignore_index=True)
+            raise ValueError(f"Correo electrónico inválido: {email}")
 
         try:
-            empresa._guardar_csv('clientes.csv', df_actualizado)
-            return True
-        except Exception as e:
-            raise ValueError(f"Error al guardar el usuario en el archivo CSV: {e}")
+            cursor = connection.cursor()
+
+            # Verificar si el correo ya está registrado
+            cursor.execute("SELECT COUNT(*) FROM usuarios WHERE email = %s", (email,))
+            if cursor.fetchone()[0] > 0:
+                raise ValueError(f"El correo {email} ya está registrado.")
+
+            # Hashear la contraseña
+            contraseña_hasheada = Usuario.hash_contraseña(contraseña)
+
+            # Insertar el nuevo usuario
+            query = """
+            INSERT INTO usuarios (nombre, tipo, email, contraseña)
+            VALUES (%s, %s, %s, %s)
+            """
+            valores = (nombre, tipo, email, contraseña_hasheada)
+
+            cursor.execute(query, valores)
+            connection.commit()
+
+            # Devolver el ID generado por MySQL
+            return cursor.lastrowid
+
+        except Error as e:
+            connection.rollback()
+            raise ValueError(f"Error al registrar usuario: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
         
         
     @staticmethod
-    def actualizar_usuario(empresa, email: str, nueva_contraseña: str = None) -> bool:
+    def actualizar_contraseña(connection, email: str, nueva_contraseña: str) -> bool:
         """
-        Actualiza los datos de un usuario existente.
-        Solo permite cambiar la contraseña del usuario autenticado.
+        Actualiza la contraseña de un usuario en la base de datos usando su correo electrónico.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar/guardar datos.
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
         email : str
-            Correo electrónico del usuario cuya información se desea actualizar.
-        nueva_contraseña : str, optional
-            La nueva contraseña que se asignará al usuario. Si no se proporciona, no se realizará ninguna actualización.
+            Correo electrónico del usuario que se desea actualizar.
+        nueva_contraseña : str
+            Nueva contraseña del usuario (se guardará como hash).
 
         Returns
         -------
         bool
-            True si la actualización se realizó correctamente.
+            True si la contraseña se actualizó correctamente.
 
         Raises
         ------
         ValueError
-            Si el correo electrónico no está registrado o si ocurre un error al guardar los cambios.
+            Si el correo no existe o si ocurre un error al actualizar la contraseña.
         """
-        # Cargar los usuarios actuales
-        df_usuarios = Usuario.cargar_usuarios(empresa)
-        if df_usuarios is None:
-            raise ValueError("No se pudieron cargar los usuarios. Revisa el archivo CSV.")
+        if not email:
+            raise ValueError("El correo electrónico es obligatorio.")
+        
+        if not nueva_contraseña:
+            raise ValueError("La nueva contraseña no puede estar vacía.")
 
-        # Verificar si el email existe en el DataFrame
-        if email not in df_usuarios['email'].values:
-            raise ValueError(f"El correo electrónico {email} no está registrado.")
+        try:
+            cursor = connection.cursor()
 
-        # Si se proporciona una nueva contraseña, validarla y actualizarla
-        if nueva_contraseña:
-            # Hashear la nueva contraseña
+            # Verificar si el correo existe
+            cursor.execute("SELECT COUNT(*) FROM usuarios WHERE email = %s", (email,))
+            if cursor.fetchone()[0] == 0:
+                raise ValueError(f"No hay ningún usuario con el correo {email}")
+
+            # Generar hash de la nueva contraseña
             contraseña_hasheada = Usuario.hash_contraseña(nueva_contraseña)
 
-            # Actualizar la contraseña en el DataFrame
-            df_usuarios.loc[df_usuarios['email'] == email, 'contraseña'] = contraseña_hasheada
+            # Actualizar en la base de datos
+            query = "UPDATE usuarios SET contraseña = %s WHERE email = %s"
+            cursor.execute(query, (contraseña_hasheada, email))
+            connection.commit()
 
-            # Guardar los cambios en el archivo CSV
-            try:
-                Usuario.guardar_usuarios(empresa, df_usuarios)
-                print(f"La contraseña del usuario con email {email} ha sido actualizada exitosamente.")
-            except Exception as e:
-                raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
+            if cursor.rowcount > 0:
+                return True
+            else:
+                raise ValueError(f"No se pudo actualizar la contraseña del correo {email}")
 
-        return True
+        except Error as e:
+            connection.rollback()
+            raise ValueError(f"Error al actualizar la contraseña: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
     
     
     @staticmethod

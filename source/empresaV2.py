@@ -256,18 +256,20 @@ class Empresa():
     
     
     
-    def registrar_usuario(self, nombre: str, tipo: str, email: str, contraseña: str) -> bool:
+    def registrar_usuario(self, nombre: str, tipo: str, email: str, contraseña: str) -> int:
         """
-        Registra un nuevo usuario llamando al método estático de la clase Usuario.
+        Llama al método estático de `Usuario.registrar_usuario()` pasando la conexión.
         """
-        return Usuario.registrar_usuario(self, nombre, tipo, email, contraseña)
+        connection = self.get_connection()
+        return Usuario.registrar_usuario(connection, nombre, tipo, email, contraseña)
     
     
-    def actualizar_usuario(self, email: str, nueva_contraseña: str = None) -> bool:
+    def actualizar_usuario(self, email: str, nueva_contraseña: str) -> bool:
         """
-        Actualiza los datos de un usuario llamando al método estático de la clase Usuario.
+        Llama al método estático de `Usuario.actualizar_contraseña(...)`.
         """
-        return Usuario.actualizar_usuario(self, email, nueva_contraseña)
+        connection = self.get_connection()
+        return Usuario.actualizar_contraseña(connection, email, nueva_contraseña)
     
     
     def dar_baja_usuario(self, email: str) -> bool:
