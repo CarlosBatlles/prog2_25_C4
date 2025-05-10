@@ -283,17 +283,19 @@ def eliminar_usuario() -> tuple[dict, int]:
         return jsonify({'mensaje': 'El correo electrónico es obligatorio'}), 400
 
     # Validar el formato del correo electrónico
-    if not empresa.es_email_valido(email):
+    if not es_email_valido(email):
         return jsonify({'error': 'El correo electrónico no es válido'}), 400
 
     try:
-        # Llamar al método dar_baja_usuario de la clase Empresa
-        if empresa.dar_baja_usuario(email):
-            return jsonify({'mensaje': f'Usuario con correo {email} eliminado con éxito'}), 200
+        resultado = empresa.dar_baja_usuario(email)
+        if resultado:
+            return jsonify({'mensaje':f'Usuario con correo {email} eliminado con éxito'}), 200
         else:
-            return jsonify({'error': 'No se pudo eliminar el usuario'}), 404
+            return jsonify({'error':'No se pudo eliminar el usuario'}), 404
+    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
     
 @app.route('/listar-usuarios', methods=['GET'])
 @jwt_required()
@@ -359,22 +361,29 @@ def listar_usuarios() -> tuple[dict, int]:
         return jsonify({'error': 'Acceso no autorizado'}), 403
 
     try:
-        # Cargar usuarios
-        df_usuarios = empresa.cargar_usuarios()
-        if df_usuarios is None or df_usuarios.empty:
-            return jsonify({'error': 'No hay usuarios registrados'}), 200
-
-        usuarios = df_usuarios.to_dict(orient='records')
-
+        usuarios = empresa.obtener_usuarios()
+        
+        if not usuarios:
+            return jsonify({'error': 'No hay usuarios registrados'}), 404
+        
+        usuarios_formateados = [
+            {
+                'id_usuarios' : formatear_id(usuario['id_usuario'], 'U'),
+                'nombre':usuario['nombre'],
+                'tipo': usuario['tipo'],
+                'email': usuario['email']
+            } for usuario in usuarios
+        ]
+        
         return jsonify({
             'mensaje': 'Lista de usuarios obtenida exitosamente',
-            'usuarios': usuarios
+            'usuarios':usuarios_formateados
         }), 200
-
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de usuarios no encontrado'}), 500
+    
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Error interno del servidor: {e}'}), 500
 
 
 @app.route('/usuarios/detalles/<string:email>', methods=['GET'])

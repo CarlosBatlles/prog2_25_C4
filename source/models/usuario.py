@@ -19,6 +19,45 @@ class Usuario:
         self.historial_alquileres = []
 
 
+    def obtener_usuarios(connection) -> list[dict]:
+        """
+        Obtiene todos los usuarios registrados desde la base de datos.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
+
+        Returns
+        -------
+        list[dict]
+            Una lista de diccionarios con los campos id_usuario, nombre, tipo, email.
+
+        Raises
+        ------
+        ValueError
+            Si no hay usuarios registrados o si ocurre un error en la consulta.
+        Exception
+            Si hay un fallo en la conexión.
+        """
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = "SELECT id_usuario, nombre, tipo, email FROM usuarios"
+            cursor.execute(query)
+
+            resultados = cursor.fetchall()
+            if not resultados:
+                raise ValueError("No hay usuarios registrados.")
+
+            return resultados
+
+        except Error as e:
+            raise ValueError(f"Error al obtener la lista de usuarios: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+
+
     def registrar_usuario(connection, nombre: str, tipo: str, email: str, contraseña: str) -> int:
         """
         Registra un nuevo usuario en la base de datos MySQL.
@@ -149,7 +188,6 @@ class Usuario:
                 cursor.close()
     
     
-    @staticmethod
     def dar_baja_usuario(connection, email: str) -> bool:
         """
         Elimina un usuario del sistema basándose en su correo electrónico.
@@ -210,7 +248,6 @@ class Usuario:
                 cursor.close()
         
         
-    @staticmethod
     def iniciar_sesion(connection, email: str, contraseña: str) -> dict:
         """
         Verifica si un usuario con el correo electrónico y contraseña dados existe en la base de datos.

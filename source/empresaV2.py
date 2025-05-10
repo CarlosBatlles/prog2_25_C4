@@ -255,6 +255,14 @@ class Empresa():
         return Usuario.iniciar_sesion(connection, email, contraseña)
     
     
+    def obtener_usuarios(self) -> list[dict]:
+        """
+        Llama al método `usuario.obtener_usuarios(...)` pasando la conexión.
+        """
+        connection = self.get_connection()
+        return Usuario.obtener_usuarios(connection)
+    
+    
     def obtener_historial_alquileres(self, email: str) -> list[dict]:
         """
         Llama al método estático `Usuario.obtener_historial_alquileres(...)` pasando la conexión.
