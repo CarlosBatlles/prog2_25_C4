@@ -1,5 +1,5 @@
 import pandas as pd
-from datetime import datetime
+from datetime import date
 from fpdf import FPDF
 import os
 import mysql.connector
@@ -304,28 +304,30 @@ class Empresa():
     
     
 
-    def alquilar_coche(self, matricula: str, fecha_inicio: str, fecha_fin: str, 
-                        email: str = None) -> bytes:
-        """
-        Registra un nuevo alquiler llamando al método estático de la clase Alquiler.
-        """
-        return Alquiler.alquilar_coche(self, matricula, fecha_inicio, fecha_fin, email)
+    def alquilar_coche(self, matricula: str, fecha_inicio: str, fecha_fin: str, email: str = None):
+        connection = self.get_connection()
+        
+        # Convertir fechas de string a objetos date
+        fecha_inicio_dt = date.fromisoformat(fecha_inicio)
+        fecha_fin_dt = date.fromisoformat(fecha_fin)
+
+        return Alquiler.alquilar_coche(connection, matricula, fecha_inicio_dt, fecha_fin_dt, email)
     
 
     def finalizar_alquiler(self, id_alquiler: str) -> bool:
         """
-        Finaliza un alquiler llamando al método estático de la clase Alquiler.
+        Llama al método estático `Alquiler.finalizar_alquiler(...)` pasando la conexión.
         """
-        return Alquiler.finalizar_alquiler(self, id_alquiler)
+        connection = self.get_connection()
+        return Alquiler.finalizar_alquiler(connection, id_alquiler)
     
     
-    def calcular_precio_total(self,fecha_inicio: datetime,fecha_fin: datetime,matricula: str,
-                            email: str = None) -> float:
+    def calcular_precio_total(self, matricula: str, fecha_inicio: date, fecha_fin: date, email: str = None) -> float:
         """
-        Calcula el precio total del alquiler llamando al método estático de la clase Alquiler.
+        Llama al método estático `Alquiler.calcular_precio_total(...)` pasando la conexión.
         """
-        return Alquiler.calcular_precio_total(self, fecha_inicio, fecha_fin, matricula, email)
-    
+        connection = self.get_connection()
+        return Alquiler.calcular_precio_total(connection, matricula, fecha_inicio, fecha_fin, email)
     
     def generar_factura_pdf(self, alquiler: dict) -> bytes:
         """

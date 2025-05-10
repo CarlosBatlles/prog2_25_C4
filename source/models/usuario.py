@@ -1,10 +1,7 @@
 
 '''Clase Usuario para representar a los clientes y sus datos'''
-import hashlib
-import re
-import pandas as pd
 from mysql.connector import Error
-
+from source.utils import hash_contraseña, es_email_valido
 class Usuario:
     TIPOS_USUARIOS = ['Cliente', 'Admin']
 
@@ -12,7 +9,7 @@ class Usuario:
         if not nombre:
             raise ValueError("El nombre no puede estar vacío")
 
-        if not self.es_email_valido(email):
+        if not es_email_valido(email):
             raise ValueError(f"Email '{email}' no es válido")
 
         if tipo not in self.TIPOS_USUARIOS:
@@ -24,53 +21,6 @@ class Usuario:
         self.tipo = tipo
         self.contraseña = contraseña_hasheada
         self.historial_alquileres = []
-
-
-    @staticmethod
-    def hash_contraseña(contraseña: str) -> str:
-        """
-        Genera un hash SHA-256 de la contraseña proporcionada.
-
-        Parameters
-        ----------
-        contraseña : str
-            La contraseña que se desea hashear.
-
-        Returns
-        -------
-        str
-            Un hash SHA-256 de la contraseña en formato hexadecimal.
-
-        Notes
-        -----
-        Este método utiliza la biblioteca hashlib para generar un hash seguro de la contraseña.
-        El resultado es una cadena hexadecimal de 64 caracteres.
-        """
-        return hashlib.sha256(contraseña.encode()).hexdigest()
-    
-    
-    @staticmethod
-    def es_email_valido(email: str) -> bool:
-        """
-        Verifica si un correo electrónico es válido utilizando una expresión regular.
-
-        Parameters
-        ----------
-        email : str
-            El correo electrónico que se desea validar.
-
-        Returns
-        -------
-        bool
-            True si el correo electrónico es válido, False en caso contrario.
-
-        Notes
-        -----
-        Esta función utiliza una expresión regular para validar el formato del correo electrónico.
-        El patrón utilizado sigue las reglas estándar para correos electrónicos válidos.
-        """
-        patron = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-        return re.match(patron, email) is not None
 
 
     @staticmethod
@@ -110,7 +60,7 @@ class Usuario:
         if tipo not in Usuario.TIPOS_USUARIOS:
             raise ValueError(f"El tipo '{tipo}' no es válido. Opciones: {Usuario.TIPOS_USUARIOS}")
 
-        if not Usuario.es_email_valido(email):
+        if not es_email_valido(email):
             raise ValueError(f"Correo electrónico inválido: {email}")
 
         try:
@@ -122,7 +72,7 @@ class Usuario:
                 raise ValueError(f"El correo {email} ya está registrado.")
 
             # Hashear la contraseña
-            contraseña_hasheada = Usuario.hash_contraseña(contraseña)
+            contraseña_hasheada = hash_contraseña(contraseña)
 
             # Insertar el nuevo usuario
             query = """
@@ -184,7 +134,7 @@ class Usuario:
                 raise ValueError(f"No hay ningún usuario con el correo {email}")
 
             # Generar hash de la nueva contraseña
-            contraseña_hasheada = Usuario.hash_contraseña(nueva_contraseña)
+            contraseña_hasheada = hash_contraseña(nueva_contraseña)
 
             # Actualizar en la base de datos
             query = "UPDATE usuarios SET contraseña = %s WHERE email = %s"
@@ -236,7 +186,7 @@ class Usuario:
         - Antes de eliminar el usuario, se verifica que el correo exista en la base de datos.
         - El método utiliza MySQL como fuente de datos, por lo que los cambios son persistentes.
         """
-        if not Usuario.es_email_valido(email):
+        if not es_email_valido(email):
             raise ValueError("Correo electrónico inválido.")
 
         try:
@@ -291,7 +241,7 @@ class Usuario:
         Exception
             Si ocurre un error de conexión o consulta.
         """
-        if not Usuario.es_email_valido(email):
+        if not es_email_valido(email):
             raise ValueError("Correo electrónico inválido.")
 
         try:
@@ -306,7 +256,7 @@ class Usuario:
                 raise ValueError(f"No se encontró ningún usuario con el correo: {email}")
 
             # Hashear la contraseña ingresada y comparar con la almacenada
-            contraseña_hasheada_ingresada = Usuario.hash_contraseña(contraseña)
+            contraseña_hasheada_ingresada = hash_contraseña(contraseña)
             contraseña_almacenada = usuario['contraseña']
 
             if contraseña_hasheada_ingresada != contraseña_almacenada:
