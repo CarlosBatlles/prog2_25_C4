@@ -205,17 +205,17 @@ class Usuario:
     
     
     @staticmethod
-    def dar_baja_usuario(empresa, email: str) -> bool:
+    def dar_baja_usuario(connection, email: str) -> bool:
         """
         Elimina un usuario del sistema basándose en su correo electrónico.
 
-        Este método verifica si el correo electrónico existe en el sistema y elimina 
-        al usuario correspondiente del archivo CSV.
+        Este método verifica si el correo existe en la base de datos y elimina 
+        al usuario correspondiente.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar/guardar datos.
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
         email : str
             El correo electrónico del usuario que se desea eliminar.
 
@@ -229,136 +229,145 @@ class Usuario:
         ValueError
             Si no se pueden cargar los usuarios o si el correo electrónico no está registrado.
         Exception
-            Si ocurre un error al guardar los cambios en el archivo CSV.
+            Si ocurre un error al guardar los cambios en la base de datos.
 
         Notes
         -----
-        - Antes de eliminar el usuario, se verifica que el correo electrónico exista en el sistema.
-        - El método utiliza el archivo CSV como fuente de datos, por lo que los cambios son persistentes.
+        - Antes de eliminar el usuario, se verifica que el correo exista en la base de datos.
+        - El método utiliza MySQL como fuente de datos, por lo que los cambios son persistentes.
         """
-        # Cargar los usuarios actuales
-        df_usuarios = Usuario.cargar_usuarios(empresa)
-        if df_usuarios is None:
-            raise ValueError("No se pudieron cargar los usuarios. Revisa el archivo CSV.")
+        if not Usuario.es_email_valido(email):
+            raise ValueError("Correo electrónico inválido.")
 
-        # Verificar si el email existe en el DataFrame
-        if email not in df_usuarios['email'].values:
-            raise ValueError("El correo que has introducido no está registrado.")
-
-        # Filtrar el DataFrame para excluir al usuario con el email proporcionado
-        df_actualizado = df_usuarios[df_usuarios['email'] != email]
-
-        # Guardar los cambios usando el método auxiliar
         try:
-            Usuario.guardar_usuarios(empresa, df_actualizado)
-            return True
-        except Exception as e:
-            raise ValueError(f"Error al guardar los cambios en el archivo CSV: {e}")
+            cursor = connection.cursor()
+
+            # Verificar si el correo existe
+            cursor.execute("SELECT COUNT(*) FROM usuarios WHERE email = %s", (email,))
+            if cursor.fetchone()[0] == 0:
+                raise ValueError(f"El correo {email} no está registrado.")
+
+            # Eliminar al usuario por su correo electrónico
+            query = "DELETE FROM usuarios WHERE email = %s"
+            cursor.execute(query, (email,))
+            connection.commit()
+
+            if cursor.rowcount > 0:
+                return True
+            else:
+                raise ValueError(f"No se pudo eliminar el usuario con email {email}")
+
+        except Error as e:
+            connection.rollback()
+            raise ValueError(f"Error al eliminar el usuario: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
         
         
     @staticmethod
-    def iniciar_sesion(empresa, email: str, contraseña: str) -> bool:
+    def iniciar_sesion(connection, email: str, contraseña: str) -> bool:
         """
         Verifica si un usuario con el correo electrónico y contraseña dados existe en la base de datos.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
         email : str
             Correo electrónico del usuario.
         contraseña : str
-            Contraseña proporcionada por el usuario.
+            Contraseña proporcionada por el usuario (sin hashear).
 
         Returns
         -------
         bool
-            True si las credenciales son válidas.
+            True si las credenciales son correctas.
 
         Raises
         ------
         ValueError
-            Si no se pueden cargar los usuarios o si el correo electrónico no está registrado.
+            Si el correo no existe o la contraseña es incorrecta.
         Exception
-            Si ocurre un error inesperado durante el proceso.
-
-        Notes
-        -----
-        - La contraseña se compara en formato hasheado para mayor seguridad.
-        - El método utiliza el archivo CSV como fuente de datos, por lo que los cambios son persistentes.
+            Si ocurre un error de conexión o consulta.
         """
-        # Cargar los usuarios
-        df_usuarios = Usuario.cargar_usuarios(empresa)
-        if df_usuarios is None or df_usuarios.empty:
-            raise ValueError("No se pudieron cargar los usuarios. Revisa el archivo CSV.")
+        if not Usuario.es_email_valido(email):
+            raise ValueError("Correo electrónico inválido.")
 
-        # Buscar el usuario por correo electrónico
-        usuario = df_usuarios[df_usuarios['email'] == email]
-        if usuario.empty:
-            raise ValueError(f"No se encontró ningún usuario con el correo: {email}.")
+        try:
+            cursor = connection.cursor(dictionary=True)
 
-        # Obtener la contraseña almacenada y compararla con la contraseña hasheada
-        contraseña_almacenada = usuario.iloc[0]['contraseña']
-        contraseña_hasheada = Usuario.hash_contraseña(contraseña)
+            # Buscar al usuario por su email
+            query = "SELECT * FROM usuarios WHERE email = %s"
+            cursor.execute(query, (email,))
+            usuario = cursor.fetchone()
 
-        if contraseña_almacenada != contraseña_hasheada:
-            raise ValueError("Contraseña incorrecta.")
+            if not usuario:
+                raise ValueError(f"No se encontró ningún usuario con el correo: {email}")
 
-        return True
+            # Hashear la contraseña ingresada y comparar con la almacenada
+            contraseña_hasheada_ingresada = Usuario.hash_contraseña(contraseña)
+            contraseña_almacenada = usuario['contraseña']
+
+            if contraseña_hasheada_ingresada != contraseña_almacenada:
+                raise ValueError("Contraseña incorrecta.")
+
+            return True
+
+        except Error as e:
+            raise ValueError(f"Error al iniciar sesión: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
     
     
     @staticmethod
-    def obtener_historial_alquileres(empresa, email: str) -> list[dict]:
+    def obtener_historial_alquileres(connection, email: str) -> list[dict]:
         """
-        Obtiene el historial de alquileres de un usuario específico basándose en su email.
+        Obtiene el historial de alquileres de un usuario desde la base de datos.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
         email : str
-            Correo electrónico del usuario cuyo historial de alquileres se desea obtener.
+            Correo electrónico del usuario cuyo historial se desea obtener.
 
         Returns
         -------
         list[dict]
-            Una lista de diccionarios que contiene los detalles de los alquileres del usuario.
+            Una lista de diccionarios con los detalles de cada alquiler.
 
         Raises
         ------
         ValueError
-            Si no hay alquileres registrados o si no se encuentran alquileres para el usuario especificado.
+            Si no hay alquileres para el usuario o si ocurre un error en la consulta.
         Exception
-            Si ocurre un error inesperado durante el proceso.
-
-        Notes
-        -----
-        - El método utiliza el archivo CSV como fuente de datos, por lo que los cambios son persistentes.
-        - Si el usuario no tiene alquileres registrados, se lanza una excepción.
+            Si hay un fallo en la conexión o en la consulta SQL.
         """
-        # Cargar los usuarios y verificar si el email existe
-        df_usuarios = Usuario.cargar_usuarios(empresa)
-        if df_usuarios is None or df_usuarios.empty:
-            raise ValueError("No se pudieron cargar los usuarios.")
+        try:
+            cursor = connection.cursor(dictionary=True)
 
-        # Verificar si el email existe en el sistema
-        if email not in df_usuarios['email'].values:
-            raise ValueError(f"El usuario con email {email} no está registrado.")
+            # Verificar si el usuario existe
+            cursor.execute("SELECT id_usuario FROM usuarios WHERE email = %s", (email,))
+            resultado = cursor.fetchone()
+            if not resultado:
+                raise ValueError(f"El correo {email} no está registrado.")
 
-        # Obtener el ID del usuario a partir del email
-        id_usuario = df_usuarios[df_usuarios['email'] == email].iloc[0]['id_usuario']
+            id_usuario = resultado['id_usuario']
 
-        # Cargar los alquileres
-        df_alquileres = empresa.cargar_alquileres()
-        if df_alquileres is None or df_alquileres.empty:
-            raise ValueError("No hay alquileres registrados.")
+            # Consultar los alquileres del usuario
+            query = "SELECT * FROM alquileres WHERE id_usuario = %s ORDER BY fecha_inicio DESC"
+            cursor.execute(query, (id_usuario,))
+            resultados = cursor.fetchall()
 
-        # Filtrar los alquileres por el ID del usuario
-        alquileres_usuario = df_alquileres[df_alquileres['id_usuario'] == id_usuario]
+            if not resultados:
+                raise ValueError(f"No hay alquileres registrados para el usuario {email}")
 
-        # Si no hay alquileres, lanzar una excepción
-        if alquileres_usuario.empty:
-            raise ValueError(f"No se encontraron alquileres para el usuario con email {email}.")
+            return resultados
 
-        # Convertir el DataFrame a una lista de diccionarios
-        return alquileres_usuario.to_dict(orient='records')
+        except Error as e:
+            raise ValueError(f"Error al obtener el historial de alquileres: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()

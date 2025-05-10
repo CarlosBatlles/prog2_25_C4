@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 # Importación relativa para acceder a la clase Empresa desde el módulo source
 from source.empresa import Empresa
+from source.utils import formatear_id
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "grupo_4!"
@@ -1010,98 +1011,69 @@ def finalizar_alquiler(id_alquiler: str) -> tuple[dict, int]:
 
 @app.route('/alquileres/historial/<string:email>', methods=['GET'])
 @jwt_required()
-def historial_alquileres(email: str) -> tuple[dict, int]:
+def historial_alquileres(email):
     """
-    Endpoint para obtener el historial de alquileres de un usuario específico.
+    Obtiene el historial de alquileres de un usuario específico.
 
-    Este endpoint permite a un administrador o al usuario autenticado obtener el 
-    historial de alquileres de un usuario mediante su correo electrónico. Solo los 
-    usuarios con rol "admin" pueden acceder al historial de cualquier usuario, mientras 
-    que un usuario normal solo puede acceder a su propio historial de alquileres.
-
-    Methods
-    -------
-    GET
-        Obtiene el historial de alquileres de un usuario específico.
-
-    Parameters
-    ----------
-    email : str
-        Correo electrónico del usuario cuyo historial de alquileres se desea obtener. 
-        Se pasa como parte de la URL.
-
-    Headers
-    -------
-    Authorization : str
-        Token JWT válido con claims que incluyan el rol y la identidad del usuario. 
-        El token debe ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
+    Este endpoint permite a un administrador o al propio usuario obtener todos los alquileres asociados a un email.
 
     Returns
     -------
     JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Historial de alquileres del usuario con email usuario@example.com",
-            "alquileres": [
-                {
-                    "id_alquiler": "A001",
-                    "id_coche": "UID01",
-                    "fecha_inicio": "2025-04-10",
-                    "fecha_fin": "2025-04-11",
-                    "coste_total": 100.0,
-                    "activo": true
-                },
-                ...
-            ]
-        }
+        Un objeto JSON con el historial de alquileres del usuario, incluyendo:
+        - id_alquiler (formateado como "A001")
+        - id_coche (formateado como "UID01")
+        - matricula del coche
+        - fechas de inicio y fin
+        - coste total
+        - estado activo/no activo
 
     Raises
     ------
     HTTP 403 Forbidden
-        Si el usuario no tiene permiso para acceder al historial del usuario solicitado.
+        Si el usuario no tiene permiso para acceder al historial.
     HTTP 404 Not Found
-        Si el usuario con el correo electrónico proporcionado no está registrado.
+        Si el email no corresponde a ningún usuario registrado.
     HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+        Si ocurre un error interno en la base de datos.
     """
-    # Obtener las claims del token
     claims = get_jwt()
-
-    # Verificar si las claims son un diccionario
-    if not isinstance(claims, dict):
-        return jsonify({'error': 'Error al leer las claims del token'}), 500
-
-    # Obtener el rol y el email del usuario autenticado
-    rol = claims.get('rol')
+    rol = claims.get('rol', None)
     email_usuario_autenticado = get_jwt_identity()
 
+    # Verificar autorización
+    if rol != 'admin' and email != email_usuario_autenticado:
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
     try:
-        # Cargar los usuarios para validar el email
-        df_usuarios = empresa.cargar_usuarios()
-        if df_usuarios is None or df_usuarios.empty:
-            return jsonify({'error': 'No se pudieron cargar los usuarios'}), 500
+        connection = empresa.get_connection()
 
-        # Verificar si el email existe en el sistema
-        if email not in df_usuarios['email'].values:
-            return jsonify({'error': f'El usuario con email {email} no está registrado'}), 404
+        # Obtener el historial desde MySQL usando el método adaptado
+        resultados = empresaV2.obtener_historial_alquileres(connection, email)
 
-        # Verificar permisos
-        if rol != 'admin' and email != email_usuario_autenticado:
-            return jsonify({'error': 'Acceso no autorizado'}), 403
-
-        # Obtener el historial de alquileres del usuario
-        historial = empresa.obtener_historial_alquileres(email)
+        # Formatear los resultados antes de devolverlos
+        historial_formateado = []
+        for alquiler in resultados:
+            historial_formateado.append({
+                "id_alquiler": formatear_id(alquiler["id_alquiler"], prefijo="A"),
+                "id_coche": formatear_id(alquiler["id_coche"], prefijo="UID"),
+                "matricula": alquiler["matricula"],
+                "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
+                "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
+                "coste_total": float(alquiler["coste_total"]),
+                "activo": bool(alquiler["activo"])
+            })
 
         return jsonify({
-            'mensaje': f'Historial de alquileres del usuario con email {email}',
-            'alquileres': historial
+            "mensaje": f"Historial de alquileres del usuario {email}",
+            "alquileres": historial_formateado
         }), 200
 
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 404
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 
 # ---------------------------------------

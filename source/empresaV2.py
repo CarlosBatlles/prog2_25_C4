@@ -274,23 +274,34 @@ class Empresa():
     
     def dar_baja_usuario(self, email: str) -> bool:
         """
-        Elimina un usuario llamando al método estático de la clase Usuario.
+        Llama al método estático de `Usuario.dar_baja_usuario(...)` pasando la conexión.
         """
-        return Usuario.dar_baja_usuario(self, email)
+        connection = self.get_connection()
+        return Usuario.dar_baja_usuario(connection, email)
     
     
     def iniciar_sesion(self, email: str, contraseña: str) -> bool:
         """
-        Inicia sesión llamando al método estático de la clase Usuario.
+        Llama al método estático `Usuario.iniciar_sesion(...)` pasando la conexión.
         """
-        return Usuario.iniciar_sesion(self, email, contraseña)
+        connection = self.get_connection()
+        return Usuario.iniciar_sesion(connection, email, contraseña)
     
     
     def obtener_historial_alquileres(self, email: str) -> list[dict]:
         """
-        Obtiene el historial de alquileres de un usuario llamando al método estático de la clase Usuario.
+        Llama al método estático `Usuario.obtener_historial_alquileres(...)` pasando la conexión.
         """
-        return Usuario.obtener_historial_alquileres(self, email)
+        connection = self.get_connection()
+        return Usuario.obtener_historial_alquileres(connection, email)
+    
+    
+    
+    
+    
+    
+    
+    
     
 
     def alquilar_coche(self, matricula: str, fecha_inicio: str, fecha_fin: str, 
