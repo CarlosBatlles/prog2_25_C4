@@ -262,14 +262,6 @@ class Empresa():
         connection = self.get_connection()
         return Usuario.obtener_historial_alquileres(connection, email)
     
-    
-    
-    
-    
-    
-    
-    
-    
 
     def alquilar_coche(self, matricula: str, fecha_inicio: str, fecha_fin: str, email: str = None):
         connection = self.get_connection()
