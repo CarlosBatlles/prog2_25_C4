@@ -1,4 +1,4 @@
-import pandas as pd
+
 from datetime import date
 from fpdf import FPDF
 import os
@@ -26,11 +26,6 @@ class Empresa():
     """
     
     
-    # ---------------------------------------
-    # Métodos de Inicialización y Configuración
-    # ---------------------------------------
-    
-    
     def __init__(self,nombre: str):
         """
         Inicializa una nueva instancia de la clase RentACar.
@@ -42,6 +37,11 @@ class Empresa():
         """
         self.nombre = nombre
         self.connection = self.conectar_mysql()
+        
+        
+    # ---------------------------------------
+    # Métodos de Inicialización y Configuración
+    # ---------------------------------------
         
     
     def conectar_mysql():
@@ -100,39 +100,6 @@ class Empresa():
     # Métodos de Carga/Guardado de Datos
     # ---------------------------------------
 
-
-    def _cargar_csv(self, archivo: str) -> pd.DataFrame:
-        """
-        Carga un archivo CSV desde la carpeta 'data'.
-
-        Parameters
-        ----------
-        archivo : str
-            Nombre del archivo CSV a cargar.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame cargado desde el archivo CSV.
-
-        Raises
-        ------
-        FileNotFoundError
-            Si el archivo no se encuentra en la ruta especificada.
-        ValueError
-            Si ocurre un error al cargar el archivo.
-
-        Notes
-        -----
-        Este método utiliza la función `_ruta_archivo` para construir la ruta completa del archivo.
-        """
-        ruta = self._ruta_archivo(archivo)
-        try:
-            return pd.read_csv(ruta)
-        except FileNotFoundError as e:
-            raise FileNotFoundError(f"El archivo {ruta} no se encontró.") from e
-        except Exception as e:
-            raise ValueError(f"Error al cargar el archivo {ruta}: {e}") from e
         
     def registrar_coche(self, marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,
                     año: int, precio_diario: float, kilometraje: float, color: str, combustible: str, cv: int,
