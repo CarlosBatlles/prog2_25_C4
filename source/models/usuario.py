@@ -3,7 +3,6 @@
 from mysql.connector import Error
 from source.utils import hash_contraseña, es_email_valido
 class Usuario:
-    TIPOS_USUARIOS = ['Cliente', 'Admin']
 
     def __init__(self, id_usuario, nombre, email, tipo, contraseña_hasheada):
         if not nombre:
@@ -11,9 +10,6 @@ class Usuario:
 
         if not es_email_valido(email):
             raise ValueError(f"Email '{email}' no es válido")
-
-        if tipo not in self.TIPOS_USUARIOS:
-            raise ValueError(f"El tipo '{tipo}' no es válido. Opciones: {self.TIPOS_USUARIOS}")
 
         self.id_usuario = id_usuario
         self.nombre = nombre
@@ -23,7 +19,6 @@ class Usuario:
         self.historial_alquileres = []
 
 
-    @staticmethod
     def registrar_usuario(connection, nombre: str, tipo: str, email: str, contraseña: str) -> int:
         """
         Registra un nuevo usuario en la base de datos MySQL.
@@ -57,8 +52,8 @@ class Usuario:
         if not nombre or not tipo or not email or not contraseña:
             raise ValueError("Debes rellenar todos los campos.")
 
-        if tipo not in Usuario.TIPOS_USUARIOS:
-            raise ValueError(f"El tipo '{tipo}' no es válido. Opciones: {Usuario.TIPOS_USUARIOS}")
+        if tipo not in ['admin','cliente']:
+            raise ValueError(f"El tipo '{tipo}' no es válido. Opciones: admin, cliente")
 
         if not es_email_valido(email):
             raise ValueError(f"Correo electrónico inválido: {email}")
@@ -216,7 +211,7 @@ class Usuario:
         
         
     @staticmethod
-    def iniciar_sesion(connection, email: str, contraseña: str) -> bool:
+    def iniciar_sesion(connection, email: str, contraseña: str) -> dict:
         """
         Verifica si un usuario con el correo electrónico y contraseña dados existe en la base de datos.
 
@@ -262,7 +257,11 @@ class Usuario:
             if contraseña_hasheada_ingresada != contraseña_almacenada:
                 raise ValueError("Contraseña incorrecta.")
 
-            return True
+            return {
+                "autenticado": True,
+                "rol": usuario['tipo'],
+                "nombre": usuario['nombre'],
+            }
 
         except Error as e:
             raise ValueError(f"Error al iniciar sesión: {e}")

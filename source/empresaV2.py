@@ -247,7 +247,7 @@ class Empresa():
         return Usuario.dar_baja_usuario(connection, email)
     
     
-    def iniciar_sesion(self, email: str, contraseña: str) -> bool:
+    def iniciar_sesion(self, email: str, contraseña: str) -> dict:
         """
         Llama al método estático `Usuario.iniciar_sesion(...)` pasando la conexión.
         """

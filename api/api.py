@@ -4,8 +4,8 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from datetime import datetime, timedelta
 
 # Importación relativa para acceder a la clase Empresa desde el módulo source
-from source.empresa import Empresa
-from source.utils import formatear_id
+from source.empresaV2 import Empresa
+from source.utils import formatear_id, es_email_valido
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "grupo_4!"
@@ -78,7 +78,7 @@ def signup() -> tuple[dict, int]:
         return jsonify({'error': 'Todos los campos son obligatorios'}), 400
 
     # Validar el correo electrónico
-    if not empresa.es_email_valido(email):
+    if not es_email_valido(email):
         return jsonify({'error': 'El correo electrónico no es válido'}), 400
 
     # Validar el tipo de usuario
@@ -86,13 +86,15 @@ def signup() -> tuple[dict, int]:
         return jsonify({'error': 'El tipo de usuario debe ser "admin" o "cliente"'}), 400
 
     try:
-        # Registrar el usuario
-        if empresa.registrar_usuario(nombre=nombre, tipo=tipo, email=email, contraseña=contraseña):
-            return jsonify({'mensaje': 'Usuario registrado exitosamente'}), 201
-        else:
-            return jsonify({'error': 'No se pudo registrar el usuario'}), 500
+        id_usuario_generado = empresa.registrar_usuario(nombre=nombre, tipo=tipo, email=email, contraseña=contraseña)
+        return jsonify({
+            "mensaje": "Usuario registrado exitosamente",
+            "id_usuario": formatear_id(id_usuario_generado,'U')
+        }),201
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Error interno del servidor"}),500
 
 
 @app.route('/login', methods=['POST'])
@@ -143,25 +145,33 @@ def login() -> tuple[dict, int]:
         return jsonify({'error': 'Correo electronico y contraseña son obligatorios'}), 400
 
     # Validar el formato del correo electrónico
-    if not empresa.es_email_valido(email):
+    if not es_email_valido(email):
         return jsonify({'error': 'El correo electrónico no es válido'}), 400
 
     try:
-        # Verificar las credenciales
-        if empresa.iniciar_sesion(email, contraseña):
-            # Obtener el rol de usuario
-            df_usuarios = empresa.cargar_usuarios()
-            usuario = df_usuarios[df_usuarios['email'] == email]
-            rol = usuario.iloc[0]['tipo']
-
-            # Generar token con el rol
-            token = create_access_token(identity=email, additional_claims={'rol': rol})
-            return jsonify({'mensaje': 'Inicio de sesion exitoso', 'token': token}), 200
+        resultado = empresa.iniciar_sesion(email,contraseña)
+        
+        if resultado.get('autenticado'):
+            claims = {'rol': resultado['rol']}
+            token = create_access_token(identity=email, additional_claims=claims)
+            
+            return jsonify ({
+                'mensaje':'Inicio de sesion exitoso.',
+                'token': token,
+                'rol': resultado['rol'],
+                'nombre': resultado['nombre'],
+                'id_usuario': formatear_id(resultado['id_usuario'], 'U')
+            }), 200
+        
         else:
-            return jsonify({'error': 'Credenciales invalidas'}), 401
+            return jsonify({'error': 'No se pudo autenticar al usuario'}), 401
+        
+    
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        return jsonify({'error': f'Error interno del servidor'}), 500
+        
 
 @app.route('/logout', methods=['POST'])
 @jwt_required()
