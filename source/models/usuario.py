@@ -56,6 +56,47 @@ class Usuario:
         finally:
             if 'cursor' in locals() and cursor:
                 cursor.close()
+                
+
+    def obtener_usuario_por_email(connection, email: str) -> dict:
+        """
+        Obtiene los detalles de un usuario por su correo electrónico desde MySQL.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
+        email : str
+            Correo electrónico del usuario a buscar.
+
+        Returns
+        -------
+        dict or None
+            Diccionario con los campos id_usuario, nombre, tipo, email
+
+        Raises
+        ------
+        ValueError
+            Si no hay ningún usuario con ese correo o si ocurre un error en la consulta.
+        Exception
+            Si hay un fallo en la conexión.
+        """
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = "SELECT id_usuario, nombre, tipo, email FROM usuarios WHERE email = %s"
+            cursor.execute(query, (email,))
+            resultado = cursor.fetchone()
+
+            if not resultado:
+                raise ValueError(f"No hay ningún usuario con el correo {email}")
+
+            return resultado
+
+        except Error as e:
+            raise ValueError(f"Error al obtener detalles del usuario: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
 
 
     def registrar_usuario(connection, nombre: str, tipo: str, email: str, contraseña: str) -> int:

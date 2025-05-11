@@ -450,30 +450,31 @@ def detalles_usuario(email: str) -> tuple[dict, int]:
     rol = claims.get('rol')
     email_usuario_autenticado = get_jwt_identity()
 
+    # Verificar permisos
+    if rol != 'admin' and email_usuario_autenticado != email:
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
     try:
-        # Cargar usuarios
-        df_usuarios = empresa.cargar_usuarios()
-        if df_usuarios is None or df_usuarios.empty:
-            return jsonify({'error': 'No hay usuarios registrados'}), 200
-
-        usuario = df_usuarios[df_usuarios['email'] == email]
-        if usuario.empty:
-            return jsonify({'error': 'Usuario no encontrado'}), 404
-
-        # Verificar permisos
-        if rol != 'admin' and email_usuario_autenticado != email:
-            return jsonify({'error': 'Acceso no autorizado'}), 403
-
-        usuario = usuario.iloc[0].to_dict()
+        
+        usuario = empresa.obtener_usuario_por_email(email)
+        
+        usuario_formateado = {
+            'id_usuario': formatear_id(usuario['id_usuario'],'U'),
+            'nombre': usuario['nombre'],
+            'tipo': usuario['tipo'],
+            'email': usuario['email']
+        }
+        
         return jsonify({
-            'mensaje': 'Detalles del usuario obtenidos exitosamente',
-            'usuario': usuario
+            'mensaje': f'Detalles del usuario {email} obtenidos exitosamente',
+            'usuario': usuario_formateado
         }), 200
 
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de usuarios no encontrado'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 404
+    except Exception:
+        return jsonify({'error': 'Error interno del servidor'}), 500
+    
     
 @app.route('/usuarios/actualizar-contraseña/<string:email>', methods=['PUT'])
 @jwt_required()

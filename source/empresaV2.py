@@ -262,6 +262,13 @@ class Empresa():
         connection = self.get_connection()
         return Usuario.obtener_usuarios(connection)
     
+
+    def obtener_usuario_por_email(self, email: str) -> dict:
+        """
+        Llama al método `usuario.obtener_usuario_por_email(...)` pasando la conexión.
+        """
+        connection = self.get_connection()
+        return Usuario.obtener_usuario_por_email(connection, email)
     
     def obtener_historial_alquileres(self, email: str) -> list[dict]:
         """
