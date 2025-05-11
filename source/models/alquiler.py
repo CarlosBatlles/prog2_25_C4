@@ -49,7 +49,103 @@ class Alquiler:
         self.coste_total = coste_total
         self.activo = activo
         
-        
+
+    def obtener_todos(connection) -> list[dict]:
+        """
+        Obtiene todos los alquileres registrados desde la base de datos.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
+
+        Returns
+        -------
+        list[dict]
+            Lista de diccionarios con todos los alquileres registrados.
+
+        Raises
+        ------
+        ValueError
+            Si no hay alquileres o si ocurre un error en la consulta.
+        Exception
+            Si hay un fallo en la conexión o ejecución.
+        """
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = """
+            SELECT 
+                id_alquiler, id_coche, id_usuario, 
+                fecha_inicio, fecha_fin, coste_total, activo
+            FROM alquileres
+            ORDER BY fecha_inicio DESC
+            """
+            cursor.execute(query)
+            resultados = cursor.fetchall()
+
+            if not resultados:
+                raise ValueError("No hay alquileres registrados.")
+
+            return resultados
+
+        except Error as e:
+            raise ValueError(f"Error al obtener todos los alquileres: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+
+
+    def obtener_por_id(connection, id_alquiler: str) -> dict:
+        """
+        Obtiene un alquiler por su ID desde la base de datos.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
+        id_alquiler : str
+            El ID del alquiler en formato A001, A002...
+
+        Returns
+        -------
+        dict
+            Un diccionario con los detalles del alquiler.
+
+        Raises
+        ------
+        ValueError
+            Si no se encuentra el alquiler o si hay errores en la consulta.
+        Exception
+            Si ocurre un error interno en la conexión con la base de datos.
+        """
+        if not id_alquiler.startswith("A") or not id_alquiler[1:].isdigit():
+            raise ValueError("Formato de ID inválido. Debe ser tipo A001.")
+
+        id_numero = int(id_alquiler[1:])  # A001 → 1
+
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = """
+            SELECT 
+                id_alquiler, id_coche, id_usuario, 
+                fecha_inicio, fecha_fin, coste_total, activo
+            FROM alquileres
+            WHERE id_alquiler = %s
+            """
+            cursor.execute(query, (id_numero,))
+            resultado = cursor.fetchone()
+
+            if not resultado:
+                raise ValueError(f"No se encontró ningún alquiler con ID {id_alquiler}")
+
+            return resultado
+
+        except Error as e:
+            raise ValueError(f"Error al obtener alquiler: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+    
     @staticmethod
     def alquilar_coche(connection, matricula: str, fecha_inicio: date, fecha_fin: date, email: str = None) -> bytes:
         """
@@ -83,7 +179,7 @@ class Alquiler:
         try:
             cursor = connection.cursor(dictionary=True)
 
-            # 1. Verificar si el coche existe y está disponible
+            # Verificar si el coche existe y está disponible
             cursor.execute("SELECT * FROM coches WHERE matricula = %s", (matricula,))
             coche = cursor.fetchone()
             if not coche:
@@ -91,10 +187,10 @@ class Alquiler:
             if not coche['disponible']:
                 raise ValueError(f"El coche {coche['marca']} - {coche['modelo']} no está disponible.")
 
-            # 2. Calcular el precio total usando el método ya creado
+            # Calcular el precio total usando el método ya creado
             precio_total = Alquiler.calcular_precio_total(connection, matricula, fecha_inicio, fecha_fin, email)
 
-            # 3. Registrar el alquiler en la base de datos
+            # Registrar el alquiler en la base de datos
             id_usuario = None
             nombre_usuario = "Invitado"
 
@@ -122,11 +218,11 @@ class Alquiler:
 
             id_alquiler_generado = cursor.lastrowid
 
-            # 4. Marcar el coche como no disponible
+            # Marcar el coche como no disponible
             cursor.execute("UPDATE coches SET disponible = FALSE WHERE matricula = %s", (matricula,))
             connection.commit()
 
-            # 5. Preparar datos para la factura
+            # Preparar datos para la factura
             datos_factura = {
                 'id_alquiler': formatear_id(id_alquiler_generado, "A"),
                 'marca': coche['marca'],
@@ -139,7 +235,7 @@ class Alquiler:
                 'nombre_usuario': nombre_usuario
             }
 
-            # 6. Generar factura usando el método ya definido en la misma clase
+            #  Generar factura usando el método ya definido en la misma clase
             pdf_bytes = generar_factura_pdf(datos_factura)
             return pdf_bytes
 
@@ -151,7 +247,6 @@ class Alquiler:
                 cursor.close()
         
 
-    @staticmethod
     def finalizar_alquiler(connection, id_alquiler: str) -> bool:
         """
         Finaliza un alquiler existente y marca el coche como disponible.

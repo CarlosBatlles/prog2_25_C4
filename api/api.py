@@ -632,11 +632,11 @@ def buscar_coches_disponibles() -> tuple[dict, int]:
 
         # Obtener los detalles de los coches
         coches_filtrados = empresa.buscar_coches_por_filtros(categoria_precio=categoria_precio, categoria_tipo=categoria_tipo, marca=marca, modelo=modelo)
-        return jsonify(coches_filtrados), 200
+        return jsonify({'detalles': coches_filtrados}), 200
 
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception:
         return jsonify({"error": "Error interno del servidor"}), 500
 
 
@@ -820,24 +820,33 @@ def listar_alquileres() -> tuple[dict, int]:
 
     try:
         # Cargar alquileres
-        df_alquileres = empresa.cargar_alquileres()
-        if df_alquileres is None or df_alquileres.empty:
-            return jsonify({
-                'mensaje': 'No hay alquileres registrados',
-                'alquileres': []
-            }), 200
-
-        alquileres = df_alquileres.to_dict(orient='records')
+        alquileres = empresa.cargar_alquileres()
+        
+        # Formatear IDs solo al mostrarlos al cliente
+        alquileres_formateados = []
+        for alquiler in alquileres:
+            alquiler_formateado = {
+                "id_alquiler": formatear_id(alquiler["id_alquiler"], "A"),
+                "id_coche": formatear_id(alquiler["id_coche"], "UID"),
+                "id_usuario": formatear_id(alquiler["id_usuario"], "U") if alquiler["id_usuario"] else "INVITADO",
+                "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
+                "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
+                "coste_total": float(alquiler["coste_total"]),
+                "activo": bool(alquiler["activo"])
+            }
+            alquileres_formateados.append(alquiler_formateado)
 
         return jsonify({
-            'mensaje': 'Lista de alquileres obtenida exitosamente',
-            'alquileres': alquileres
+            "mensaje": "Lista de alquileres obtenida exitosamente.",
+            "alquileres": alquileres_formateados
         }), 200
 
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+        
     
 
 @app.route('/alquileres/detalles/<string:id_alquiler>', methods=['GET'])
@@ -907,35 +916,37 @@ def detalles_alquiler(id_alquiler: str) -> tuple[dict, int]:
     email_usuario_autenticado = get_jwt_identity()
 
     try:
-        # Cargar los alquileres
-        df_alquileres = empresa.cargar_alquileres()
-        if df_alquileres is None or df_alquileres.empty:
-            return jsonify({'error': 'No hay alquileres registrados'}), 404
+        # Llamar a Empresa para obtener el alquiler por ID
+        alquiler = empresa.obtener_alquiler_por_id(id_alquiler)
 
-        # Buscar el alquiler por ID
-        alquiler = df_alquileres[df_alquileres['id_alquiler'] == id_alquiler]
-        if alquiler.empty:
-            return jsonify({'error': 'Alquiler no encontrado'}), 404
+        # Extraer datos del alquiler
+        id_usuario_alquiler = alquiler.get("id_usuario")
 
-        # Extraer el ID del usuario asociado al alquiler
-        id_usuario_alquiler = alquiler.iloc[0]['id_usuario']
-
-        # Verificar permisos
+        # Validar permisos
         if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
             return jsonify({'error': 'Acceso no autorizado'}), 403
 
-        # Convertir el alquiler a un diccionario
-        alquiler = alquiler.iloc[0].to_dict()
+        # Formatear IDs solo al mostrarlos al usuario final
+        alquiler_formateado = {
+            "id_alquiler": formatear_id(alquiler["id_alquiler"], "A"),
+            "id_coche": formatear_id(alquiler["id_coche"], "UID"),
+            "id_usuario": formatear_id(alquiler["id_usuario"], "U") if id_usuario_alquiler else "INVITADO",
+            "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
+            "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
+            "coste_total": float(alquiler["coste_total"]),
+            "activo": bool(alquiler["activo"])
+        }
 
         return jsonify({
-            'mensaje': 'Detalles del alquiler obtenidos exitosamente',
-            'alquiler': alquiler
+            "mensaje": f"Detalles del alquiler {id_alquiler} obtenidos exitosamente.",
+            "alquiler": alquiler_formateado
         }), 200
 
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error interno: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
     
 
 @app.route('/alquileres/finalizar/<string:id_alquiler>', methods=['PUT'])
@@ -998,35 +1009,36 @@ def finalizar_alquiler(id_alquiler: str) -> tuple[dict, int]:
     email_usuario_autenticado = get_jwt_identity()
 
     try:
-        # Cargar los alquileres
-        df_alquileres = empresa.cargar_alquileres()
-        if df_alquileres is None or df_alquileres.empty:
-            return jsonify({'error': 'No se encontraron alquileres registrados'}), 404
+        
+        alquiler = empresa.obtener_alquiler_por_id(id_alquiler)
+        # Validar si el alquiler ya está terminado
+        if not alquiler['activo']:
+            return jsonify({"error": "El alquiler ya está finalizado."}), 400
 
-        # Buscar el alquiler por ID
-        alquiler = df_alquileres[df_alquileres['id_alquiler'] == id_alquiler]
-        if alquiler.empty:
-            return jsonify({'error': 'Alquiler no encontrado'}), 404
+        # Extraer datos del alquiler
+        id_usuario_alquiler = alquiler.get("id_usuario")
+        id_coche_alquiler = alquiler.get("id_coche")
 
-        # Verificar el estado del alquiler
-        if not alquiler.iloc[0]['activo']:
-            return jsonify({'error': 'El alquiler ya está finalizado'}), 400
-
-        # Extraer el ID del usuario asociado al alquiler
-        id_usuario_alquiler = alquiler.iloc[0]['id_usuario']
-
-        # Verificar permisos
+        # Verificar autorización
         if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
-            return jsonify({'error': 'Acceso no autorizado'}), 403
+            return jsonify({"error": "Acceso no autorizado"}), 403
 
-        # Finalizar el alquiler
-        empresa.finalizar_alquiler(id_alquiler)
-        return jsonify({'mensaje': f'Alquiler con id {id_alquiler} finalizado con exito'}), 200
+        # Llamar al método para finalizar el alquiler
+        resultado = empresa.finalizar_alquiler(id_alquiler)
 
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
+        if resultado:
+            return jsonify({
+                "mensaje": f"Alquiler {id_alquiler} finalizado correctamente.",
+                "id_coche": formatear_id(id_coche_alquiler, prefijo="UID")
+            }), 200
+        else:
+            return jsonify({"error": "No se pudo finalizar el alquiler."}), 500
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 
 @app.route('/alquileres/historial/<string:email>', methods=['GET'])

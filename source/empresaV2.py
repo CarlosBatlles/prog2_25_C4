@@ -212,10 +212,37 @@ class Empresa():
         return Coche.mostrar_categorias_tipo(connection)
     
     
-    def buscar_coches_por_filtros(self, categoria_precio, categoria_tipo, marca, modelo):
+    def buscar_coches_por_filtros(self, categoria_precio: str, categoria_tipo: str = None, marca: str = None, modelo: str = None) -> list:
+        """
+        Realiza una búsqueda progresiva de coches basada en los filtros proporcionados.
+
+        Parameters
+        ----------
+        categoria_precio : str
+            Categoría de precio obligatoria.
+        categoria_tipo : str, optional
+            Categoría de tipo del coche.
+        marca : str, optional
+            Marca del coche.
+        modelo : str, optional
+            Modelo del coche.
+
+        Returns
+        -------
+        list
+            Lista de diccionarios con los coches que cumplen los criterios de búsqueda.
+        """
         connection = self.get_connection()
-        return Coche.filtrar_por_modelo(connection, categoria_precio, categoria_tipo, marca, modelo)
-    
+
+        # Flujo progresivo
+        if not categoria_tipo:
+            return Coche.obtener_categorias_tipo(connection, categoria_precio)
+        elif not marca:
+            return Coche.obtener_marcas(connection, categoria_precio, categoria_tipo)
+        elif not modelo:
+            return Coche.obtener_modelos(connection, categoria_precio, categoria_tipo, marca)
+        else:
+            return Coche.filtrar_por_modelo(connection, categoria_precio, categoria_tipo, marca, modelo)
     
     
     
@@ -278,6 +305,23 @@ class Empresa():
         return Usuario.obtener_historial_alquileres(connection, email)
     
 
+    
+    def cargar_alquileres(self) -> list[dict]:
+        """
+        Llama al método `Alquiler.obtener_todos(...)` pasando la conexión.
+        """
+        connection = self.get_connection()
+        return Alquiler.obtener_todos(connection)
+    
+    
+    def obtener_alquiler_por_id(self, id_alquiler: str) -> dict:
+        """
+        Obtiene un alquiler por su ID desde la base de datos.
+        """
+        connection = self.get_connection()
+        return Alquiler.obtener_por_id(connection, id_alquiler)
+        
+    
     def alquilar_coche(self, matricula: str, fecha_inicio: str, fecha_fin: str, email: str = None):
         connection = self.get_connection()
         
