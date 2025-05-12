@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 # Importación relativa para acceder a la clase Empresa desde el módulo source
 from source.empresaV2 import Empresa
-from source.utils import formatear_id, es_email_valido
+from source.utils import formatear_id, es_email_valido, generar_factura_pdf
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "grupo_4!"
