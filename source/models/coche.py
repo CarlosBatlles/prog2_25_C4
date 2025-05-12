@@ -213,7 +213,7 @@ class Coche:
                 cursor.close()
             
     
-    @staticmethod
+    
     def obtener_categorias_precio(connection) -> list:
         """
         Devuelve una lista única de categorías de precio disponibles.
@@ -230,7 +230,7 @@ class Coche:
                 cursor.close()
                 
                 
-    @staticmethod
+    
     def obtener_categorias_tipo(connection, categoria_precio: str) -> list:
         """
         Devuelve una lista de categorías de tipo únicas para una categoría de precio específica.
@@ -255,7 +255,7 @@ class Coche:
                 cursor.close()
     
     
-    @staticmethod
+    
     def obtener_marcas(connection, categoria_precio: str, categoria_tipo: str) -> list:
         """
         Devuelve una lista de marcas únicas para una combinación de categoría de precio y tipo.
@@ -282,7 +282,7 @@ class Coche:
                 cursor.close()
     
     
-    @staticmethod
+    
     def obtener_modelos(connection, categoria_precio: str, categoria_tipo: str, marca: str) -> list:
         """
         Devuelve una lista de modelos únicos para una marca, categoría de precio y tipo específicos.
@@ -310,7 +310,7 @@ class Coche:
                 cursor.close()
     
     
-    @staticmethod
+    
     def filtrar_por_modelo(connection, categoria_precio: str, categoria_tipo: str, marca: str, modelo: str) -> list[dict]:
         """
         Devuelve los coches disponibles que coinciden con todos los criterios:
