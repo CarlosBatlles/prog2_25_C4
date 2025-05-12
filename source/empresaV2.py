@@ -44,7 +44,7 @@ class Empresa():
     # ---------------------------------------
         
     
-    def conectar_mysql():
+    def conectar_mysql(self):
         try:
             connection = mysql.connector.connect(
                 host="Alexiss1.mysql.pythonanywhere-services.com",  # Reemplaza con tu nombre de usuario
@@ -58,8 +58,11 @@ class Empresa():
             return None
         
     def get_connection(self):
-        if not self.connection.is_connected():
-            self.connection.reconnect()
+        """
+        Reutiliza la conexión activa o vuelve a conectarse si es necesario.
+        """
+        if self.connection is None or not self.connection.is_connected():
+            self.connection = self.conectar_mysql()
         return self.connection
         
 
