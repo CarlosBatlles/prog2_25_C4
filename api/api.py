@@ -1081,7 +1081,7 @@ def historial_alquileres(email):
         connection = empresa.get_connection()
 
         # Obtener el historial desde MySQL usando el método adaptado
-        resultados = empresaV2.obtener_historial_alquileres(connection, email)
+        resultados = empresa.obtener_historial_alquileres(connection, email)
 
         # Formatear los resultados antes de devolverlos
         historial_formateado = []
@@ -1229,8 +1229,8 @@ def registrar_coche() -> tuple[dict, int]:
         except ValueError:
             return jsonify({'error': 'El campo "año" debe ser un número entero válido'}), 400
         
-        # Llamar al método registrar_coche de la clase Empresa
-        if empresa.registrar_coche(
+        # Registrar el coche usando Empresa
+        id_coche_generado = empresa.registrar_coche(
             marca=marca,
             modelo=modelo,
             matricula=matricula,
@@ -1244,15 +1244,18 @@ def registrar_coche() -> tuple[dict, int]:
             cv=cv,
             plazas=plazas,
             disponible=disponible
-        ):
-            return jsonify({'mensaje': 'Coche registrado con éxito'}), 201
-        else:
-            return jsonify({'error': 'Error al registrar el coche'}), 500
+        )
 
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({
+            "mensaje": "Coche registrado con éxito",
+            "id_coche": formatear_id(id_coche_generado, "UID")
+        }), 201
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
     except Exception as e:
-        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 
 @app.route('/coches/detalles/<string:matricula>', methods=['GET'])
