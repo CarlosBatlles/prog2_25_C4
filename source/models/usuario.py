@@ -339,6 +339,7 @@ class Usuario:
                 "autenticado": True,
                 "rol": usuario['tipo'],
                 "nombre": usuario['nombre'],
+                "id_usuario": usuario['id_usuario']
             }
 
         except Exception as e:
