@@ -380,7 +380,7 @@ class Alquiler:
                 raise ValueError("La fecha de inicio debe ser anterior a la fecha de fin.")
 
             # Calcular precio total
-            precio_diario = coche['precio_diario']
+            precio_diario = float(coche['precio_diario'])
             precio_total = precio_diario * dias * descuento
 
             return round(precio_total, 2)
