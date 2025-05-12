@@ -311,7 +311,7 @@ class Coche:
     
     
     @staticmethod
-    def filtrar_por_modelo(connection, categoria_precio: str, categoria_tipo: str, marca: str, modelo: str) -> list:
+    def filtrar_por_modelo(connection, categoria_precio: str, categoria_tipo: str, marca: str, modelo: str) -> list[dict]:
         """
         Devuelve los coches disponibles que coinciden con todos los criterios:
         categoría de precio, categoría de tipo, marca y modelo.
