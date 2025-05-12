@@ -1,31 +1,27 @@
 
 '''Clase Alquiler para representar y gestionar un alquiler de coche'''
-import datetime
-import pandas as pd 
-from fpdf import FPDF
-import os
+from datetime import date
+from mysql.connector import Error
+from source.utils import formatear_id, generar_factura_pdf
+
 
 
 class Alquiler:
-    def __init__(self,id_alquiler: str,id_coche: str,id_usuario: str,
-                fecha_inicio: str,fecha_fin: str,coste_total: float,
+    def __init__(self, id_alquiler: int, id_coche: int, id_usuario: int,
+                fecha_inicio: str, fecha_fin: str, coste_total: float,
                 activo: bool = True):
-        
-        # Validar que fecha_inicio sea menor que fecha_fin
-        if fecha_inicio >= fecha_fin:
-            raise ValueError("Error: La fecha de inicio debe ser anterior a la fecha de fin.")
         
         """
         Inicializa un nuevo objeto de tipo Alquiler.
 
         Parameters
         ----------
-        id_alquiler : str
-            ID único del alquiler.
-        id_coche : str
+        id_alquiler : int
+            ID único del alquiler generado por la base de datos.
+        id_coche : int
             ID del coche asociado al alquiler.
-        id_usuario : str
-            ID del usuario que realiza el alquiler (o 'INVITADO').
+        id_usuario : int
+            ID del usuario que realiza el alquiler.
         fecha_inicio : str
             Fecha de inicio del alquiler en formato 'YYYY-MM-DD'.
         fecha_fin : str
@@ -34,7 +30,17 @@ class Alquiler:
             Costo total del alquiler.
         activo : bool, optional
             Estado del alquiler (True si está activo, False si ha finalizado).
+            Por defecto es True.
+
+        Raises
+        ------
+        ValueError
+            Si las fechas están mal formateadas o si `fecha_inicio >= fecha_fin`.
         """
+        # Validar que fecha_inicio sea menor que fecha_fin
+        if fecha_inicio >= fecha_fin:
+            raise ValueError("Error: La fecha de inicio debe ser anterior a la fecha de fin.")
+
         self.id_alquiler = id_alquiler
         self.id_coche = id_coche
         self.id_usuario = id_usuario
@@ -43,156 +49,217 @@ class Alquiler:
         self.coste_total = coste_total
         self.activo = activo
         
-        
-    @staticmethod
-    def alquilar_coche(empresa, matricula: str, fecha_inicio: str, fecha_fin: str, 
-                        email: str = None) -> bytes:
-        """
-        Registra un nuevo alquiler de coche en el sistema.
 
-        Este método verifica la disponibilidad del coche, calcula el precio total del alquiler, 
-        actualiza el estado del coche y guarda el alquiler en el archivo CSV correspondiente. 
-        También genera una factura en formato PDF.
+    def obtener_todos(connection) -> list[dict]:
+        """
+        Obtiene todos los alquileres registrados desde la base de datos.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar/guardar datos.
-        matricula : str
-            La matrícula del coche que se desea alquilar.
-        fecha_inicio : str
-            Fecha de inicio del alquiler en formato 'YYYY-MM-DD'.
-        fecha_fin : str
-            Fecha de fin del alquiler en formato 'YYYY-MM-DD'.
-        email : str, optional
-            Correo electrónico del usuario que realiza el alquiler (por defecto es None para invitados).
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
 
         Returns
         -------
-        bytes
-            Los bytes del archivo PDF generado como factura del alquiler.
+        list[dict]
+            Lista de diccionarios con todos los alquileres registrados.
 
         Raises
         ------
         ValueError
-            Si ocurre algún error durante la validación de datos o el proceso de alquiler.
+            Si no hay alquileres o si ocurre un error en la consulta.
         Exception
-            Si ocurre un error al guardar los cambios en los archivos CSV o al generar la factura.
-
-        Notes
-        -----
-        - El coche debe estar disponible para poder ser alquilado.
-        - Las fechas deben estar en formato 'YYYY-MM-DD' y la fecha de inicio debe ser anterior a la fecha de fin.
-        - Si no se proporciona un correo electrónico, el alquiler se registra como invitado.
+            Si hay un fallo en la conexión o ejecución.
         """
-        # Cargar los archivos CSV
-        df_coches = empresa.cargar_coches()
-        if df_coches is None:
-            raise ValueError("Error al cargar el archivo de coches.")
-
-        df_clientes = empresa.cargar_usuarios()
-        if df_clientes is None:
-            raise ValueError("Error al cargar el archivo de usuarios.")
-
-        df_alquiler = empresa.cargar_alquileres()
-        if df_alquiler is None:
-            raise ValueError("Error al cargar el archivo de alquileres.")
-
-        # Verificar si existe un coche con la matrícula proporcionada
-        coche = df_coches[df_coches['matricula'] == matricula]
-        if coche.empty:
-            raise ValueError(f"No se encontró ningún coche con la matrícula: {matricula}.")
-        coche = coche.iloc[0]
-
-        # Validar el correo electrónico si se proporciona
-        if email and not empresa.es_email_valido(email):
-            raise ValueError("El correo electrónico no es válido.")
-
-        # Convertir las fechas a objetos datetime
         try:
-            fecha_inicio_dt = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-            fecha_fin_dt = datetime.strptime(fecha_fin, "%Y-%m-%d")
-        except ValueError:
-            raise ValueError("Las fechas deben estar en formato YYYY-MM-DD.")
+            cursor = connection.cursor(dictionary=True)
+            query = """
+            SELECT 
+                id_alquiler, id_coche, id_usuario, 
+                fecha_inicio, fecha_fin, coste_total, activo
+            FROM alquileres
+            ORDER BY fecha_inicio DESC
+            """
+            cursor.execute(query)
+            resultados = cursor.fetchall()
 
-        # Validar que la fecha de inicio sea anterior a la fecha de fin
-        if fecha_inicio_dt >= fecha_fin_dt:
-            raise ValueError("La fecha de inicio debe ser anterior a la fecha de fin.")
+            if not resultados:
+                raise ValueError("No hay alquileres registrados.")
 
-        # Verificar disponibilidad del coche
-        if not coche['disponible']:
-            raise ValueError(f"El coche {coche['marca']} - {coche['modelo']} no está disponible para alquilar.")
+            return resultados
 
-        # Calcular el precio total del alquiler
-        precio_total = empresa.calcular_precio_total(fecha_inicio_dt, fecha_fin_dt, matricula, email)
+        except Error as e:
+            raise ValueError(f"Error al obtener todos los alquileres: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
 
-        # Actualizar el estado del coche a no disponible
-        df_coches.loc[df_coches['matricula'] == matricula, 'disponible'] = False
 
-        # Determinar el ID del usuario (invitado o registrado)
-        id_usuario = 'INVITADO'
-        if email:
-            user = df_clientes[df_clientes['email'] == email]
-            if user.empty:
-                raise ValueError(f"No se encontró ningún usuario con el email: {email}")
-            id_usuario = user.iloc[0]['id_usuario']
-
-        # Crear un diccionario con los datos del nuevo alquiler
-        nuevo_alquiler = {
-            'id_alquiler': empresa.generar_id_alquiler(),
-            'id_coche': coche['id'],
-            'id_usuario': id_usuario,
-            'fecha_inicio': fecha_inicio,
-            'fecha_fin': fecha_fin,
-            'coste_total': precio_total,
-            'activo': True
-        }
-
-        # Agregar el nuevo alquiler al DataFrame de alquileres
-        df_nuevo_alquiler = pd.DataFrame([nuevo_alquiler])
-        df_actualizado = pd.concat([df_alquiler, df_nuevo_alquiler], ignore_index=True)
-
-        # Guardar los cambios en los archivos CSV
-        try:
-            empresa._guardar_csv('coches.csv', df_coches)
-            empresa._guardar_csv('alquileres.csv', df_actualizado)
-        except Exception as e:
-            raise ValueError(f"Error al guardar los cambios en los archivos CSV: {e}")
-
-        # Generar la factura en PDF
-        datos_factura = {
-            'id_alquiler': nuevo_alquiler['id_alquiler'],
-            'marca': coche['marca'],
-            'modelo': coche['modelo'],
-            'matricula': coche['matricula'],
-            'fecha_inicio': nuevo_alquiler['fecha_inicio'],
-            'fecha_fin': nuevo_alquiler['fecha_fin'],
-            'coste_total': nuevo_alquiler['coste_total'],
-            'id_usuario': id_usuario
-        }
-
-        try:
-            pdf_bytes = empresa.generar_factura_pdf(datos_factura)
-            return pdf_bytes
-        except Exception as e:
-            raise ValueError(f"Error al generar la factura en PDF: {e}")
-        
-    
-    @staticmethod
-    def finalizar_alquiler(empresa, id_alquiler: str) -> bool:
+    def obtener_por_id(connection, id_alquiler: str) -> dict:
         """
-        Finaliza un alquiler existente y marca el coche como disponible.
-
-        Este método verifica si el alquiler con el ID proporcionado existe y está activo. 
-        Si es así, finaliza el alquiler y actualiza el estado del coche correspondiente 
-        en los archivos CSV.
+        Obtiene un alquiler por su ID desde la base de datos.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar/guardar datos.
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
         id_alquiler : str
-            El ID único del alquiler que se desea finalizar.
+            El ID del alquiler en formato A001, A002...
+
+        Returns
+        -------
+        dict
+            Un diccionario con los detalles del alquiler.
+
+        Raises
+        ------
+        ValueError
+            Si no se encuentra el alquiler o si hay errores en la consulta.
+        Exception
+            Si ocurre un error interno en la conexión con la base de datos.
+        """
+        if not id_alquiler.startswith("A") or not id_alquiler[1:].isdigit():
+            raise ValueError("Formato de ID inválido. Debe ser tipo A001.")
+
+        id_numero = int(id_alquiler[1:])  # A001 → 1
+
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = """
+            SELECT 
+                id_alquiler, id_coche, id_usuario, 
+                fecha_inicio, fecha_fin, coste_total, activo
+            FROM alquileres
+            WHERE id_alquiler = %s
+            """
+            cursor.execute(query, (id_numero,))
+            resultado = cursor.fetchone()
+
+            if not resultado:
+                raise ValueError(f"No se encontró ningún alquiler con ID {id_alquiler}")
+
+            return resultado
+
+        except Error as e:
+            raise ValueError(f"Error al obtener alquiler: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+    
+    @staticmethod
+    def alquilar_coche(connection, matricula: str, fecha_inicio: date, fecha_fin: date, email: str = None) -> bytes:
+        """
+        Registra un nuevo alquiler en la base de datos y devuelve una factura en PDF.
+
+        Parameters
+        ----------
+        connection : mysql.connection.MySQLConnection
+            Conexión activa a la base de datos.
+        matricula : str
+            Matrícula del coche a alquilar.
+        fecha_inicio : date
+            Fecha de inicio del alquiler como objeto `date`.
+        fecha_fin : date
+            Fecha de fin del alquiler como objeto `date`.
+        email : str, optional
+            Correo electrónico del usuario. Si no se proporciona, se asume un alquiler como invitado.
+
+        Returns
+        -------
+        bytes
+            Bytes del archivo PDF generado como factura del alquiler.
+
+        Raises
+        ------
+        ValueError
+            Si hay errores en fechas, matrícula, correo o inserción en base de datos.
+        Exception
+            Si ocurre un error interno en la conexión con la base de datos.
+        """
+        try:
+            cursor = connection.cursor(dictionary=True)
+
+            # Verificar si el coche existe y está disponible
+            cursor.execute("SELECT * FROM coches WHERE matricula = %s", (matricula,))
+            coche = cursor.fetchone()
+            if not coche:
+                raise ValueError(f"No se encontró ningún coche con la matrícula {matricula}.")
+            if not coche['disponible']:
+                raise ValueError(f"El coche {coche['marca']} - {coche['modelo']} no está disponible.")
+
+            # Calcular el precio total usando el método ya creado
+            precio_total = Alquiler.calcular_precio_total(connection, matricula, fecha_inicio, fecha_fin, email)
+
+            # Registrar el alquiler en la base de datos
+            id_usuario = None
+            nombre_usuario = "Invitado"
+
+            if email:
+                cursor.execute("SELECT id_usuario, nombre FROM usuarios WHERE email = %s", (email,))
+                resultado = cursor.fetchone()
+                if not resultado:
+                    raise ValueError(f"No se encontró el usuario con email: {email}")
+                id_usuario = resultado['id_usuario']
+                nombre_usuario = resultado['nombre']
+
+            query_insert = """
+            INSERT INTO alquileres (
+                id_coche, id_usuario, fecha_inicio, fecha_fin, coste_total, activo
+            ) VALUES (%s, %s, %s, %s, %s, %s)
+            """
+
+            valores_insert = (
+                coche['id'], id_usuario, fecha_inicio, fecha_fin,
+                precio_total, True
+            )
+
+            cursor.execute(query_insert, valores_insert)
+            connection.commit()
+
+            id_alquiler_generado = cursor.lastrowid
+
+            # Marcar el coche como no disponible
+            cursor.execute("UPDATE coches SET disponible = FALSE WHERE matricula = %s", (matricula,))
+            connection.commit()
+
+            # Preparar datos para la factura
+            datos_factura = {
+                'id_alquiler': formatear_id(id_alquiler_generado, "A"),
+                'marca': coche['marca'],
+                'modelo': coche['modelo'],
+                'matricula': coche['matricula'],
+                'fecha_inicio': str(fecha_inicio),
+                'fecha_fin': str(fecha_fin),
+                'coste_total': round(precio_total, 2),
+                'id_usuario': formatear_id(id_usuario, "U") if id_usuario is not None else "INVITADO",
+                'nombre_usuario': nombre_usuario
+            }
+
+            #  Generar factura usando el método ya definido en la misma clase
+            pdf_bytes = generar_factura_pdf(datos_factura)
+            return pdf_bytes
+
+        except Error as e:
+            connection.rollback()
+            raise ValueError(f"Error al registrar el alquiler: {e}")
+        finally:
+            if cursor:
+                cursor.close()
+        
+
+    def finalizar_alquiler(connection, id_alquiler: str) -> bool:
+        """
+        Finaliza un alquiler existente y marca el coche como disponible.
+
+        Este método verifica si el alquiler con el ID proporcionado existe y está activo.
+        Si es así, lo marca como inactivo y actualiza el estado del coche asociado.
+
+        Parameters
+        ----------
+        connection : mysql.connection.MySQLConnection
+            Conexión activa a la base de datos.
+        id_alquiler : str
+            El ID único del alquiler (ej. 'A001').
 
         Returns
         -------
@@ -202,76 +269,66 @@ class Alquiler:
         Raises
         ------
         ValueError
-            Si no se pueden cargar los datos, si el alquiler no existe, 
-            si ya está finalizado o si ocurre un error al guardar los cambios.
+            Si no se pueden cargar los datos o si el alquiler no cumple las condiciones necesarias.
         Exception
-            Si ocurre un error inesperado durante el proceso.
-
-        Notes
-        -----
-        - El método utiliza los archivos CSV como fuente de datos, por lo que los cambios son persistentes.
-        - El coche asociado al alquiler se marca automáticamente como disponible.
+            Si ocurre un error interno en la base de datos.
         """
-        # Cargar la base de datos de alquileres y coches
-        df_alquiler = empresa.cargar_alquileres()
-        df_coches = empresa.cargar_coches()
-
-        # Validaciones
-        if df_alquiler is None or df_alquiler.empty:
-            raise ValueError('No se pudo cargar el archivo de alquileres o está vacío.')
-        if df_coches is None or df_coches.empty:
-            raise ValueError('No se han podido cargar los coches o está vacío.')
-
-        alquiler = df_alquiler[df_alquiler['id_alquiler'] == id_alquiler]
-        if alquiler.empty:
-            raise ValueError(f'No existe ningún alquiler con el ID: {id_alquiler}')
-
-        if not alquiler.iloc[0]['activo']:
-            raise ValueError(f'El alquiler con ID {id_alquiler} ya está finalizado.')
-
-        id_coche = alquiler.iloc[0]['id_coche']
-
-        # Actualizar el estado del alquiler y del coche
-        df_alquiler.loc[df_alquiler['id_alquiler'] == id_alquiler, 'activo'] = False
-        df_coches.loc[df_coches['id'] == id_coche, 'disponible'] = True
-
-        # Guardar los cambios usando el método auxiliar
         try:
-            empresa._guardar_csv('alquileres.csv', df_alquiler)
-            empresa._guardar_csv('coches.csv', df_coches)
-            return True
-        except Exception as e:
-            raise ValueError(f"Error al guardar los cambios en los archivos CSV: {e}")
-        
-        
-    @staticmethod
-    def calcular_precio_total(
-        empresa,
-        fecha_inicio: datetime,
-        fecha_fin: datetime,
-        matricula: str,
-        email: str = None
-    ) -> float:
-        """
-        Calcula el precio total del alquiler de un coche en función de las fechas, la matrícula 
-        y el correo electrónico del usuario (opcional).
+            cursor = connection.cursor(dictionary=True)
 
-        Este método calcula el costo total del alquiler considerando el rango de días, 
-        el precio diario del coche y un descuento basado en el tipo de usuario (si se proporciona un correo).
+            # Validar formato del ID ('A001' → 1)
+            if not id_alquiler.startswith("A") or not id_alquiler[1:].isdigit():
+                raise ValueError(f"Formato de ID inválido. Debe ser tipo A001, A002...")
+
+            id_numero = int(id_alquiler[1:])  # A001 → 1
+
+            # Verificar si el alquiler existe y está activo
+            cursor.execute("SELECT * FROM alquileres WHERE id_alquiler = %s AND activo = TRUE", (id_numero,))
+            alquiler = cursor.fetchone()
+
+            if not alquiler:
+                raise ValueError(f"No hay ningún alquiler activo con el ID {id_alquiler}")
+
+            id_coche = alquiler['id_coche']
+
+            # Marcar alquiler como inactivo
+            cursor.execute("UPDATE alquileres SET activo = FALSE WHERE id_alquiler = %s", (id_numero,))
+            if cursor.rowcount == 0:
+                raise ValueError(f"No se pudo marcar como inactivo el alquiler {id_alquiler}")
+
+            # Marcar coche como disponible
+            cursor.execute("UPDATE coches SET disponible = TRUE WHERE id = %s", (id_coche,))
+            if cursor.rowcount == 0:
+                raise ValueError(f"No se pudo marcar como disponible el coche con ID {id_coche}")
+
+            connection.commit()
+            return True
+
+        except Error as e:
+            connection.rollback()
+            raise ValueError(f"Error al finalizar el alquiler: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+        
+
+    @staticmethod
+    def calcular_precio_total(connection, matricula: str, fecha_inicio: date, fecha_fin: date, email: str = None) -> float:
+        """
+        Calcula el precio total del alquiler de un coche basándose en días, precio diario y tipo de usuario.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar los datos.
-        fecha_inicio : datetime
-            Fecha de inicio del alquiler.
-        fecha_fin : datetime
-            Fecha de fin del alquiler.
+        connection : mysql.connection.MySQLConnection
+            Conexión activa a la base de datos.
         matricula : str
             Matrícula del coche que se desea alquilar.
+        fecha_inicio : date
+            Fecha de inicio del alquiler.
+        fecha_fin : date
+            Fecha de fin del alquiler.
         email : str, optional
-            Correo electrónico del usuario que realiza el alquiler. Si no se proporciona, 
-            se asume un tipo de usuario "normal" sin descuento.
+            Correo electrónico del usuario. Si no se proporciona, se asume un usuario normal sin descuento.
 
         Returns
         -------
@@ -281,173 +338,56 @@ class Alquiler:
         Raises
         ------
         ValueError
-            Si ocurre algún error durante la validación de datos o el cálculo del precio.
+            Si hay errores en fechas, matrícula o correo.
         Exception
-            Si ocurre un error inesperado durante el proceso.
-
-        Notes
-        -----
-        - El descuento aplicado depende del tipo de usuario:
-            - 'cliente': 6% de descuento (factor = 0.94).
-            - 'normal': Sin descuento (factor = 1).
-        - El coche debe estar disponible para poder calcular el precio.
+            Si ocurre un error interno en la base de datos.
         """
-        # Cargar los archivos CSV
-        df_coches = empresa.cargar_coches()
-        if df_coches is None:
-            raise ValueError("Error al cargar el archivo de coches.")
-
-        df_clientes = empresa.cargar_usuarios()
-        if df_clientes is None:
-            raise ValueError("Error al cargar el archivo de usuarios.")
-
-        # Validar que la fecha de inicio sea anterior a la fecha de fin
-        if fecha_inicio > fecha_fin:
-            raise ValueError("La fecha de inicio no puede ser mayor a la fecha final.")
-
-        # Validar el correo electrónico si se proporciona
-        if email and not empresa.es_email_valido(email):
-            raise ValueError("El correo electrónico no es válido.")
-
-        # Buscar el coche por matrícula
-        coche = df_coches[df_coches['matricula'] == matricula]
-        if coche.empty:
-            raise ValueError(f"No se encontró ningún coche con la matrícula: {matricula}.")
-        coche = coche.iloc[0]
-
-        # Verificar disponibilidad del coche
-        if not coche['disponible']:
-            raise ValueError(f"El coche con matrícula {matricula} no está disponible para alquilar.")
-
-        # Calcular el rango de días
-        rango_de_dias = (fecha_fin - fecha_inicio).days
-
-        # Definir descuentos según el tipo de usuario
-        descuentos = {
-            'cliente': 0.94,  # 6% de descuento
-            'normal': 1       # Sin descuento
-        }
-
-        # Determinar el tipo de usuario
-        tipo_usuario = 'normal'
-        if email:
-            user = df_clientes[df_clientes['email'] == email]
-            if user.empty:
-                raise ValueError("Usuario no encontrado.")
-            tipo_usuario = user.iloc[0]['tipo']
-
-        # Obtener el factor de descuento
-        descuento = descuentos.get(tipo_usuario, 1)
-
-        # Calcular el precio total
-        precio_total = coche['precio_diario'] * rango_de_dias * descuento
-
-        return precio_total
-    
-    
-    
-    @staticmethod
-    def generar_factura_pdf(alquiler: dict) -> bytes:
-        """
-        Genera una factura en formato PDF para un alquiler específico.
-
-        Este método crea un archivo PDF que contiene los detalles del alquiler, 
-        incluyendo información del coche, fechas de alquiler y el costo total. 
-        El PDF se devuelve como bytes para su posterior uso o almacenamiento.
-
-        Parameters
-        ----------
-        alquiler : dict
-            Un diccionario que contiene los detalles del alquiler. Debe incluir las siguientes claves:
-            - id_alquiler (str): ID único del alquiler.
-            - marca (str): Marca del coche.
-            - modelo (str): Modelo del coche.
-            - matricula (str): Matrícula del coche.
-            - fecha_inicio (str): Fecha de inicio del alquiler en formato 'YYYY-MM-DD'.
-            - fecha_fin (str): Fecha de fin del alquiler en formato 'YYYY-MM-DD'.
-            - coste_total (float): Costo total del alquiler.
-
-        Returns
-        -------
-        bytes
-            Los bytes del archivo PDF generado.
-
-        Raises
-        ------
-        ValueError
-            Si falta algún dato obligatorio en el diccionario `alquiler`.
-        Exception
-            Si ocurre un error inesperado durante la generación del PDF.
-
-        Notes
-        -----
-        - El logo del archivo 'Logo.png' es opcional. Si no se encuentra, se omitirá sin interrumpir la generación del PDF.
-        - El PDF se genera en memoria y se devuelve como bytes para evitar escribir archivos en el servidor.
-        """
-        # Crear una instancia de FPDF
-        pdf = FPDF()
-
-        # Añadir página
-        pdf.add_page()
-
-        # Intentar cargar el logo
         try:
-            logo_path = 'Logo.png'  # Ruta relativa al logo
-            if os.path.exists(logo_path):
-                pdf.image(logo_path, x=10, y=10, w=50)
-        except Exception as e:
-            raise Exception(f"Error al cargar el logo: {e}")
+            cursor = connection.cursor(dictionary=True)
 
-        # Título
-        pdf.set_font("Arial", "B", 16)
-        pdf.set_text_color(0, 0, 0)  # Negro
-        pdf.cell(0, 20, txt="Factura de Alquiler", ln=True, align="C")
+            # Validar fechas
+            if fecha_inicio > fecha_fin:
+                raise ValueError("La fecha de inicio no puede ser mayor a la fecha final.")
 
-        # Restaurar color de texto
-        pdf.set_text_color(0, 0, 0)
+            # Buscar el coche por matrícula
+            cursor.execute("SELECT * FROM coches WHERE matricula = %s", (matricula,))
+            coche = cursor.fetchone()
+            if not coche:
+                raise ValueError(f"No se encontró ningún coche con la matrícula: {matricula}.")
+            if not coche['disponible']:
+                raise ValueError(f"El coche con matrícula {matricula} no está disponible.")
 
-        # Espacio adicional antes de la fecha de emisión
-        pdf.ln(10)  # Bajar el texto de la fecha de emisión
-        pdf.set_font("Arial", size=12)
-        pdf.cell(0, 10, txt=f"Fecha de Emisión: {datetime.now().strftime('%Y-%m-%d')}", ln=True, align="C")
+            # Determinar tipo de usuario
+            tipo_usuario = 'normal'
+            if email:
+                cursor.execute("SELECT tipo FROM usuarios WHERE email = %s", (email,))
+                resultado = cursor.fetchone()
+                if not resultado:
+                    raise ValueError(f"No se encontró el correo {email}")
+                tipo_usuario = resultado['tipo'].lower()
 
-        # Tabla con detalles del alquiler
-        pdf.set_fill_color(240, 240, 240)  # Gris claro para el encabezado
+            # Definir descuentos
+            descuentos = {
+                'cliente': 0.94,
+                'admin': 1.0,
+                'normal': 1.0
+            }
+            descuento = descuentos.get(tipo_usuario, 1.0)
 
-        # Calcular la posición inicial para centrar la tabla
-        ancho_tabla = 150  # Ancho total de la tabla (50 + 100)
-        posicion_x = (pdf.w - ancho_tabla) / 2  # Centrar horizontalmente
+            # Calcular rango de días
+            dias = (fecha_fin - fecha_inicio).days
+            if dias <= 0:
+                raise ValueError("La fecha de inicio debe ser anterior a la fecha de fin.")
 
-        # Encabezado de la tabla
-        pdf.set_x(posicion_x)  # Establecer la posición X
-        pdf.cell(50, 10, "Campo", border=1, fill=True)
-        pdf.cell(100, 10, "Valor", border=1, fill=True, ln=True)
+            # Calcular precio total
+            precio_diario = coche['precio_diario']
+            precio_total = precio_diario * dias * descuento
 
-        # Datos de la tabla
-        for campo, valor in [
-            ("ID de Alquiler", alquiler['id_alquiler']),
-            ("Marca", alquiler['marca']),
-            ("Modelo", alquiler['modelo']),
-            ("Matrícula", alquiler['matricula']),
-            ("Fecha de Inicio", alquiler['fecha_inicio']),
-            ("Fecha de Fin", alquiler['fecha_fin'])
-        ]:
-            pdf.set_x(posicion_x)  # Centrar cada fila
-            pdf.cell(50, 10, campo, border=1)
-            pdf.cell(100, 10, str(valor), border=1, ln=True)
+            return round(precio_total, 2)
 
-        pdf.ln(10)
-
-        # Precio total con formato destacado
-        pdf.set_font("Arial", "B", 14)
-        pdf.set_text_color(255, 0, 0)  # Rojo para el precio
-        precio_formateado = f"{alquiler['coste_total']:.2f} EUR"
-        pdf.cell(0, 10, txt=f"Precio Total: {precio_formateado}", ln=True, align="R")
-
-        # Mensaje de agradecimiento
-        pdf.set_font("Arial", "I", 12)
-        pdf.set_text_color(0, 0, 0)  # Negro
-        pdf.cell(0, 10, txt="Gracias por elegirnos. ¡Esperamos verte pronto!", ln=True, align="C")
-
-        # Devolver el PDF como bytes
-        return pdf.output(dest='S').encode('latin1')
+        except Error as e:
+            raise ValueError(f"Error al calcular el precio: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+    

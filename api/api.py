@@ -1,15 +1,11 @@
-import sys
-import os
+# Importaciones básicas
 from flask import Flask, request, jsonify, make_response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
-from datetime import *
+from datetime import datetime, timedelta
 
-# Agrega el directorio raíz del proyecto al PATH (para que encuentre `source`)
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(root_dir)
-
-# Ahora la importación debería funcionar
-from source.empresa import Empresa
+# Importación relativa para acceder a la clase Empresa desde el módulo source
+from source.empresaV2 import Empresa
+from source.utils import formatear_id, es_email_valido
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "grupo_4!"
@@ -82,7 +78,7 @@ def signup() -> tuple[dict, int]:
         return jsonify({'error': 'Todos los campos son obligatorios'}), 400
 
     # Validar el correo electrónico
-    if not empresa.es_email_valido(email):
+    if not es_email_valido(email):
         return jsonify({'error': 'El correo electrónico no es válido'}), 400
 
     # Validar el tipo de usuario
@@ -90,13 +86,15 @@ def signup() -> tuple[dict, int]:
         return jsonify({'error': 'El tipo de usuario debe ser "admin" o "cliente"'}), 400
 
     try:
-        # Registrar el usuario
-        if empresa.registrar_usuario(nombre=nombre, tipo=tipo, email=email, contraseña=contraseña):
-            return jsonify({'mensaje': 'Usuario registrado exitosamente'}), 201
-        else:
-            return jsonify({'error': 'No se pudo registrar el usuario'}), 500
+        id_usuario_generado = empresa.registrar_usuario(nombre=nombre, tipo=tipo, email=email, contraseña=contraseña)
+        return jsonify({
+            "mensaje": "Usuario registrado exitosamente",
+            "id_usuario": formatear_id(id_usuario_generado,'U')
+        }),201
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Error interno del servidor"}),500
 
 
 @app.route('/login', methods=['POST'])
@@ -147,25 +145,33 @@ def login() -> tuple[dict, int]:
         return jsonify({'error': 'Correo electronico y contraseña son obligatorios'}), 400
 
     # Validar el formato del correo electrónico
-    if not empresa.es_email_valido(email):
+    if not es_email_valido(email):
         return jsonify({'error': 'El correo electrónico no es válido'}), 400
 
     try:
-        # Verificar las credenciales
-        if empresa.iniciar_sesion(email, contraseña):
-            # Obtener el rol de usuario
-            df_usuarios = empresa.cargar_usuarios()
-            usuario = df_usuarios[df_usuarios['email'] == email]
-            rol = usuario.iloc[0]['tipo']
-
-            # Generar token con el rol
-            token = create_access_token(identity=email, additional_claims={'rol': rol})
-            return jsonify({'mensaje': 'Inicio de sesion exitoso', 'token': token}), 200
+        resultado = empresa.iniciar_sesion(email,contraseña)
+        
+        if resultado.get('autenticado'):
+            claims = {'rol': resultado['rol']}
+            token = create_access_token(identity=email, additional_claims=claims)
+            
+            return jsonify ({
+                'mensaje':'Inicio de sesion exitoso.',
+                'token': token,
+                'rol': resultado['rol'],
+                'nombre': resultado['nombre'],
+                'id_usuario': formatear_id(resultado['id_usuario'], 'U')
+            }), 200
+        
         else:
-            return jsonify({'error': 'Credenciales invalidas'}), 401
+            return jsonify({'error': 'No se pudo autenticar al usuario'}), 401
+        
+    
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        return jsonify({'error': f'Error interno del servidor'}), 500
+        
 
 @app.route('/logout', methods=['POST'])
 @jwt_required()
@@ -277,17 +283,19 @@ def eliminar_usuario() -> tuple[dict, int]:
         return jsonify({'mensaje': 'El correo electrónico es obligatorio'}), 400
 
     # Validar el formato del correo electrónico
-    if not empresa.es_email_valido(email):
+    if not es_email_valido(email):
         return jsonify({'error': 'El correo electrónico no es válido'}), 400
 
     try:
-        # Llamar al método dar_baja_usuario de la clase Empresa
-        if empresa.dar_baja_usuario(email):
-            return jsonify({'mensaje': f'Usuario con correo {email} eliminado con éxito'}), 200
+        resultado = empresa.dar_baja_usuario(email)
+        if resultado:
+            return jsonify({'mensaje':f'Usuario con correo {email} eliminado con éxito'}), 200
         else:
-            return jsonify({'error': 'No se pudo eliminar el usuario'}), 404
+            return jsonify({'error':'No se pudo eliminar el usuario'}), 404
+    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
     
 @app.route('/listar-usuarios', methods=['GET'])
 @jwt_required()
@@ -353,22 +361,29 @@ def listar_usuarios() -> tuple[dict, int]:
         return jsonify({'error': 'Acceso no autorizado'}), 403
 
     try:
-        # Cargar usuarios
-        df_usuarios = empresa.cargar_usuarios()
-        if df_usuarios is None or df_usuarios.empty:
-            return jsonify({'error': 'No hay usuarios registrados'}), 200
-
-        usuarios = df_usuarios.to_dict(orient='records')
-
+        usuarios = empresa.obtener_usuarios()
+        
+        if not usuarios:
+            return jsonify({'error': 'No hay usuarios registrados'}), 404
+        
+        usuarios_formateados = [
+            {
+                'id_usuarios' : formatear_id(usuario['id_usuario'], 'U'),
+                'nombre':usuario['nombre'],
+                'tipo': usuario['tipo'],
+                'email': usuario['email']
+            } for usuario in usuarios
+        ]
+        
         return jsonify({
             'mensaje': 'Lista de usuarios obtenida exitosamente',
-            'usuarios': usuarios
+            'usuarios':usuarios_formateados
         }), 200
-
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de usuarios no encontrado'}), 500
+    
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Error interno del servidor: {e}'}), 500
 
 
 @app.route('/usuarios/detalles/<string:email>', methods=['GET'])
@@ -435,30 +450,31 @@ def detalles_usuario(email: str) -> tuple[dict, int]:
     rol = claims.get('rol')
     email_usuario_autenticado = get_jwt_identity()
 
+    # Verificar permisos
+    if rol != 'admin' and email_usuario_autenticado != email:
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
     try:
-        # Cargar usuarios
-        df_usuarios = empresa.cargar_usuarios()
-        if df_usuarios is None or df_usuarios.empty:
-            return jsonify({'error': 'No hay usuarios registrados'}), 200
-
-        usuario = df_usuarios[df_usuarios['email'] == email]
-        if usuario.empty:
-            return jsonify({'error': 'Usuario no encontrado'}), 404
-
-        # Verificar permisos
-        if rol != 'admin' and email_usuario_autenticado != email:
-            return jsonify({'error': 'Acceso no autorizado'}), 403
-
-        usuario = usuario.iloc[0].to_dict()
+        
+        usuario = empresa.obtener_usuario_por_email(email)
+        
+        usuario_formateado = {
+            'id_usuario': formatear_id(usuario['id_usuario'],'U'),
+            'nombre': usuario['nombre'],
+            'tipo': usuario['tipo'],
+            'email': usuario['email']
+        }
+        
         return jsonify({
-            'mensaje': 'Detalles del usuario obtenidos exitosamente',
-            'usuario': usuario
+            'mensaje': f'Detalles del usuario {email} obtenidos exitosamente',
+            'usuario': usuario_formateado
         }), 200
 
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de usuarios no encontrado'}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except ValueError as ve:
+        return jsonify({'error': str(ve)}), 404
+    except Exception:
+        return jsonify({'error': 'Error interno del servidor'}), 500
+    
     
 @app.route('/usuarios/actualizar-contraseña/<string:email>', methods=['PUT'])
 @jwt_required()
@@ -609,14 +625,18 @@ def buscar_coches_disponibles() -> tuple[dict, int]:
         categoria_tipo = request.args.get('categoria_tipo')
         marca = request.args.get('marca')
         modelo = request.args.get('modelo')
+        
+        # Validar que al menos se proporcione una categoría de precio
+        if not categoria_precio:
+            raise ValueError("Se requiere al menos el parámetro 'categoria_precio'.")
 
         # Obtener los detalles de los coches
-        detalles = empresa.obtener_detalles_coches(categoria_precio=categoria_precio, categoria_tipo=categoria_tipo, marca=marca, modelo=modelo)
-        return jsonify(detalles), 200
+        coches_filtrados = empresa.buscar_coches_por_filtros(categoria_precio=categoria_precio, categoria_tipo=categoria_tipo, marca=marca, modelo=modelo)
+        return jsonify({'detalles': coches_filtrados}), 200
 
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception:
         return jsonify({"error": "Error interno del servidor"}), 500
 
 
@@ -800,24 +820,33 @@ def listar_alquileres() -> tuple[dict, int]:
 
     try:
         # Cargar alquileres
-        df_alquileres = empresa.cargar_alquileres()
-        if df_alquileres is None or df_alquileres.empty:
-            return jsonify({
-                'mensaje': 'No hay alquileres registrados',
-                'alquileres': []
-            }), 200
-
-        alquileres = df_alquileres.to_dict(orient='records')
+        alquileres = empresa.cargar_alquileres()
+        
+        # Formatear IDs solo al mostrarlos al cliente
+        alquileres_formateados = []
+        for alquiler in alquileres:
+            alquiler_formateado = {
+                "id_alquiler": formatear_id(alquiler["id_alquiler"], "A"),
+                "id_coche": formatear_id(alquiler["id_coche"], "UID"),
+                "id_usuario": formatear_id(alquiler["id_usuario"], "U") if alquiler["id_usuario"] else "INVITADO",
+                "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
+                "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
+                "coste_total": float(alquiler["coste_total"]),
+                "activo": bool(alquiler["activo"])
+            }
+            alquileres_formateados.append(alquiler_formateado)
 
         return jsonify({
-            'mensaje': 'Lista de alquileres obtenida exitosamente',
-            'alquileres': alquileres
+            "mensaje": "Lista de alquileres obtenida exitosamente.",
+            "alquileres": alquileres_formateados
         }), 200
 
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+        
     
 
 @app.route('/alquileres/detalles/<string:id_alquiler>', methods=['GET'])
@@ -887,35 +916,37 @@ def detalles_alquiler(id_alquiler: str) -> tuple[dict, int]:
     email_usuario_autenticado = get_jwt_identity()
 
     try:
-        # Cargar los alquileres
-        df_alquileres = empresa.cargar_alquileres()
-        if df_alquileres is None or df_alquileres.empty:
-            return jsonify({'error': 'No hay alquileres registrados'}), 404
+        # Llamar a Empresa para obtener el alquiler por ID
+        alquiler = empresa.obtener_alquiler_por_id(id_alquiler)
 
-        # Buscar el alquiler por ID
-        alquiler = df_alquileres[df_alquileres['id_alquiler'] == id_alquiler]
-        if alquiler.empty:
-            return jsonify({'error': 'Alquiler no encontrado'}), 404
+        # Extraer datos del alquiler
+        id_usuario_alquiler = alquiler.get("id_usuario")
 
-        # Extraer el ID del usuario asociado al alquiler
-        id_usuario_alquiler = alquiler.iloc[0]['id_usuario']
-
-        # Verificar permisos
+        # Validar permisos
         if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
             return jsonify({'error': 'Acceso no autorizado'}), 403
 
-        # Convertir el alquiler a un diccionario
-        alquiler = alquiler.iloc[0].to_dict()
+        # Formatear IDs solo al mostrarlos al usuario final
+        alquiler_formateado = {
+            "id_alquiler": formatear_id(alquiler["id_alquiler"], "A"),
+            "id_coche": formatear_id(alquiler["id_coche"], "UID"),
+            "id_usuario": formatear_id(alquiler["id_usuario"], "U") if id_usuario_alquiler else "INVITADO",
+            "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
+            "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
+            "coste_total": float(alquiler["coste_total"]),
+            "activo": bool(alquiler["activo"])
+        }
 
         return jsonify({
-            'mensaje': 'Detalles del alquiler obtenidos exitosamente',
-            'alquiler': alquiler
+            "mensaje": f"Detalles del alquiler {id_alquiler} obtenidos exitosamente.",
+            "alquiler": alquiler_formateado
         }), 200
 
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error interno: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
     
 
 @app.route('/alquileres/finalizar/<string:id_alquiler>', methods=['PUT'])
@@ -978,131 +1009,103 @@ def finalizar_alquiler(id_alquiler: str) -> tuple[dict, int]:
     email_usuario_autenticado = get_jwt_identity()
 
     try:
-        # Cargar los alquileres
-        df_alquileres = empresa.cargar_alquileres()
-        if df_alquileres is None or df_alquileres.empty:
-            return jsonify({'error': 'No se encontraron alquileres registrados'}), 404
+        
+        alquiler = empresa.obtener_alquiler_por_id(id_alquiler)
+        # Validar si el alquiler ya está terminado
+        if not alquiler['activo']:
+            return jsonify({"error": "El alquiler ya está finalizado."}), 400
 
-        # Buscar el alquiler por ID
-        alquiler = df_alquileres[df_alquileres['id_alquiler'] == id_alquiler]
-        if alquiler.empty:
-            return jsonify({'error': 'Alquiler no encontrado'}), 404
+        # Extraer datos del alquiler
+        id_usuario_alquiler = alquiler.get("id_usuario")
+        id_coche_alquiler = alquiler.get("id_coche")
 
-        # Verificar el estado del alquiler
-        if not alquiler.iloc[0]['activo']:
-            return jsonify({'error': 'El alquiler ya está finalizado'}), 400
-
-        # Extraer el ID del usuario asociado al alquiler
-        id_usuario_alquiler = alquiler.iloc[0]['id_usuario']
-
-        # Verificar permisos
+        # Verificar autorización
         if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
-            return jsonify({'error': 'Acceso no autorizado'}), 403
+            return jsonify({"error": "Acceso no autorizado"}), 403
 
-        # Finalizar el alquiler
-        empresa.finalizar_alquiler(id_alquiler)
-        return jsonify({'mensaje': f'Alquiler con id {id_alquiler} finalizado con exito'}), 200
+        # Llamar al método para finalizar el alquiler
+        resultado = empresa.finalizar_alquiler(id_alquiler)
 
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de alquileres no encontrado'}), 500
+        if resultado:
+            return jsonify({
+                "mensaje": f"Alquiler {id_alquiler} finalizado correctamente.",
+                "id_coche": formatear_id(id_coche_alquiler, prefijo="UID")
+            }), 200
+        else:
+            return jsonify({"error": "No se pudo finalizar el alquiler."}), 500
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 
 @app.route('/alquileres/historial/<string:email>', methods=['GET'])
 @jwt_required()
-def historial_alquileres(email: str) -> tuple[dict, int]:
+def historial_alquileres(email):
     """
-    Endpoint para obtener el historial de alquileres de un usuario específico.
+    Obtiene el historial de alquileres de un usuario específico.
 
-    Este endpoint permite a un administrador o al usuario autenticado obtener el 
-    historial de alquileres de un usuario mediante su correo electrónico. Solo los 
-    usuarios con rol "admin" pueden acceder al historial de cualquier usuario, mientras 
-    que un usuario normal solo puede acceder a su propio historial de alquileres.
-
-    Methods
-    -------
-    GET
-        Obtiene el historial de alquileres de un usuario específico.
-
-    Parameters
-    ----------
-    email : str
-        Correo electrónico del usuario cuyo historial de alquileres se desea obtener. 
-        Se pasa como parte de la URL.
-
-    Headers
-    -------
-    Authorization : str
-        Token JWT válido con claims que incluyan el rol y la identidad del usuario. 
-        El token debe ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
+    Este endpoint permite a un administrador o al propio usuario obtener todos los alquileres asociados a un email.
 
     Returns
     -------
     JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Historial de alquileres del usuario con email usuario@example.com",
-            "alquileres": [
-                {
-                    "id_alquiler": "A001",
-                    "id_coche": "UID01",
-                    "fecha_inicio": "2025-04-10",
-                    "fecha_fin": "2025-04-11",
-                    "coste_total": 100.0,
-                    "activo": true
-                },
-                ...
-            ]
-        }
+        Un objeto JSON con el historial de alquileres del usuario, incluyendo:
+        - id_alquiler (formateado como "A001")
+        - id_coche (formateado como "UID01")
+        - matricula del coche
+        - fechas de inicio y fin
+        - coste total
+        - estado activo/no activo
 
     Raises
     ------
     HTTP 403 Forbidden
-        Si el usuario no tiene permiso para acceder al historial del usuario solicitado.
+        Si el usuario no tiene permiso para acceder al historial.
     HTTP 404 Not Found
-        Si el usuario con el correo electrónico proporcionado no está registrado.
+        Si el email no corresponde a ningún usuario registrado.
     HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+        Si ocurre un error interno en la base de datos.
     """
-    # Obtener las claims del token
     claims = get_jwt()
-
-    # Verificar si las claims son un diccionario
-    if not isinstance(claims, dict):
-        return jsonify({'error': 'Error al leer las claims del token'}), 500
-
-    # Obtener el rol y el email del usuario autenticado
-    rol = claims.get('rol')
+    rol = claims.get('rol', None)
     email_usuario_autenticado = get_jwt_identity()
 
+    # Verificar autorización
+    if rol != 'admin' and email != email_usuario_autenticado:
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
     try:
-        # Cargar los usuarios para validar el email
-        df_usuarios = empresa.cargar_usuarios()
-        if df_usuarios is None or df_usuarios.empty:
-            return jsonify({'error': 'No se pudieron cargar los usuarios'}), 500
+        connection = empresa.get_connection()
 
-        # Verificar si el email existe en el sistema
-        if email not in df_usuarios['email'].values:
-            return jsonify({'error': f'El usuario con email {email} no está registrado'}), 404
+        # Obtener el historial desde MySQL usando el método adaptado
+        resultados = empresa.obtener_historial_alquileres(connection, email)
 
-        # Verificar permisos
-        if rol != 'admin' and email != email_usuario_autenticado:
-            return jsonify({'error': 'Acceso no autorizado'}), 403
-
-        # Obtener el historial de alquileres del usuario
-        historial = empresa.obtener_historial_alquileres(email)
+        # Formatear los resultados antes de devolverlos
+        historial_formateado = []
+        for alquiler in resultados:
+            historial_formateado.append({
+                "id_alquiler": formatear_id(alquiler["id_alquiler"], prefijo="A"),
+                "id_coche": formatear_id(alquiler["id_coche"], prefijo="UID"),
+                "matricula": alquiler["matricula"],
+                "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
+                "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
+                "coste_total": float(alquiler["coste_total"]),
+                "activo": bool(alquiler["activo"])
+            })
 
         return jsonify({
-            'mensaje': f'Historial de alquileres del usuario con email {email}',
-            'alquileres': historial
+            "mensaje": f"Historial de alquileres del usuario {email}",
+            "alquileres": historial_formateado
         }), 200
 
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 404
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 
 # ---------------------------------------
@@ -1226,8 +1229,8 @@ def registrar_coche() -> tuple[dict, int]:
         except ValueError:
             return jsonify({'error': 'El campo "año" debe ser un número entero válido'}), 400
         
-        # Llamar al método registrar_coche de la clase Empresa
-        if empresa.registrar_coche(
+        # Registrar el coche usando Empresa
+        id_coche_generado = empresa.registrar_coche(
             marca=marca,
             modelo=modelo,
             matricula=matricula,
@@ -1241,15 +1244,18 @@ def registrar_coche() -> tuple[dict, int]:
             cv=cv,
             plazas=plazas,
             disponible=disponible
-        ):
-            return jsonify({'mensaje': 'Coche registrado con éxito'}), 201
-        else:
-            return jsonify({'error': 'Error al registrar el coche'}), 500
+        )
 
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({
+            "mensaje": "Coche registrado con éxito",
+            "id_coche": formatear_id(id_coche_generado, "UID")
+        }), 201
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
     except Exception as e:
-        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
 
 
 @app.route('/coches/detalles/<string:matricula>', methods=['GET'])
