@@ -76,8 +76,8 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
         - marca (str): Marca del coche.
         - modelo (str): Modelo del coche.
         - matricula (str): Matrícula del coche.
-        - fecha_inicio (str): Fecha de inicio del alquiler ('YYYY-MM-DD').
-        - fecha_fin (str): Fecha de fin del alquiler ('YYYY-MM-DD').
+        - fecha_inicio (str): Fecha de inicio ('YYYY-MM-DD').
+        - fecha_fin (str): Fecha de fin ('YYYY-MM-DD').
         - coste_total (float): Costo total del alquiler.
         - nombre_usuario (str, optional): Nombre del cliente.
 
@@ -105,7 +105,7 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
 
         # Intentar cargar el logo
         try:
-            logo_path = logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "data", "Logo.png")  # Ruta relativa al logo
+            logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "Logo.png")
             if os.path.exists(logo_path):
                 pdf.image(logo_path, x=10, y=10, w=50)
         except Exception as e:
@@ -113,9 +113,7 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
 
         # Título
         pdf.set_font("Arial", "B", 16)
-        pdf.set_text_color(0, 0, 0)
         pdf.cell(0, 20, txt="Factura de Alquiler", ln=True, align="C")
-        pdf.set_text_color(0, 0, 0)
         pdf.ln(10)
 
         # Fecha de emisión
@@ -135,34 +133,39 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
         pdf.cell(100, 10, "Valor", border=1, fill=True, ln=True)
 
         pdf.set_font("Arial", size=12)
-        for campo, valor in [
+
+        # Datos del alquiler sin caracteres UTF-8 problemáticos
+        datos_factura = [
             ("ID de Alquiler", alquiler['id_alquiler']),
             ("Marca", alquiler['marca']),
             ("Modelo", alquiler['modelo']),
             ("Matrícula", alquiler['matricula']),
-            ("Fecha de Inicio", datetime.strptime(alquiler['fecha_inicio'], "%Y-%m-%d").strftime("%d/%m/%Y")),
-            ("Fecha de Fin", datetime.strptime(alquiler['fecha_fin'], "%Y-%m-%d").strftime("%d/%m/%Y")),
-            ("Precio Diario", f"{alquiler.get('precio_diario', 'N/A')} €"),
+            ("Fecha Inicio", datetime.strptime(alquiler['fecha_inicio'], "%Y-%m-%d").strftime("%d/%m/%Y")),
+            ("Fecha Fin", datetime.strptime(alquiler['fecha_fin'], "%Y-%m-%d").strftime("%d/%m/%Y")),
+            ("Precio Diario", f"{alquiler.get('precio_diario', 'N/A')}"),
             ("Descuento", f"{alquiler.get('descuento', 0) * 100:.0f}%"),
-            ("Total", f"{alquiler['coste_total']:.2f} €"),
+            ("Total", f"{alquiler['coste_total']:.2f} EUR"),
             ("Cliente", alquiler.get('nombre_usuario', 'Invitado')),
-        ]:
+        ]
+
+        for campo, valor in datos_factura:
             pdf.set_x(posicion_x)
-            pdf.cell(50, 10, campo, border=1)
+            pdf.cell(50, 10, str(campo), border=1)
             pdf.cell(100, 10, str(valor), border=1, ln=True)
 
         # Precio total destacado
         pdf.ln(10)
         pdf.set_font("Arial", "B", 14)
-        pdf.set_text_color(255, 0, 0)  # Rojo para resaltar
+        pdf.set_text_color(255, 0, 0)
         pdf.cell(0, 10, txt=f"Precio Total: {alquiler['coste_total']:.2f} EUR", ln=True, align="R")
 
         # Mensaje final
-        pdf.set_text_color(0, 0, 0)
+        pdf.ln(10)
         pdf.set_font("Arial", "I", 12)
+        pdf.set_text_color(0, 0, 0)
         pdf.cell(0, 10, txt="Gracias por elegirnos. ¡Esperamos verte pronto!", ln=True, align="C")
 
-        # Devolver el PDF como bytes
+        # Devolver el PDF como bytes usando codificación segura
         return pdf.output(dest='S').encode('latin1')
 
     except Exception as e:
