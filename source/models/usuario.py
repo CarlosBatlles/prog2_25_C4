@@ -341,10 +341,10 @@ class Usuario:
                 "nombre": usuario['nombre'],
             }
 
-        except Error as e:
-            raise ValueError(f"Error al iniciar sesión: {e}")
+        except Exception as e:
+            raise Exception(f"Error al iniciar sesión: {e}")
         finally:
-            if 'cursor' in locals() and cursor:
+            if cursor:
                 cursor.close()
     
     
