@@ -516,7 +516,7 @@ def buscar_coches_disponibles() -> None:
     modelo = input('Modelo: ').strip()
 
     try:
-          # Construir los query parameters
+        # Construir los query parameters
         params = {
             'categoria_precio': categoria_precio or None,
             'categoria_tipo': categoria_tipo or None,
@@ -527,13 +527,25 @@ def buscar_coches_disponibles() -> None:
         # Eliminar parámetros vacíos
         params = {k: v for k, v in params.items() if v is not None}
 
-        # Realizar la solicitud GET con los query parameters
+        print(f"[INFO] Enviando solicitud a /coches-disponibles con parámetros: {params}")
+
+        # Hacer la solicitud GET
         r = requests.get(f'{BASE_URL}/coches-disponibles', params=params)
 
-        # Procesar la respuesta
-        print('Respuesta: ', r.status_code, r.json())
+        # Verificar si hay contenido antes de intentar parsearlo como JSON
+        if r.status_code == 200:
+            try:
+                datos = r.json()
+                print("[RESPUESTA]", datos)
+            except ValueError:
+                print("[ERROR] La respuesta no es un JSON válido.")
+                print("[RAW RESPONSE]", r.text)
+        else:
+            print(f"[ERROR] Código de estado: {r.status_code}")
+            print("[MENSAJE]:", r.text)
+
     except requests.exceptions.RequestException as e:
-        print(f'Error al buscar coches disponibles: {e}')
+        print(f'[ERROR] Al realizar la solicitud: {e}')
 
 
 def eliminar_usuario() -> None:
