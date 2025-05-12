@@ -169,7 +169,7 @@ def login() -> tuple[dict, int]:
     
     except ValueError as ve:
         return jsonify({'error': str(ve)}), 400
-    except Exception as e:
+    except Exception:
         return jsonify({'error': f'Error interno del servidor'}), 500
         
 
