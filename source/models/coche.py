@@ -244,7 +244,10 @@ class Coche:
             ORDER BY categoria_tipo
             """
             cursor.execute(query, (categoria_precio,))
-            return [row[0] for row in cursor.fetchall()]
+            resultados = [row[0] for row in cursor.fetchall()]
+            if not resultados:
+                raise ValueError("No hay categorías de tipo disponibles.")
+            return resultados
         except Error as e:
             raise ValueError(f"Error al obtener categorías de tipo: {e}")
         finally:
@@ -268,7 +271,10 @@ class Coche:
             ORDER BY marca
             """
             cursor.execute(query, (categoria_precio, categoria_tipo))
-            return [row[0] for row in cursor.fetchall()]
+            resultados = [row[0] for row in cursor.fetchall()]
+            if not resultados:
+                raise ValueError("No hay marcas disponibles con esos filtros.")
+            return resultados
         except Error as e:
             raise ValueError(f"Error al obtener marcas: {e}")
         finally:
@@ -293,7 +299,10 @@ class Coche:
             ORDER BY modelo
             """
             cursor.execute(query, (categoria_precio, categoria_tipo, marca))
-            return [row[0] for row in cursor.fetchall()]
+            resultados = [row[0] for row in cursor.fetchall()]
+            if not resultados:
+                raise ValueError("No hay modelos disponibles con esos filtros.")
+            return resultados
         except Error as e:
             raise ValueError(f"Error al obtener modelos: {e}")
         finally:
@@ -318,7 +327,10 @@ class Coche:
             AND modelo = %s
             """
             cursor.execute(query, (categoria_precio, categoria_tipo, marca, modelo))
-            return [dict(row) for row in cursor.fetchall()]
+            resultados = cursor.fetchall()
+            if not resultados:
+                raise ValueError("No se encontraron coches con estos filtros.")
+            return resultados
         except Error as e:
             raise ValueError(f"Error al filtrar por modelo: {e}")
         finally:
