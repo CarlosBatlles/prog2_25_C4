@@ -169,8 +169,8 @@ def login() -> tuple[dict, int]:
     
     except ValueError as ve:
         return jsonify({'error': str(ve)}), 400
-    except Exception:
-        return jsonify({'error': f'Error interno del servidor'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Error interno del servidor {e}'}), 500
         
 
 @app.route('/logout', methods=['POST'])
