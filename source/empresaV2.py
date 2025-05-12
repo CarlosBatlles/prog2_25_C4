@@ -153,7 +153,15 @@ class Empresa():
         return Coche.registrar_coche(connection, marca, modelo, matricula, categoria_tipo, categoria_precio,
                                 año, precio_diario, kilometraje, color, combustible, cv, plazas, disponible)
         
-        
+
+    def obtener_detalle_coche_por_matricula(self, matricula: str) -> dict:
+        """
+        Obtiene los detalles de un coche por su matrícula desde MySQL.
+        """
+        connection = self.get_connection()
+        return Coche.obtener_por_matricula(connection, matricula)    
+    
+    
     def actualizar_matricula(self, id_coche: str, nueva_matricula: str) -> bool:
         """
         Actualiza la matrícula de un coche llamando al método estático de la clase Coche.
