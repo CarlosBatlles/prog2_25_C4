@@ -772,8 +772,7 @@ def alquilar_coches() -> tuple[dict | int]:
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        print(f"Error interno: {str(e)}")
-        return jsonify({'error': 'Error interno del servidor. Por favor, inténtalo de nuevo más tarde.'}), 500
+        return jsonify({'error': f'Error interno del servidor. Por favor, inténtalo de nuevo más tarde: {e}'}), 500
     
 
 @app.route('/alquileres/listar', methods=['GET'])
