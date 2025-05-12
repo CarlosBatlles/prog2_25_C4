@@ -28,6 +28,48 @@ class Coche:
         resultados = cursor.fetchall()
         
         return [Coche(**row)for row in resultados]
+    
+
+    def obtener_por_matricula(connection, matricula: str) -> dict:
+        """
+        Obtiene los detalles de un coche por su matrícula desde MySQL.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Conexión activa a la base de datos.
+        matricula : str
+            Matrícula única del coche.
+
+        Returns
+        -------
+        dict
+            Un diccionario con todos los campos del coche.
+
+        Raises
+        ------
+        ValueError
+            Si no se encuentra el coche o si hay errores en la consulta.
+        Exception
+            Si ocurre un error en la conexión.
+        """
+        try:
+            cursor = connection.cursor(dictionary=True)
+            query = "SELECT * FROM coches WHERE matricula = %s"
+            cursor.execute(query, (matricula,))
+            resultado = cursor.fetchone()
+
+            if not resultado:
+                raise ValueError(f"No se encontró ningún coche con la matrícula {matricula}")
+
+            return resultado
+
+        except Error as e:
+            raise ValueError(f"Error al obtener detalles del coche: {e}")
+        finally:
+            if 'cursor' in locals() and cursor:
+                cursor.close()
+
 
     @staticmethod
     def registrar_coche(connection,marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,

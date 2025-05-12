@@ -1286,75 +1286,44 @@ def detalles_coche(matricula: str) -> tuple[dict, int]:
     """
     Endpoint para obtener los detalles de un coche específico mediante su matrícula.
 
-    Este endpoint permite a cualquier usuario (sin necesidad de autenticación) obtener 
-    los detalles de un coche específico utilizando su matrícula. Si el coche no se 
-    encuentra registrado, se devuelve un error 404.
-
-    Methods
-    -------
-    GET
-        Obtiene los detalles de un coche específico.
-
-    Parameters
-    ----------
-    matricula : str
-        Matrícula única del coche cuyos detalles se desean obtener. Se pasa como parte 
-        de la URL.
-
-    Returns
-    -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Detalles del coche obtenidos exitosamente",
-            "coche": {
-                "id": "UID01",
-                "marca": "Toyota",
-                "modelo": "Corolla",
-                "matricula": "8237 SPL",
-                "categoria_tipo": "Compacto",
-                "categoria_precio": "Medio",
-                "año": 2022,
-                "precio_diario": 50.0,
-                "kilometraje": 15000,
-                "color": "Blanco",
-                "combustible": "Gasolina",
-                "cv": 120,
-                "plazas": 5,
-                "disponible": true
-            }
-        }
-
-    Raises
-    ------
-    HTTP 404 Not Found
-        Si no se encuentra ningún coche con la matrícula proporcionada.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+    Este endpoint permite a cualquier usuario (sin autenticación) obtener los detalles 
+    completos de un coche usando su matrícula. Si el coche no se encuentra, devuelve 404.
     """
     try:
-        # Cargar los coches
-        df_coches = empresa.cargar_coches()
-        if df_coches is None or df_coches.empty:
-            return jsonify({'error': 'No se encontraron coches registrados'}), 404
+        # Llamar a Empresa para obtener el coche por matricula
+        coche = empresa.obtener_detalle_coche_por_matricula(matricula)
 
-        # Buscar el coche por matrícula
-        coche = df_coches[df_coches['matricula'] == matricula]
-        if coche.empty:
+        if not coche:
             return jsonify({'error': 'Coche no encontrado'}), 404
 
-        # Convertir el coche a un diccionario
-        coche = coche.iloc[0].to_dict()
+        # Formatear respuesta final
+        coche_formateado = {
+            "id": formatear_id(coche['id'], "UID"),
+            "marca": coche['marca'],
+            "modelo": coche['modelo'],
+            "matricula": coche['matricula'],
+            "categoria_tipo": coche['categoria_tipo'],
+            "categoria_precio": coche['categoria_precio'],
+            "año": coche['año'],
+            "precio_diario": float(coche['precio_diario']),
+            "kilometraje": float(coche['kilometraje']),
+            "color": coche['color'],
+            "combustible": coche['combustible'],
+            "cv": coche['cv'],
+            "plazas": coche['plazas'],
+            "disponible": bool(coche['disponible'])
+        }
 
         return jsonify({
-            'mensaje': 'Detalles del coche obtenidos exitosamente',
-            'coche': coche
+            "mensaje": "Detalles del coche obtenidos exitosamente",
+            "coche": coche_formateado
         }), 200
 
-    except FileNotFoundError:
-        return jsonify({'error': 'Archivo de coches no encontrado'}), 500
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
     
     
 @app.route('/coches/actualizar-matricula/<string:id_coche>', methods=['PUT'])
