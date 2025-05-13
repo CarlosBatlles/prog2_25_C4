@@ -213,13 +213,13 @@ class Coche:
         - El método utiliza el archivo CSV como fuente de datos, por lo que los cambios son persistentes.
         """
         
+        if not id_coche.startswith("UID") or not id_coche[3:].isdigit():
+            raise ValueError("Formato de ID inválido. Debe ser tipo UID001.")
+
+        id_numero = int(id_coche[3:])
+        
         try:
             cursor = connection.cursor()
-            
-            if not id_coche.startswith("UID") or not id_coche[3:].isdigit():
-                raise ValueError("Formato de ID inválido. Debe ser tipo UID001.")
-
-            id_numero = int(id_coche[3:]) 
             
             # Verificar si el coche existe
             cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_numero))
