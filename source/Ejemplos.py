@@ -470,7 +470,7 @@ def eliminar_coche() -> None:
         return
 
     # Solicitar el ID del coche a eliminar
-    id_coche = int(input('ID del coche a eliminar: ').strip())
+    id_coche = int(input('ID del coche a eliminar: '))
     
     try:
         id_numero = int(id_coche)
