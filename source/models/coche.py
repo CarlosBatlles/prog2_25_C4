@@ -71,7 +71,7 @@ class Coche:
                 cursor.close()
 
 
-    @staticmethod
+
     def registrar_coche(connection,marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,
                         año: int, precio_diario: float, kilometraje: float, color: str, combustible: str, cv: int,
                         plazas: int, disponible: bool) -> bool:
@@ -183,8 +183,7 @@ class Coche:
                 cursor.close()
     
     
-    @staticmethod
-    def eliminar_coche(connection, empresa, id_coche: int) -> bool:
+    def eliminar_coche(connection,id_coche: str) -> bool:
         """
         Elimina un coche del sistema basándose en su ID.
 
@@ -217,13 +216,18 @@ class Coche:
         try:
             cursor = connection.cursor()
             
+            if not id_coche.startswith("UID") or not id_coche[3:].isdigit():
+                raise ValueError("Formato de ID inválido. Debe ser tipo UID001.")
+
+            id_numero = int(id_coche[3:]) 
+            
             # Verificar si el coche existe
-            cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_coche))
+            cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_numero))
             if not cursor.fetchone()[0]:
                 raise ValueError(f"El coche con ID {id_coche} no existe")
             
             query = ('DELETE FROM coches WHERE id=%s')
-            cursor.execute(query,(id_coche))
+            cursor.execute(query,(id_numero))
             connection.commit()
             
             if cursor.rowcount > 0:
