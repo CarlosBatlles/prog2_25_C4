@@ -203,6 +203,9 @@ class Empresa():
         """
         Elimina un coche llamando al método estático de la clase Coche.
         """
+        if not id_coche.startswith("UID") or not id_coche[3:].isdigit():
+            raise ValueError("Formato de ID inválido. Debe ser tipo UID001.")
+    
         connection = self.get_connection()
         return Coche.eliminar_coche(connection, id_coche)
     
