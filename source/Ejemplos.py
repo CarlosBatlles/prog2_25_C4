@@ -251,13 +251,13 @@ def login() -> None:
       de conexión.
     """
     global TOKEN, ROL
-    print("\n--- Iniciar Sesión ---")
-    email = input("Correo electrónico: ").strip()
-    contraseña = input("Contraseña: ").strip()
+    print("\n🔐 --- Iniciar Sesión --- 🔐")
+    email = input("📧 Correo electrónico: ").strip()
+    contraseña = input("🔑 Contraseña: ").strip()
 
     # Validar campos obligatorios
     if not email or not contraseña:
-        print("El correo electrónico y la contraseña son obligatorios.")
+        print("❌ Error: El correo electrónico y la contraseña son obligatorios.")
         return
 
     # Enviar solicitud POST al endpoint /login
@@ -273,17 +273,27 @@ def login() -> None:
             TOKEN = respuesta.get("token")
             claims = decode_token(TOKEN)
             ROL = claims.get("rol")  # Extraer el rol del token
-            print("Inicio de sesión exitoso!")
-            print(f"Rol: {ROL}")
+            # Mostrar mensaje bonito con detalles del usuario
+            print("\n✅ ¡Inicio de sesión exitoso!\n")
+            print("┌────────────────────────────────────┐")
+            print("│     📋 Datos del Usuario Logueado   │")
+            print("├────────────────────────────────────┤")
+            print(f"│ Nombre     : {respuesta.get('nombre', 'N/A')} ")
+            print(f"│ Email      : {respuesta.get('email', email)} ")
+            print(f"│ Rol        : {respuesta.get('rol', 'N/A')} ")
+            print(f"│ ID Usuario : {respuesta.get('id_usuario', 'N/A')} ")
+            print("└────────────────────────────────────┘\n")
+
         elif r.status_code == 400:
-            print(f"Error: {r.json().get('error')}")
+            error = r.json().get('error', 'No se recibió mensaje de error.')
+            print(f"\n❌ Error: {error}")
         elif r.status_code == 401:
-            print("Credenciales inválidas. Inténtalo de nuevo.")
+            print("\n❌ Credenciales inválidas. Inténtalo de nuevo.")
         else:
-            print(f"Error inesperado: {r.status_code} - {r.text}")
+            print(f"\n⚠️ Error inesperado: {r.status_code} - {r.text}")
 
     except requests.exceptions.RequestException as e:
-        print(f"Error al conectar con el servidor: {e}")
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 
 def signup() -> None:
@@ -303,13 +313,64 @@ def signup() -> None:
     - Imprime el código de estado HTTP y la respuesta JSON del servidor.
     - No maneja explícitamente excepciones de red, lo que podría mejorarse.
     """
-    nombre = input("Usuario nuevo: ")
-    contraseña = input("Contraseña: ")
-    email = input("Correo: ")
-    tipo = input("Tipo: ")
-    r = requests.post(f"{BASE_URL}/signup", json={"nombre": nombre,'tipo': tipo , 'email': email, "contraseña": contraseña})
-    print("Respuesta:", r.status_code, r.json())
+    print("\n📝 --- Registro de Nuevo Usuario --- 📝")
 
+    nombre = input("👤 Nombre completo: ").strip()
+    email = input("📧 Correo electrónico: ").strip()
+    contraseña = input("🔑 Contraseña: ").strip()
+    
+    # Mostrar opciones de tipo de usuario
+    print("\nSeleccione el tipo de usuario:")
+    print("1. Cliente (por defecto)")
+    print("2. Administrador")
+    tipo_opcion = input("Ingrese opción (1 o 2): ").strip()
+
+    # Validar tipo de usuario
+    if tipo_opcion == "1":
+        tipo_usuario = "cliente"
+    elif tipo_opcion == "2":
+        tipo_usuario = "admin"
+    else:
+        print("❌ Opción inválida. Se asignará 'cliente' por defecto.")
+        tipo_usuario = "cliente"
+
+    # Validar campos obligatorios
+    if not nombre or not email or not contraseña:
+        print("❌ Error: Todos los campos son obligatorios.")
+        return
+
+    try:
+        # Enviar solicitud POST al endpoint /signup
+        r = requests.post(
+            f"{BASE_URL}/signup",
+            json={
+                "nombre": nombre,
+                "email": email,
+                "contraseña": contraseña,
+                "tipo": tipo_usuario
+            }
+        )
+
+        # Procesar respuesta
+        if r.status_code == 201:
+            respuesta = r.json()
+            print("\n✅ ¡Registro exitoso!")
+            print("┌──────────────────────────────┐")
+            print("│     📋 Datos del Registro     │")
+            print("├──────────────────────────────┤")
+            print(f"│ Nombre     : {nombre}         ")
+            print(f"│ Email      : {email}          ")
+            print(f"│ Rol        : {tipo_usuario}   ")
+            print(f"│ ID Usuario : {respuesta.get('id_usuario', 'N/A')} ")
+            print("└──────────────────────────────┘\n")
+        elif r.status_code == 400:
+            error = r.json().get('error', 'No se recibió mensaje de error.')
+            print(f"\n❌ Error: {error}")
+        else:
+            print(f"\n⚠️ Error inesperado: {r.status_code} - {r.text}")
+
+    except requests.exceptions.RequestException as e:
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def mostrar_menu_por_rol(rol: str) -> None:
     """
