@@ -217,12 +217,12 @@ class Coche:
             cursor = connection.cursor()
             
             # Verificar si el coche existe
-            cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_coche))
+            cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_coche,))
             if not cursor.fetchone()[0]:
                 raise ValueError(f"El coche con ID {id_coche} no existe")
             
             query = ('DELETE FROM coches WHERE id=%s')
-            cursor.execute(query,(id_coche))
+            cursor.execute(query,(id_coche,))
             connection.commit()
             
             if cursor.rowcount > 0:
