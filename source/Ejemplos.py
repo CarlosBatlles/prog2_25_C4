@@ -3,6 +3,8 @@ import requests
 import jwt
 import tkinter as tk
 from tkinter import filedialog
+import datetime
+from tabulate import tabulate
 
 
 BASE_URL = "https://alexiss1.pythonanywhere.com/"  # Cambiar por CarlosBatlles.pythonanywhere.com cuando queramos probar con la webapp
@@ -92,31 +94,41 @@ def mostrar_menu_principal() -> None:
       el inicio de sesión.
     - Las opciones válidas son cadenas de texto del "1" al "5".
     """
+    
+    global ROL
+    
     while True:
-        print("\n--- Menú Principal ---")
-        print("1. Iniciar sesión")
-        print("2. Registrarse")
-        print("3. Entrar como invitado")
-        print("4. Cerrar sesion")
-        print("5. Salir")
-        opcion = input("Selecciona una opción: ")
+        print("\n🏠 --- Menú Principal --- 🏠")
+        print("1. 🔐 Iniciar sesión")
+        print("2. 📝 Registrarse")
+        print("3. 👤 Entrar como invitado")
+        print("4. 🔚 Cerrar sesión")
+        print("5. 🚪 Salir")
+        
+        opcion = input("👉 Selecciona una opción (1-5): ").strip()
 
         if opcion == "1":
-            login()
             if ROL:
-                mostrar_menu_por_rol(ROL)
+                print("❌ Ya has iniciado sesión. Cierra sesión antes de volver a hacerlo.")
+            else:
+                login()
+                if ROL:
+                    mostrar_menu_por_rol(ROL)
         elif opcion == "2":
             signup()
         elif opcion == "3":
             entrar_como_invitado()
         elif opcion == "4":
-            logout()
+            if not ROL:
+                print("❌ No has iniciado sesión aún.")
+            else:
+                logout()
         elif opcion == "5":
-            print("Saliendo...")
+            print("👋 Saliendo del sistema. ¡Hasta pronto!")
             break
         else:
-            print("Opción no válida. Inténtalo de nuevo.")
-    
+            print("❌ Opción no válida. Por favor, elige una opción entre 1 y 5.")
+
 
 
 def menu_admin() -> None:
@@ -139,18 +151,23 @@ def menu_admin() -> None:
     - Las opciones válidas son cadenas de texto del "1" al "9".
     - Diseñada para usuarios con privilegios administrativos. 
     """
+    print("\n🔐 --- Menú de Administrador --- 🔐")
+    print("🟢 Bienvenido, Administrador.")
+    print("📌 Desde aquí puedes gestionar usuarios, coches y alquileres.")
+
     while True:
-        print("\n--- Menú de Administrador ---")
-        print("1. Registrar coche")
-        print("2. Eliminar coche")
-        print("3. Listar usuarios")
-        print('4. Obtener detalles usuario')
-        print('5. Actualizar datos coches')
-        print('6. Listar alquileres')
-        print('7. Detalle especifico de alquiler')
-        print('8. Finalizar alquiler')
-        print("9. Volver al menú principal")
-        opcion = input("Selecciona una opción: ")
+        print("\n--- Opciones del Administrador ---")
+        print("1. 🚗 Registrar coche")
+        print("2. 🚫 Eliminar coche")
+        print("3. 👥 Listar usuarios")
+        print("4. 📄 Obtener detalles de usuario")
+        print("5. 🛠️ Actualizar datos de coche")
+        print("6. 📋 Listar alquileres")
+        print("7. 🔍 Detalle específico de alquiler")
+        print("8. ✅ Finalizar alquiler")
+        print("9. 🚪 Volver al menú principal")
+        
+        opcion = input("👉 Selecciona una opción (1-9): ").strip()
 
         if opcion == "1":
             registrar_coche()
@@ -160,18 +177,19 @@ def menu_admin() -> None:
             listar_usuarios()
         elif opcion == "4":
             detalles_usuario()
-        elif opcion == '5':
+        elif opcion == "5":
             actualizar_coche()
-        elif opcion == '6':
+        elif opcion == "6":
             listar_alquileres()
-        elif opcion == '7':
+        elif opcion == "7":
             alquiler_detalles()
-        elif opcion == '8':
+        elif opcion == "8":
             finalizar_alquiler()
-        elif opcion == '9':
+        elif opcion == "9":
+            print("👋 Volviendo al menú principal...")
             break
         else:
-            print("Opción no válida. Inténtalo de nuevo.")
+            print("❌ Opción no válida. Por favor, elige entre 1 y 9.")
 
 
 def menu_cliente() -> None:
@@ -195,18 +213,23 @@ def menu_cliente() -> None:
     - Las opciones válidas son cadenas de texto del "1" al "9".
     - Diseñada para usuarios con rol de cliente en el sistema. 
     """
+    print("\n🛒 --- Menú de Cliente --- 🛒")
+    print("🟢 Bienvenido, Cliente.")
+    print("📌 Desde aquí puedes gestionar tus alquileres y consultar información.")
+
     while True:
-        print("\n--- Menú de Cliente ---")
-        print("1. Alquilar coche")
-        print("2. Ver historial de alquileres")
-        print("3. Buscar coches disponibles")
-        print('4. Datos usuario')
-        print('5. Actualizar contraseña')
-        print('6. Obtener detalles de un coche')
-        print('7. Categorias de coche')
-        print('8. Categorias de precio')
-        print("9. Volver al menú principal")
-        opcion = input("Selecciona una opción: ")
+        print("\n--- Opciones del Cliente ---")
+        print("1. 🚗 Alquilar coche")
+        print("2. 📜 Ver historial de alquileres")
+        print("3. 🔍 Buscar coches disponibles")
+        print("4. 👤 Datos del usuario")
+        print("5. 🔐 Actualizar contraseña")
+        print("6. 📄 Detalles de un coche")
+        print("7. 📁 Categorías de coche")
+        print("8. 💰 Categorías de precio")
+        print("9. 🚪 Volver al menú principal")
+
+        opcion = input("👉 Selecciona una opción (1-9): ").strip()
 
         if opcion == "1":
             alquilar_coche()
@@ -216,18 +239,19 @@ def menu_cliente() -> None:
             buscar_coches_disponibles()
         elif opcion == "4":
             detalles_usuario()
-        elif opcion == '5':
+        elif opcion == "5":
             actualizar_contraseña()
-        elif opcion == '6':
+        elif opcion == "6":
             detalles_coche()
-        elif opcion == '7':
+        elif opcion == "7":
             listar_tipos()
-        elif opcion == '8':
+        elif opcion == "8":
             listar_precios()
-        elif opcion == '9':
+        elif opcion == "9":
+            print("👋 Volviendo al menú principal...")
             break
         else:
-            print("Opción no válida. Inténtalo de nuevo.")
+            print("❌ Opción no válida. Por favor, elige entre 1 y 9.")
 
 
 def login() -> None:
@@ -246,9 +270,9 @@ def login() -> None:
     - Requiere las bibliotecas `requests` y la función `decode_token()`.
     - Depende de la constante BASE_URL definida globalmente.
     - Realiza una solicitud POST al endpoint /login con las credenciales
-      proporcionadas por el usuario.
+    proporcionadas por el usuario.
     - Maneja diferentes códigos de estado HTTP (200, 400, 401) y excepciones
-      de conexión.
+    de conexión.
     """
     global TOKEN, ROL
     print("\n🔐 --- Iniciar Sesión --- 🔐")
@@ -276,7 +300,7 @@ def login() -> None:
             # Mostrar mensaje bonito con detalles del usuario
             print("\n✅ ¡Inicio de sesión exitoso!\n")
             print("┌────────────────────────────────────┐")
-            print("│     📋 Datos del Usuario Logueado   │")
+            print("│     📋 Datos del Usuario Logueado  │")
             print("├────────────────────────────────────┤")
             print(f"│ Nombre     : {respuesta.get('nombre', 'N/A')} ")
             print(f"│ Email      : {respuesta.get('email', email)} ")
@@ -356,7 +380,7 @@ def signup() -> None:
             respuesta = r.json()
             print("\n✅ ¡Registro exitoso!")
             print("┌──────────────────────────────┐")
-            print("│     📋 Datos del Registro     │")
+            print("│     📋 Datos del Registro    │")
             print("├──────────────────────────────┤")
             print(f"│ Nombre     : {nombre}         ")
             print(f"│ Email      : {email}          ")
@@ -418,31 +442,35 @@ def entrar_como_invitado() -> None:
     """
     global ROL
     ROL = "invitado"
-    print("\nHas entrado como invitado.")
+    print("\n👋 Has entrado como invitado.")
+    print("📌 Puedes explorar algunas funcionalidades sin iniciar sesión.")
+
     while True:
         print("\n--- Menú de Invitado ---")
-        print("1. Alquilar coche")
-        print("2. Buscar coches disponibles")
-        print('3. Obtener detalles de un coche')
-        print('4. Categorias de coche')
-        print('5. Categorias de precio')
-        print("6. Volver al menú principal")
-        opcion = input("Selecciona una opción: ")
+        print("1. 🚗 Alquilar coche")
+        print("2. 🔍 Buscar coches disponibles")
+        print("3. 📄 Obtener detalles de un coche")
+        print("4. 📁 Categorías de coche")
+        print("5. 💰 Categorías de precio")
+        print("6. 🚪 Volver al menú principal")
+
+        opcion = input("👉 Selecciona una opción (1-6): ").strip()
 
         if opcion == "1":
             alquilar_coche()
         elif opcion == "2":
             buscar_coches_disponibles()
-        elif opcion == '3':
+        elif opcion == "3":
             detalles_coche()
-        elif opcion == '4':
+        elif opcion == "4":
             listar_tipos()
-        elif opcion == '5':
+        elif opcion == "5":
             listar_precios()
-        elif opcion == '6':
+        elif opcion == "6":
+            print("👋 Volviendo al menú principal...")
             break
         else:
-            print("Opción no válida. Inténtalo de nuevo.")
+            print("❌ Opción no válida. Por favor, elige entre 1 y 6.")
 
 def registrar_coche() -> None:
     """
@@ -457,7 +485,7 @@ def registrar_coche() -> None:
     -----
     - Solicita al usuario los detalles del coche mediante entrada estándar.
     - Convierte ciertos campos a tipos específicos: precio_diario (float),
-      kilometraje (int), cv (int), plazas (int).
+    kilometraje (int), cv (int), plazas (int).
     - Establece el campo 'disponible' como True por defecto.
     - Realiza una solicitud POST al endpoint /coches/registrar.
     - Requiere la biblioteca `requests` y la constante global BASE_URL.
@@ -465,20 +493,70 @@ def registrar_coche() -> None:
     """
     global TOKEN
     
+    if not TOKEN:
+        print("❌ No has iniciado sesión. Por favor, inicia sesión primero.")
+        return
+    
+    print("\n🚗 --- Registrar Nuevo Coche --- 🚗")
+    
     marca = input('Marca: ')
     modelo = input('Modelo: ')
     matricula = input('Matricula: ')
-    categoria_tipo = input('Categoria: ')
+    categoria_tipo = input('Categoria tipo: ')
     categoria_precio = input('Categoria precio: ')
-    año = input('Año:')
-    precio_diario = float(input('Precio diario: '))
-    kilometraje = int(input('Kilometraje: '))
-    color = input('Color: ')
-    combustible = input('Combustible: ')
-    cv = int(input('Caballos: '))
-    plazas = int(input('Plazas: '))
-    disponible = True
-     # Crear el payload con los datos del coche
+    
+    try:
+        año = int(input("Año (1900 - actual): ").strip())
+        if año < 1900 or año > datetime.now().year:
+            print("❌ El año debe estar entre 1900 y el año actual.")
+            return
+    except ValueError:
+        print("❌ El año debe ser un número válido.")
+        return
+    
+    try:
+        precio_diario = float(input("Precio diario (€): ").strip())
+        if precio_diario <= 0:
+            print("❌ El precio diario debe ser mayor que cero.")
+            return
+    except ValueError:
+        print("❌ El precio diario debe ser un número válido.")
+        return
+    
+    try:
+        kilometraje = float(input("Kilometraje: ").strip())
+        if kilometraje < 0:
+            print("❌ El kilometraje no puede ser negativo.")
+            return
+    except ValueError:
+        print("❌ El kilometraje debe ser un número válido.")
+        return
+
+    color = input("Color: ").strip()
+    combustible = input("Combustible (ej. Gasolina, Diésel): ").strip()
+    
+    try:
+        cv = int(input("Caballos (CV): ").strip())
+        if cv <= 0:
+            print("❌ Los caballos deben ser un número positivo.")
+            return
+    except ValueError:
+        print("❌ Los caballos deben ser un número válido.")
+        return
+    
+    try:
+        plazas = int(input("Número de plazas: ").strip())
+        if plazas <= 0:
+            print("❌ El número de plazas debe ser mayor que cero.")
+            return
+    except ValueError:
+        print("❌ El número de plazas debe ser un número entero.")
+        return
+    
+    disponible_input = input("¿Está disponible? (s/n, por defecto 's'): ").strip().lower()
+    disponible = True if disponible_input in ('', 's', 'si', 'yes') else False
+    
+    # Crear el payload con los datos del coche
     data = {
         'marca': marca,
         'modelo': modelo,
@@ -501,9 +579,30 @@ def registrar_coche() -> None:
     # Realizar la solicitud POST
     try:
         r = requests.post(f'{BASE_URL}/coches/registrar', json=data, headers=headers)
-        print('Respuesta: ', r.status_code, r.json())
+        if r.status_code == 201:
+            respuesta = r.json()
+            print("\n✅ ¡Coche registrado exitosamente!")
+            print("┌──────────────────────────────┐")
+            print("│     📋 Datos del Coche       │")
+            print("├──────────────────────────────┤")
+            print(f"│ Marca      : {marca}          ")
+            print(f"│ Modelo     : {modelo}         ")
+            print(f"│ Matrícula  : {matricula}      ")
+            print(f"│ Año        : {año}            ")
+            print(f"│ Precio     : €{precio_diario:.2f}")
+            print(f"│ ID Coche   : {respuesta.get('id_coche', 'N/A')} ")
+            print("└──────────────────────────────┘\n")
+
+        elif r.status_code == 400:
+            error = r.json().get('error', 'Error desconocido.')
+            print(f"\n❌ Error: {error}")
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado. Debes ser administrador.")
+        else:
+            print(f"\n⚠️ Error inesperado: {r.status_code} - {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print(f'Error al registrar el coche: {e}')
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 
 def eliminar_coche() -> None:
@@ -520,27 +619,29 @@ def eliminar_coche() -> None:
     - Solicita al usuario el ID del coche a eliminar mediante entrada estándar.
     - Realiza una solicitud DELETE al endpoint /coches/eliminar/{id_coche}.
     - Requiere la biblioteca `requests`, las variables globales BASE_URL y TOKEN,
-      y la función get_headers para generar los encabezados con autenticación.
+    y la función get_headers para generar los encabezados con autenticación.
     - Maneja excepciones de red e imprime errores si ocurren.
     """
     global TOKEN  # Acceder a la variable global TOKEN
 
     # Verificar si hay un token JWT válido
     if not TOKEN:
-        print("No has iniciado sesión. Por favor, inicia sesión primero.")
+        print("❌ No has iniciado sesión. Por favor, inicia sesión primero.")
         return
 
     # Solicitar el ID del coche a eliminar
-    id_coche = int(input('ID del coche a eliminar: '))
+    id_coche = int(input('🆔 Introduce el ID del coche a eliminar: '))
+    # Validar que se haya introducido algo
+    if not id_coche:
+        print("❌ Error: El ID del coche es obligatorio.")
+        return
     
     try:
-        id_numero = int(id_coche)
+        if id_coche <= 0:
+            print("❌ Error: El ID debe ser un número entero positivo.")
+            return
     except ValueError:
-        raise ValueError("El ID debe ser un número.")
-
-    # Validar que el ID no esté vacío
-    if not id_coche:
-        print("El ID del coche es obligatorio.")
+        print("❌ Error: El ID debe ser un número válido.")
         return
 
     # Obtener los headers con el token JWT
@@ -549,12 +650,24 @@ def eliminar_coche() -> None:
     # Realizar la solicitud DELETE
     try:
         r = requests.delete(
-            f'{BASE_URL}/coches/eliminar/{id_numero}',
+            f'{BASE_URL}/coches/eliminar/{id_coche}',
             headers=headers  # Incluir los headers con el token JWT
         )
-        print('Respuesta: ', r.status_code, r.json())
+        if r.status_code == 200:
+            print("\n✅ Éxito:")
+            print("┌──────────────────────────────┐")
+            print(f"│ Coche con ID {id_coche} eliminado │")
+            print("└──────────────────────────────┘\n")
+        elif r.status_code == 404:
+            error = r.json().get('error', 'Coche no encontrado')
+            print(f"\n❌ Error ({r.status_code}): {error}")
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado. Solo los administradores pueden eliminar coches.")
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print(f'Error al eliminar el coche: {e}')
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 
 def buscar_coches_disponibles() -> None:
@@ -569,20 +682,25 @@ def buscar_coches_disponibles() -> None:
     Notes
     -----
     - Solicita al usuario criterios de búsqueda (categoría de precio, tipo,
-      marca y modelo) mediante entrada estándar.
+    marca y modelo) mediante entrada estándar.
     - Realiza una solicitud GET al endpoint /coches-disponibles con los
-      parámetros como query parameters en la URL.
+    parámetros como query parameters en la URL.
     - Requiere la biblioteca requests y la constante global BASE_URL.
     - Maneja excepciones de red e imprime errores si ocurren.
     """
     # Solicitar los criterios de búsqueda al usuario
-    categoria_precio = input('Categoría de precio: ').strip()
-    categoria_tipo = input('Categoría de tipo: ').strip()
-    marca = input('Marca: ').strip()
-    modelo = input('Modelo: ').strip()
+    print("\n🔍 --- Buscar Coches Disponibles --- 🔍")
+
+    categoria_precio = input('Categoría de precio (obligatoria): ').strip()
+    categoria_tipo = input('Categoría de tipo (opcional): ').strip()
+    marca = input('Marca (opcional): ').strip()
+    modelo = input('Modelo (opcional): ').strip()
+
+    if not categoria_precio:
+        print("❌ Error: La categoría de precio es obligatoria.")
+        return
 
     try:
-        # Construir los query parameters
         params = {
             'categoria_precio': categoria_precio or None,
             'categoria_tipo': categoria_tipo or None,
@@ -593,25 +711,62 @@ def buscar_coches_disponibles() -> None:
         # Eliminar parámetros vacíos
         params = {k: v for k, v in params.items() if v is not None}
 
-        print(f"[INFO] Enviando solicitud a /coches-disponibles con parámetros: {params}")
-
-        # Hacer la solicitud GET
         r = requests.get(f'{BASE_URL}/coches-disponibles', params=params)
 
-        # Verificar si hay contenido antes de intentar parsearlo como JSON
         if r.status_code == 200:
             try:
                 datos = r.json()
-                print("[RESPUESTA]", datos)
+
+                # Mostrar resultados dependiendo de la estructura devuelta
+                if 'detalles' in datos:
+                    coches = datos['detalles']
+                    if not coches:
+                        print("\n🚫 No se encontraron coches con esos criterios.")
+                        return
+
+                    headers = {
+                        "matricula": "Matrícula",
+                        "marca": "Marca",
+                        "modelo": "Modelo",
+                        "categoria_precio": "Precio",
+                        "categoria_tipo": "Tipo",
+                        "año": "Año",
+                        "precio_diario": "Precio Diario",
+                        "disponible": "Disponible"
+                    }
+
+                    table_data = [[c.get(k) for k in headers.keys()] for c in coches]
+                    print("\n🚗 Resultados de búsqueda:")
+                    print(tabulate(table_data, headers=headers.values(), tablefmt="rounded_grid"))
+
+                elif 'categorias_tipo' in datos:
+                    categorias = datos['categorias_tipo']
+                    print("\n📁 Categorías de tipo disponibles:")
+                    for cat in categorias:
+                        print(f" - {cat}")
+
+                elif 'marcas' in datos:
+                    marcas = datos['marcas']
+                    print("\n🏭 Marcas disponibles:")
+                    for m in marcas:
+                        print(f" - {m}")
+
+                elif 'modelos' in datos:
+                    modelos = datos['modelos']
+                    print("\n🛻 Modelos disponibles:")
+                    for mod in modelos:
+                        print(f" - {mod}")
+
             except ValueError:
-                print("[ERROR] La respuesta no es un JSON válido.")
-                print("[RAW RESPONSE]", r.text)
+                print("❌ Error al procesar los datos recibidos del servidor.")
+        elif r.status_code == 400:
+            error = r.json().get('error', 'Solicitud incorrecta.')
+            print(f"\n❌ Error ({r.status_code}): {error}")
         else:
-            print(f"[ERROR] Código de estado: {r.status_code}")
-            print("[MENSAJE]:", r.text)
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
 
     except requests.exceptions.RequestException as e:
-        print(f'[ERROR] Al realizar la solicitud: {e}')
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 
 def eliminar_usuario() -> None:
@@ -627,21 +782,49 @@ def eliminar_usuario() -> None:
     -----
     - Solicita el correo electrónico del usuario a eliminar mediante entrada estándar.
     - Realiza una solicitud DELETE al endpoint /usuarios/eliminar con el email como
-      parámetro de consulta.
+    parámetro de consulta.
     - Utiliza `get_headers()` para incluir autenticación en los headers si es necesario.
     - Requiere la biblioteca `requests` y la constante global BASE_URL.
     - Maneja excepciones de red e imprime errores si ocurren.
     """
+    global TOKEN
+
+    if not TOKEN:
+        print("❌ No has iniciado sesión. Por favor, inicia sesión primero.")
+        return
+
+    print("\n🗑️ --- Eliminar Usuario --- 🗑️")
+    email = input("📧 Correo electrónico del usuario a eliminar: ").strip()
+    
     try:
-        email = input("Correo electrónico del usuario a eliminar: ").strip()
+        
         r = requests.delete(
             f"{BASE_URL}/usuarios/eliminar",
             params={"email": email},
             headers=get_headers(auth_required=True)
         )
-        print("Respuesta:", r.status_code, r.json())
+        if r.status_code == 200:
+            print("\n✅ ¡Usuario eliminado exitosamente!")
+            print("┌──────────────────────────────┐")
+            print(f"│ Correo eliminado: {email}   │")
+            print("└──────────────────────────────┘\n")
+
+        elif r.status_code == 400:
+            error = r.json().get('error', 'El correo no es válido.')
+            print(f"\n❌ Error ({r.status_code}): {error}")
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: Solo los administradores pueden eliminar usuarios.")
+
+        elif r.status_code == 404:
+            error = r.json().get('error', 'Usuario no encontrado.')
+            print(f"\n🔍 No se encontró ningún usuario con el correo: {email}")
+            
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 
 def listar_usuarios() -> None:
@@ -661,14 +844,51 @@ def listar_usuarios() -> None:
     - Maneja excepciones de red e imprime errores si ocurren.
     - Se asume que el endpoint retorna una lista de usuarios en formato JSON.
     """
+    global TOKEN
+
+    if not TOKEN:
+        print("❌ No has iniciado sesión. Por favor, inicia sesión primero.")
+        return
+
+    print("\n👥 --- Listado de Usuarios --- 👤")
+    
     try:
         r = requests.get(
             f"{BASE_URL}/listar-usuarios",
             headers=get_headers(auth_required=True)
         )
-        print("Respuesta:", r.status_code, r.json())
+        if r.status_code == 200:
+            datos = r.json()
+            usuarios = datos.get('usuarios', [])
+
+            if not usuarios:
+                print("\n🚫 No hay usuarios registrados en el sistema.")
+                return
+
+            # Mostrar usuarios en tabla
+            headers_table = {
+                'id_usuarios': 'ID',
+                'nombre': 'Nombre',
+                'tipo': 'Rol',
+                'email': 'Correo Electrónico'
+            }
+
+            table_data = [[usuario[k] for k in headers_table.keys()] for usuario in usuarios]
+
+            print("\n📋 Usuarios registrados:")
+            print(tabulate(table_data, headers=headers_table.values(), tablefmt="rounded_grid"))
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: Solo los administradores pueden ver este contenido.")
+
+        elif r.status_code == 404:
+            print("\n🔍 No se encontraron usuarios registrados.")
+
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def detalles_usuario() -> None:
     """
@@ -688,15 +908,49 @@ def detalles_usuario() -> None:
     - Maneja excepciones de red e imprime errores si ocurren.
     - Se asume que el endpoint retorna los detalles del usuario en formato JSON.
     """
+    
+    global TOKEN
+
+    if not TOKEN:
+        print("❌ No has iniciado sesión. Por favor, inicia sesión primero.")
+        return
+
+    print("\n📄 --- Detalles del Usuario --- 📄")
+    email = input("📧 Correo del usuario: ").strip()
+    
     try:
-        email = input("Correo del usuario: ").strip()
         r = requests.get(
             f"{BASE_URL}/usuarios/detalles/{email}",
             headers=get_headers(auth_required=True)
         )
-        print("Respuesta:", r.status_code, r.json())
+        if r.status_code == 200:
+            datos = r.json()
+            usuario = datos.get('usuario', {})
+
+            # Preparar los datos para mostrarlos en tabla
+            table_data = [[
+                usuario.get('id_usuario', 'N/A'),
+                usuario.get('nombre', 'N/A'),
+                usuario.get('email', 'N/A'),
+                usuario.get('tipo', 'N/A')
+            ]]
+
+            headers_table = ['ID', 'Nombre', 'Email', 'Rol']
+
+            print("\n✅ Detalles del usuario:")
+            print(tabulate(table_data, headers=headers_table, tablefmt="rounded_grid"))
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: No tienes permiso para ver estos detalles.")
+
+        elif r.status_code == 404:
+            print(f"\n🔍 No se encontró ningún usuario con el correo: {email}")
+
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def actualizar_contraseña() -> None:
     """
