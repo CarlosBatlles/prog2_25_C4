@@ -349,7 +349,6 @@ class Usuario:
                 cursor.close()
     
     
-    @staticmethod
     def obtener_historial_alquileres(connection, email: str) -> list[dict]:
         """
         Obtiene el historial de alquileres de un usuario desde la base de datos.

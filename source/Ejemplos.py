@@ -1258,11 +1258,13 @@ def listar_alquileres() -> None:
             # Preparar encabezados y datos para mostrar
             headers_table = {
                 'id_alquiler': 'ID',
-                'nombre_usuario': 'Usuario',
-                'matricula_coche': 'Matrícula',
+                'id_usuario': 'ID Usuario',
+                'id_coche': 'ID Coche',
+                'matricula': 'Matrícula',
                 'fecha_inicio': 'Inicio',
                 'fecha_fin': 'Fin',
-                'precio_total': 'Precio Total'
+                'coste_total': 'Precio Total',
+                'activo': 'Activo'
             }
 
             table_data = [[a[k] for k in headers_table.keys()] for a in alquileres]
@@ -1313,7 +1315,6 @@ def alquiler_detalles() -> None:
     headers = get_headers(auth_required=True)
     
     try:
-        id_alquiler: str = input("ID del alquiler: ").strip()
         r: requests.Response = requests.get(
             f"{BASE_URL}/alquileres/detalles/{id_alquiler}", headers=headers)
         if r.status_code == 200:
@@ -1501,6 +1502,11 @@ def ver_historial_alquileres() -> None:
             error = r.json().get('error', 'Usuario no encontrado.')
             print(f"\n🔍 No se encontró ningún historial de alquileres para '{email}'.")
             print(f"Mensaje del servidor: {error}")
+
+        elif r.status_code == 500:
+            print("\n🚨 Error interno del servidor:")
+            print("⚠️ Hubo un fallo en el servidor. Inténtalo más tarde.")
+            print("📢 Si eres administrador, revisa los logs del servidor.")
 
         else:
             print(f"\n⚠️ Error inesperado ({r.status_code}): {r.text}")
