@@ -7,7 +7,7 @@ import datetime
 from tabulate import tabulate
 
 
-BASE_URL = "https://alexiss1.pythonanywhere.com/"  # Cambiar por CarlosBatlles.pythonanywhere.com cuando queramos probar con la webapp
+BASE_URL = "https://alexiss1.pythonanywhere.com/"  
 TOKEN = None
 ROL = None
 
@@ -33,7 +33,7 @@ def get_headers(auth_required: bool = False) -> dict[str, str]:
     -----
     - El header 'Content-Type' se establece siempre como 'application/json'.
     - El header 'Authorization' se añade solo si auth_required es True 
-      y la variable global TOKEN está definida y no es None.
+    y la variable global TOKEN está definida y no es None.
     """
     headers = {"Content-Type": "application/json"}
     if auth_required and TOKEN:
@@ -59,10 +59,10 @@ def decode_token(token: str) -> dict:
     Notes
     -----
     - La decodificación se realiza sin verificar la firma del token,
-      lo cual solo debe usarse con fines educativos o de depuración.
+    lo cual solo debe usarse con fines educativos o de depuración.
     - Requiere que la biblioteca `jwt` (PyJWT) esté instalada.
     - Los errores durante la decodificación se capturan y se imprimen,
-      retornando un diccionario vacío en tales casos.
+    retornando un diccionario vacío en tales casos.
     """
     try:
         # Decodificar el token sin verificar la firma (solo para fines educativos)
@@ -87,11 +87,11 @@ def mostrar_menu_principal() -> None:
     Notes
     -----
     - La función utiliza un bucle infinito hasta que el usuario selecciona
-      la opción de salir (5).
+    la opción de salir (5).
     - Depende de las funciones externas: login(), signup(), 
-      entrar_como_invitado(), logout() y mostrar_menu_por_rol().
+    entrar_como_invitado(), logout() y mostrar_menu_por_rol().
     - Utiliza la variable global ROL para determinar el rol del usuario tras
-      el inicio de sesión.
+    el inicio de sesión.
     - Las opciones válidas son cadenas de texto del "1" al "5".
     """
     
@@ -144,10 +144,10 @@ def menu_admin() -> None:
     Notes
     -----
     - La función presenta un bucle infinito hasta que se selecciona la opción
-      de salida (9).
+    de salida (9).
     - Depende de las funciones externas: registrar_coche(), eliminar_coche(),
-      listar_usuarios(), detalles_usuario(), actualizar_coche(),
-      listar_alquileres(), alquiler_detalles() y finalizar_alquiler().
+    listar_usuarios(), detalles_usuario(), actualizar_coche(),
+    listar_alquileres(), alquiler_detalles() y finalizar_alquiler().
     - Las opciones válidas son cadenas de texto del "1" al "9".
     - Diseñada para usuarios con privilegios administrativos. 
     """
@@ -205,11 +205,11 @@ def menu_cliente() -> None:
     Notes
     -----
     - La función mantiene un bucle infinito hasta que se selecciona la opción
-      de salida (9).
+    de salida (9).
     - Depende de las funciones externas: alquilar_coche(), 
-      ver_historial_alquileres(), buscar_coches_disponibles(), 
-      detalles_usuario(), actualizar_contraseña(), detalles_coche(), 
-      listar_tipos() y listar_precios().
+    ver_historial_alquileres(), buscar_coches_disponibles(), 
+    detalles_usuario(), actualizar_contraseña(), detalles_coche(), 
+    listar_tipos() y listar_precios().
     - Las opciones válidas son cadenas de texto del "1" al "9".
     - Diseñada para usuarios con rol de cliente en el sistema. 
     """
@@ -297,16 +297,19 @@ def login() -> None:
             TOKEN = respuesta.get("token")
             claims = decode_token(TOKEN)
             ROL = claims.get("rol")  # Extraer el rol del token
-            # Mostrar mensaje bonito con detalles del usuario
-            print("\n✅ ¡Inicio de sesión exitoso!\n")
-            print("┌────────────────────────────────────┐")
-            print("│     📋 Datos del Usuario Logueado  │")
-            print("├────────────────────────────────────┤")
-            print(f"│ Nombre     : {respuesta.get('nombre', 'N/A')} ")
-            print(f"│ Email      : {respuesta.get('email', email)} ")
-            print(f"│ Rol        : {respuesta.get('rol', 'N/A')} ")
-            print(f"│ ID Usuario : {respuesta.get('id_usuario', 'N/A')} ")
-            print("└────────────────────────────────────┘\n")
+
+            # Datos a mostrar en tabla
+            user_data = [[
+                claims.get('nombre', 'N/A'),
+                email,
+                claims.get('rol', 'N/A'),
+                respuesta.get('id_usuario', 'N/A')
+            ]]
+
+            headers_table = ["Nombre", "Correo Electrónico", "Rol", "ID Usuario"]
+
+            print("\n✅ ¡Inicio de sesión exitoso!")
+            print(tabulate(user_data, headers=headers_table, tablefmt="rounded_grid"))
 
         elif r.status_code == 400:
             error = r.json().get('error', 'No se recibió mensaje de error.')
@@ -378,15 +381,20 @@ def signup() -> None:
         # Procesar respuesta
         if r.status_code == 201:
             respuesta = r.json()
+            user_data = [
+                [
+                    nombre,
+                    email,
+                    tipo_usuario.capitalize(),
+                    respuesta.get('id_usuario', 'N/A')
+                ]
+            ]
+
+            headers_table = ["Nombre", "Correo Electrónico", "Rol", "ID Usuario"]
+
             print("\n✅ ¡Registro exitoso!")
-            print("┌──────────────────────────────┐")
-            print("│     📋 Datos del Registro    │")
-            print("├──────────────────────────────┤")
-            print(f"│ Nombre     : {nombre}         ")
-            print(f"│ Email      : {email}          ")
-            print(f"│ Rol        : {tipo_usuario}   ")
-            print(f"│ ID Usuario : {respuesta.get('id_usuario', 'N/A')} ")
-            print("└──────────────────────────────┘\n")
+            print(tabulate(user_data, headers=headers_table, tablefmt="rounded_grid"))
+
         elif r.status_code == 400:
             error = r.json().get('error', 'No se recibió mensaje de error.')
             print(f"\n❌ Error: {error}")
@@ -640,13 +648,12 @@ def eliminar_coche() -> None:
         return
 
     # Solicitar el ID del coche a eliminar
-    id_coche = int(input('🆔 Introduce el ID del coche a eliminar: '))
-    # Validar que se haya introducido algo
-    if not id_coche:
-        print("❌ Error: El ID del coche es obligatorio.")
-        return
-    
+    print("\n🗑️ --- Eliminar Coche --- 🗑️")
+    id_input = input('🆔 Introduce el ID del coche a eliminar: ').strip()
+
+    # Validación del ID
     try:
+        id_coche = int(id_input)
         if id_coche <= 0:
             print("❌ Error: El ID debe ser un número entero positivo.")
             return
@@ -664,10 +671,11 @@ def eliminar_coche() -> None:
             headers=headers  # Incluir los headers con el token JWT
         )
         if r.status_code == 200:
-            print("\n✅ Éxito:")
-            print("┌──────────────────────────────┐")
-            print(f"│ Coche con ID {id_coche} eliminado │")
-            print("└──────────────────────────────┘\n")
+            data = [[f"ID {id_coche}", "✅ Eliminado", "✔️ Sí"]]
+            headers_table = ["Coche", "Estado", "Acción"]
+            print("\n✅ ¡Eliminación exitosa!")
+            print(tabulate(data, headers=headers_table, tablefmt="rounded_grid"))
+
         elif r.status_code == 404:
             error = r.json().get('error', 'Coche no encontrado')
             print(f"\n❌ Error ({r.status_code}): {error}")
@@ -806,18 +814,27 @@ def eliminar_usuario() -> None:
     print("\n🗑️ --- Eliminar Usuario --- 🗑️")
     email = input("📧 Correo electrónico del usuario a eliminar: ").strip()
     
+    headers = get_headers(auth_required=True)
+    
     try:
         
         r = requests.delete(
             f"{BASE_URL}/usuarios/eliminar",
             params={"email": email},
-            headers=get_headers(auth_required=True)
+            headers=headers
         )
         if r.status_code == 200:
+            respuesta = r.json()
+            usuario = respuesta.get("usuario", {})
+            user_data = [[
+                usuario.get("nombre", "N/A"),
+                email,
+                usuario.get("tipo", "N/A"),
+                usuario.get("id_usuario", "N/A")]]
+            headers_table = ["Nombre", "Correo Electrónico", "Rol", "ID Usuario"]
+
             print("\n✅ ¡Usuario eliminado exitosamente!")
-            print("┌──────────────────────────────┐")
-            print(f"│ Correo eliminado: {email}   │")
-            print("└──────────────────────────────┘\n")
+            print(tabulate(user_data, headers=headers_table, tablefmt="rounded_grid"))
 
         elif r.status_code == 400:
             error = r.json().get('error', 'El correo no es válido.')
@@ -1073,14 +1090,56 @@ def detalles_coche() -> None:
     - Se utiliza el método `strip()` para eliminar espacios en blanco innecesarios en la entrada de la matrícula.
     - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
     """
+    print("\n📄 --- Detalles del Coche --- 📄")
+    matricula = input("🔤 Matrícula del coche: ").strip()
+
+    if not matricula:
+        print("❌ Error: La matrícula es obligatoria.")
+        return
+    
     try:
-        matricula: str = input("Matrícula del coche: ").strip()
         r: requests.Response = requests.get(
             f"{BASE_URL}/coches/detalles/{matricula}", headers=get_headers()
         )
-        print("Respuesta:", r.status_code, r.json())
+        if r.status_code == 200:
+            datos = r.json()
+            coche = datos.get('coche', {})
+
+            # Mostrar detalles del coche en tabla bonita
+            table_data = [[
+                coche.get('id', 'N/A'),
+                coche.get('marca', 'N/A'),
+                coche.get('modelo', 'N/A'),
+                coche.get('matricula', 'N/A'),
+                coche.get('categoria_tipo', 'N/A'),
+                coche.get('categoria_precio', 'N/A'),
+                coche.get('año', 'N/A'),
+                f"€{float(coche.get('precio_diario', 0)):.2f}",
+                coche.get('kilometraje', 'N/A'),
+                coche.get('color', 'N/A'),
+                coche.get('combustible', 'N/A'),
+                coche.get('cv', 'N/A'),
+                coche.get('plazas', 'N/A'),
+                "✅ Sí" if coche.get('disponible', False) else "❌ No"
+            ]]
+
+            headers_table = [
+                "ID", "Marca", "Modelo", "Matrícula",
+                "Tipo", "Categoría Precio", "Año",
+                "Precio Diario", "Kilometraje", "Color",
+                "Combustible", "CV", "Plazas", "Disponible"
+            ]
+
+            print("\n✅ Detalles del coche:")
+            print(tabulate(table_data, headers=headers_table, tablefmt="rounded_grid"))
+
+        elif r.status_code == 404:
+            print(f"\n🔍 No se encontró ningún coche con la matrícula '{matricula}'.")
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def actualizar_coche() -> None:
     """
@@ -1105,17 +1164,57 @@ def actualizar_coche() -> None:
     - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
     - El cuerpo de la solicitud contiene un objeto JSON con la clave `"nueva_matricula"` y el valor proporcionado por el usuario.
     """
+    
+    print("\n🛠️ --- Actualizar Matrícula de Coche --- 🛠️")
+
+    id_coche = input("🆔 ID del coche a actualizar: ").strip()
+    nueva_matricula = input("🔤 Nueva matrícula: ").strip()
+    
+    if not id_coche:
+        print("❌ Error: El ID del coche es obligatorio.")
+        return
+
+    if not nueva_matricula:
+        print("❌ Error: La nueva matrícula es obligatoria.")
+        return
+    
+    headers = get_headers(auth_required=True)
+    
     try:
-        id_coche: str = input("ID del coche a actualizar: ").strip()
-        nueva_matricula: str = input("Nueva matrícula: ").strip()
         r: requests.Response = requests.put(
             f"{BASE_URL}/coches/actualizar-matricula/{id_coche}",
             json={"nueva_matricula": nueva_matricula},
-            headers=get_headers(auth_required=True)
+            headers=headers
         )
-        print("Respuesta:", r.status_code, r.json())
+        if r.status_code == 200:
+            print("\n✅ ¡Matrícula actualizada exitosamente!")
+
+            # Mostrar detalles de la actualización en formato tabla
+            data_table = [[
+                id_coche,
+                nueva_matricula,
+                "✅ Éxito"
+            ]]
+            headers_table = ["ID Coche", "Nueva Matrícula", "Estado"]
+
+            print(tabulate(data_table, headers=headers_table, tablefmt="rounded_grid"))
+
+        elif r.status_code == 400:
+            error = r.json().get('error', 'No se pudo procesar la solicitud.')
+            print(f"\n❌ Error ({r.status_code}): {error}")
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: Solo los administradores pueden realizar esta acción.")
+
+        elif r.status_code == 404:
+            error = r.json().get('error', 'Coche no encontrado.')
+            print(f"\n🔍 Error ({r.status_code}): {error}")
+
+        else:
+            print(f"\n⚠️ Error inesperado ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def listar_alquileres() -> None:
     """
@@ -1139,15 +1238,49 @@ def listar_alquileres() -> None:
     -----
     - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
     - Se requiere autenticación para acceder a este endpoint, por lo que se utiliza `auth_required=True` 
-      en la función `get_headers()`.
+    en la función `get_headers()`.
     """
+    print("\n📋 --- Listado de Alquileres --- 📋")
+    headers = get_headers(auth_required=True)
+    
+    
     try:
         r: requests.Response = requests.get(
-            f"{BASE_URL}/alquileres/listar", headers=get_headers(auth_required=True)
-        )
-        print("Respuesta:", r.status_code, r.json())
+            f"{BASE_URL}/alquileres/listar", headers=headers)
+        if r.status_code == 200:
+            datos = r.json()
+            alquileres = datos.get('alquileres', [])
+
+            if not alquileres:
+                print("\n🚫 No hay alquileres registrados.")
+                return
+
+            # Preparar encabezados y datos para mostrar
+            headers_table = {
+                'id_alquiler': 'ID',
+                'nombre_usuario': 'Usuario',
+                'matricula_coche': 'Matrícula',
+                'fecha_inicio': 'Inicio',
+                'fecha_fin': 'Fin',
+                'precio_total': 'Precio Total'
+            }
+
+            table_data = [[a[k] for k in headers_table.keys()] for a in alquileres]
+
+            print("\n📦 Alquileres encontrados:")
+            print(tabulate(table_data, headers=headers_table.values(), tablefmt="rounded_grid"))
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: Solo los administradores pueden ver los alquileres.")
+
+        elif r.status_code == 404:
+            print("\n🔍 No se encontraron alquileres registrados.")
+
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def alquiler_detalles() -> None:
     """
@@ -1171,16 +1304,49 @@ def alquiler_detalles() -> None:
     - Se utiliza el método `strip()` para eliminar espacios en blanco innecesarios en la entrada del ID.
     - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
     - Se requiere autenticación para acceder a este endpoint, por lo que se utiliza `auth_required=True` 
-      en la función `get_headers()`.
+    en la función `get_headers()`.
     """
+    
+    print("\n📄 --- Detalles del Alquiler --- 📄")
+    id_alquiler = input("🆔 ID del alquiler: ").strip()
+    
+    headers = get_headers(auth_required=True)
+    
     try:
         id_alquiler: str = input("ID del alquiler: ").strip()
         r: requests.Response = requests.get(
-            f"{BASE_URL}/alquileres/detalles/{id_alquiler}", headers=get_headers(auth_required=True)
-        )
-        print("Respuesta:", r.status_code, r.json())
+            f"{BASE_URL}/alquileres/detalles/{id_alquiler}", headers=headers)
+        if r.status_code == 200:
+            datos = r.json()
+            alquiler = datos.get('alquiler', {})
+
+            # Datos del alquiler formateados para mostrar
+            table_data = [[
+                alquiler.get('id_alquiler', 'N/A'),
+                alquiler.get('id_coche', 'N/A'),
+                alquiler.get('id_usuario', 'N/A'),
+                alquiler.get('fecha_inicio', 'N/A'),
+                alquiler.get('fecha_fin', 'N/A'),
+                f"€{alquiler.get('coste_total', 0):.2f}",
+                "✅ Sí" if alquiler.get('activo', False) else "❌ No"
+            ]]
+
+            headers_table = ["ID Alquiler", "ID Coche", "ID Usuario", "Fecha Inicio", "Fecha Fin", "Coste Total", "Activo"]
+
+            print("\n✅ Detalles del alquiler:")
+            print(tabulate(table_data, headers=headers_table, tablefmt="rounded_grid"))
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: No tienes permiso para ver este alquiler.")
+
+        elif r.status_code == 404:
+            print(f"\n🔍 No se encontró ningún alquiler con el ID '{id_alquiler}'.")
+
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def finalizar_alquiler() -> None:
     """
@@ -1204,16 +1370,55 @@ def finalizar_alquiler() -> None:
     - Se utiliza el método `strip()` para eliminar espacios en blanco innecesarios en la entrada del ID.
     - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
     - Se requiere autenticación para acceder a este endpoint, por lo que se utiliza `auth_required=True` 
-      en la función `get_headers()`.
+    en la función `get_headers()`.
     """
+    
+    print("\n✅ --- Finalizar Alquiler --- ✅")
+    id_alquiler = input("🆔 ID del alquiler a finalizar: ").strip()
+    
+    if not id_alquiler:
+        print("❌ Error: El ID del alquiler es obligatorio.")
+        return
+    
+    
+    headers = get_headers(auth_required=True)
+
     try:
         id_alquiler: str = input("🆔 ID del alquiler a finalizar: ").strip()
         r: requests.Response = requests.put(
-            f"{BASE_URL}/alquileres/finalizar/{id_alquiler}", headers=get_headers(auth_required=True)
-        )
-        print("Respuesta:", r.status_code, r.json())
+            f"{BASE_URL}/alquileres/finalizar/{id_alquiler}", headers=headers)
+        if r.status_code == 200:
+            respuesta = r.json()
+            alquiler = respuesta.get('mensaje', '')
+            id_coche = respuesta.get('id_coche', 'N/A')
+
+            # Mostrar confirmación bonita con tabla
+            table_data = [[
+                id_alquiler,
+                id_coche,
+                "✅ Sí"
+            ]]
+
+            headers_table = ["ID Alquiler", "ID Coche", "Finalizado"]
+
+            print("\n🎉 ¡Alquiler finalizado exitosamente!")
+            print(tabulate(table_data, headers=headers_table, tablefmt="rounded_grid"))
+
+        elif r.status_code == 400:
+            error = r.json().get('error', 'No se pudo finalizar el alquiler.')
+            print(f"\n❌ Error ({r.status_code}): {error}")
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: No tienes permiso para finalizar este alquiler.")
+
+        elif r.status_code == 404:
+            print(f"\n🔍 No se encontró ningún alquiler con el ID '{id_alquiler}'.")
+
+        else:
+            print(f"\n⚠️ Error inesperado ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 
 def ver_historial_alquileres() -> None:
@@ -1242,15 +1447,15 @@ def ver_historial_alquileres() -> None:
 
     # Verificar si hay un token JWT válido
     if not TOKEN:
-        print("No has iniciado sesión. Por favor, inicia sesión primero.")
+        print("❌ No has iniciado sesión. Por favor, inicia sesión primero.")
         return
 
-    # Solicitar el email del usuario
-    email = input('Email: ').strip()
+    print("\n📦 --- Historial de Alquileres --- 📦")
+    email = input("📧 Email del usuario: ").strip()
 
     # Validar que el email no esté vacío
     if not email:
-        print("El email es obligatorio.")
+        print("❌ Error: El email es obligatorio.")
         return
 
     # Obtener los headers con el token JWT
@@ -1262,9 +1467,46 @@ def ver_historial_alquileres() -> None:
             f'{BASE_URL}/alquileres/historial/{email}',  # Incluir el email en la URL
             headers=headers  # Incluir los headers con el token JWT
         )
-        print('Respuesta: ', r.status_code, r.json())
+        if r.status_code == 200:
+            datos = r.json()
+            alquileres = datos.get('alquileres', [])
+
+            if not alquileres:
+                print(f"\n🚫 No se encontró historial de alquileres para '{email}'.")
+                return
+
+            # Mostrar datos en formato tabla
+            headers_table = [
+                "ID Alquiler", "ID Coche", "Matrícula", 
+                "Fecha Inicio", "Fecha Fin", "Coste Total", "Activo"
+            ]
+
+            table_data = [[
+                a.get('id_alquiler', 'N/A'),
+                a.get('id_coche', 'N/A'),
+                a.get('matricula', 'N/A'),
+                a.get('fecha_inicio', 'N/A'),
+                a.get('fecha_fin', 'N/A'),
+                f"€{a.get('coste_total', 0):.2f}",
+                "✅ Sí" if a.get('activo') else "❌ No"
+            ] for a in alquileres]
+
+            print(f"\n📅 Historial de alquileres para {email}:")
+            print(tabulate(table_data, headers=headers_table, tablefmt="rounded_grid"))
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: No tienes permiso para ver este historial.")
+
+        elif r.status_code == 404:
+            error = r.json().get('error', 'Usuario no encontrado.')
+            print(f"\n🔍 No se encontró ningún historial de alquileres para '{email}'.")
+            print(f"Mensaje del servidor: {error}")
+
+        else:
+            print(f"\n⚠️ Error inesperado ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print(f'Error al obtener el historial de alquileres: {e}')
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def alquilar_coche() -> None:
     """
@@ -1291,11 +1533,11 @@ def alquilar_coche() -> None:
     - Para guardar el archivo PDF, se utiliza el módulo `tkinter.filedialog`, que abre un cuadro de diálogo gráfico.
     - La función imprime mensajes informativos sobre el resultado de la operación.
     """
-    print("\n--- Alquilar Coche ---")
-    matricula: str = input("Matrícula del coche: ").strip()
-    fecha_inicio: str = input("Fecha de inicio (YYYY-MM-DD): ").strip()
-    fecha_fin: str = input("Fecha de fin (YYYY-MM-DD): ").strip()
-    email: str | None = input("Email del usuario (dejar en blanco para invitado): ").strip() or None
+    print("\n🚗 --- Alquilar Coche --- 🚗")
+    matricula = input("🔤 Matrícula del coche: ").strip()
+    fecha_inicio = input("📅 Fecha de inicio (YYYY-MM-DD): ").strip()
+    fecha_fin = input("📆 Fecha de fin (YYYY-MM-DD): ").strip()
+    email = input("📧 Email del usuario (dejar en blanco para invitado): ").strip() or None
 
     # Preparar los datos para la solicitud
     data: dict[str, str | None] = {
@@ -1328,13 +1570,31 @@ def alquilar_coche() -> None:
             if ruta_guardado:
                 with open(ruta_guardado, "wb") as f:
                     f.write(r.content)
-                print("Factura descargada exitosamente.")
+                print("✅Factura descargada exitosamente.")
+                print("\n🎉 ¡Alquiler realizado exitosamente!")
             else:
-                print("Guardado cancelado por el usuario.")
+                print("🚫 Descarga cancelada por el usuario.")
+        elif r.status_code == 200 and 'application/json' in r.headers.get('Content-Type', ''):
+            # Si el servidor responde con JSON en lugar de PDF (por ejemplo, error o info)
+            respuesta = r.json()
+            error = respuesta.get('error')
+            if error:
+                print(f"\n❌ Error del servidor: {error}")
+            else:
+                print(f"\n📦 Respuesta del servidor: {respuesta}")
+
+        elif r.status_code == 400:
+            error = r.json().get('error', 'Datos incorrectos.')
+            print(f"\n❌ Error ({r.status_code}): {error}")
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: Los administradores no pueden alquilar coches.")
+
         else:
-            print(f"Error: {r.status_code} - {r.text}")
+            print(f"\n⚠️ Error inesperado ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print(f"Error de conexión: {e}")
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 
 def listar_tipos() -> None:
@@ -1354,10 +1614,33 @@ def listar_tipos() -> None:
         Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
         timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
     """
+    
+    print("\n📁 --- Categorías de Tipo de Coche --- 📁")
+    
     try:
         r: requests.Response = requests.get(f"{BASE_URL}/coches/categorias/tipo")
-        print("Respuesta:", r.status_code, r.json())
+        if r.status_code == 200:
+            datos = r.json()
+            categorias = datos.get("categorias_tipo", [])
+
+            if not categorias:
+                print("\n🚫 No hay categorías de tipo disponibles.")
+                return
+
+            # Mostrar las categorías en formato tabla
+            table_data = [[idx + 1, categoria] for idx, categoria in enumerate(categorias)]
+            headers_table = ["#", "Categoría de Tipo"]
+
+            print("\n🔢 Categorías disponibles:")
+            print(tabulate(table_data, headers=headers_table, tablefmt="rounded_grid"))
+
+        elif r.status_code == 404:
+            print(f"\n🔍 No se encontraron categorías de tipo: {r.json().get('error', 'No hay categorías disponibles')}")
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
         print("Error de conexión:", e)
 
 def listar_precios() -> None:
@@ -1377,11 +1660,35 @@ def listar_precios() -> None:
         Si ocurre un error durante la solicitud HTTP (por ejemplo, problemas de conexión, 
         timeout, o errores de red), se captura la excepción y se imprime un mensaje de error.
     """
+    
+    print("\n💰 --- Categorías de Precio --- 💰")
+    
     try:
         r: requests.Response = requests.get(f"{BASE_URL}/coches/categorias/precio")
-        print("Respuesta:", r.status_code, r.json())
+        if r.status_code == 200:
+            datos = r.json()
+            categorias = datos.get("categorias_precio", [])
+
+            if not categorias:
+                print("\n🚫 No hay categorías de precio disponibles.")
+                return
+
+            # Mostrar categorías en tabla
+            table_data = [[idx + 1, categoria] for idx, categoria in enumerate(categorias)]
+            headers_table = ["#", "Categoría de Precio"]
+
+            print("\n🏷️ Categorías de precio disponibles:")
+            print(tabulate(table_data, headers=headers_table, tablefmt="rounded_grid"))
+
+        elif r.status_code == 404:
+            error = r.json().get('error', 'No hay categorías de precio disponibles.')
+            print(f"\n🔍 Error ({r.status_code}): {error}")
+
+        else:
+            print(f"\n⚠️ Error inesperado ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def main() -> None:
     """
@@ -1395,7 +1702,7 @@ def main() -> None:
     -----
     - La función no devuelve ningún valor.
     - Dependiendo de la implementación de `mostrar_menu_principal()`, esta función podría incluir un bucle 
-      infinito hasta que el usuario decida salir de la aplicación.
+    infinito hasta que el usuario decida salir de la aplicación.
     """
     mostrar_menu_principal()
 
