@@ -499,11 +499,11 @@ def registrar_coche() -> None:
     
     print("\n🚗 --- Registrar Nuevo Coche --- 🚗")
     
-    marca = input('Marca: ')
-    modelo = input('Modelo: ')
-    matricula = input('Matricula: ')
-    categoria_tipo = input('Categoria tipo: ')
-    categoria_precio = input('Categoria precio: ')
+    marca = input('Marca: ').strip()
+    modelo = input('Modelo: ').strip()
+    matricula = input('Matricula: ').strip()
+    categoria_tipo = input('Categoria tipo: ').strip()
+    categoria_precio = input('Categoria precio: ').strip()
     
     try:
         año = int(input("Año (1900 - actual): ").strip())
@@ -581,23 +581,33 @@ def registrar_coche() -> None:
         r = requests.post(f'{BASE_URL}/coches/registrar', json=data, headers=headers)
         if r.status_code == 201:
             respuesta = r.json()
+            coche_data = [
+                [
+                    marca,
+                    modelo,
+                    matricula,
+                    año,
+                    f"€{precio_diario:.2f}",
+                    categoria_tipo,
+                    categoria_precio,
+                    "Sí" if disponible else "No",
+                    respuesta.get('id_coche', 'N/A')
+                ]
+            ]
+
+            headers_table = [
+                "Marca", "Modelo", "Matrícula", "Año", "Precio", 
+                "Tipo", "Categoría", "Disponible", "ID Coche"
+            ]
+
             print("\n✅ ¡Coche registrado exitosamente!")
-            print("┌──────────────────────────────┐")
-            print("│     📋 Datos del Coche       │")
-            print("├──────────────────────────────┤")
-            print(f"│ Marca      : {marca}          ")
-            print(f"│ Modelo     : {modelo}         ")
-            print(f"│ Matrícula  : {matricula}      ")
-            print(f"│ Año        : {año}            ")
-            print(f"│ Precio     : €{precio_diario:.2f}")
-            print(f"│ ID Coche   : {respuesta.get('id_coche', 'N/A')} ")
-            print("└──────────────────────────────┘\n")
+            print(tabulate(coche_data, headers=headers_table, tablefmt="rounded_grid"))
 
         elif r.status_code == 400:
             error = r.json().get('error', 'Error desconocido.')
             print(f"\n❌ Error: {error}")
         elif r.status_code == 403:
-            print("\n❌ Acceso denegado. Debes ser administrador.")
+            print("\n❌ Acceso denegado. Solo los administradores pueden registrar coches.")
         else:
             print(f"\n⚠️ Error inesperado: {r.status_code} - {r.text}")
 
@@ -970,17 +980,38 @@ def actualizar_contraseña() -> None:
     - Requiere la biblioteca `requests` y la constante global BASE_URL.
     - Maneja excepciones de red e imprime errores si ocurren.
     """
+    print("\n🔐 --- Actualizar Contraseña --- 🔐")
+
+    email = input("📧 Correo electrónico: ").strip()
+    nueva_contraseña = input("🔑 Nueva contraseña: ").strip()
+    confirmacion = input("🔁 Confirmar nueva contraseña: ").strip()
+    
+    if nueva_contraseña != confirmacion:
+        print("❌ Error: Las contraseñas no coinciden.")
+        return
+    
     try:
-        nueva_contraseña = input("Nueva contraseña: ").strip()
-        email = input("Tu correo electrónico: ").strip()
         r = requests.put(
             f"{BASE_URL}/usuarios/actualizar-contraseña/{email}",
             json={"nueva_contraseña": nueva_contraseña},
             headers=get_headers(auth_required=True)
         )
-        print("Respuesta:", r.status_code, r.json())
+        if r.status_code == 200:
+            print("\n✅ ¡Contraseña actualizada exitosamente!")
+            print("🔓 Puedes iniciar sesión con tu nueva contraseña.")
+
+        elif r.status_code == 400:
+            error = r.json().get('error', 'No se pudo actualizar la contraseña.')
+            print(f"\n❌ Error ({r.status_code}): {error}")
+
+        elif r.status_code == 403:
+            print("\n❌ Acceso denegado: Solo puedes cambiar tu propia contraseña.")
+
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def logout() -> None:
     """
@@ -999,14 +1030,26 @@ def logout() -> None:
     - Maneja excepciones de red e imprime errores si ocurren.
     - Se asume que el servidor invalida el token tras esta solicitud.
     """
+    global TOKEN, ROL
+    
     try:
         r = requests.post(
             f"{BASE_URL}/logout",
             headers=get_headers(auth_required=True)
         )
-        print("Respuesta:", r.status_code, r.json())
+        if r.status_code == 200:
+            # Limpiar variables globales
+            TOKEN = None
+            ROL = None
+
+            print("\n👋 Sesión cerrada exitosamente.")
+            print("🔓 Ahora puedes iniciar sesión con otro usuario o salir del sistema.")
+
+        else:
+            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
+
     except requests.exceptions.RequestException as e:
-        print("Error de conexión:", e)
+        print(f"\n🌐 Error al conectar con el servidor: {e}")
 
 def detalles_coche() -> None:
     """
