@@ -7,7 +7,7 @@ import datetime
 from tabulate import tabulate
 
 
-BASE_URL = "https://alexiss1.pythonanywhere.com/"  
+BASE_URL = "https://alexiss1.pythonanywhere.com/"
 TOKEN = None
 ROL = None
 

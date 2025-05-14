@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from faker import Faker
-
+# Este script se ha utilizado para la creación de las bases de datos, ya no es necesaria su ejecución
 '''# Configuración
 np.random.seed(1935)
 fake = Faker('es_ES')
