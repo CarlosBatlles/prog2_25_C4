@@ -373,228 +373,451 @@ class Coche:
             
         
     @staticmethod
-    def cargar_coches_disponibles(connection) -> list:
+    def cargar_coches_disponibles(connection: 'MySQLConnection') -> List[Dict[str, Any]]:
         """
-        Carga todos los coches disponibles desde la base de datos.
+        Obtiene una lista de todos los coches marcados como disponibles en la base de datos.
+
+        Ejecuta una consulta SQL para seleccionar todos los coches de la tabla 'coches'
+        donde el campo 'disponible' es TRUE.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            Una lista de diccionarios, donde cada diccionario representa un coche
+            disponible y contiene todos sus campos. Retorna una lista vacía
+            si no se encuentran coches disponibles.
+
+        Raises
+        ------
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos
+            (e.g., error de conexión, error de sintaxis SQL).
+            La excepción original de `mysql.connector` se propaga.
+        """
+
+        try:
+            with connection.cursor(dictionary=True) as cursor:
+                query = "SELECT * FROM coches WHERE disponible = TRUE"
+                cursor.execute(query)
+                resultados: List[Dict[str, Any]] = cursor.fetchall()
+                
+                return resultados
+
+        except Error as e:
+            raise e
+    
+    @staticmethod
+    def obtener_categorias_precio(connection: 'MySQLConnection') -> List[str]: 
+        """
+        Obtiene una lista única y ordenada de las categorías de precio de los coches disponibles.
+
+        Ejecuta una consulta SQL para seleccionar los valores distintos de la columna
+        'categoria_precio' de la tabla 'coches', filtrando solo por aquellos
+        coches que están marcados como 'disponible'. Las categorías se devuelven
+        ordenadas alfabéticamente.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
+
+        Returns
+        -------
+        List[str]
+            Una lista de strings, donde cada string es una categoría de precio única.
+            Retorna una lista vacía si no se encuentran categorías o coches disponibles.
+
+        Raises
+        ------
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos
+            (e.g., error de conexión, error de sintaxis SQL).
+            La excepción original de `mysql.connector` se propaga.
         """
         try:
-            cursor = connection.cursor(dictionary=True)
-            query = "SELECT * FROM coches WHERE disponible = TRUE"
-            cursor.execute(query)
-            return [dict(row) for row in cursor.fetchall()]
-        except Error as e:
-            raise ValueError(f"Error al cargar coches disponibles: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            with connection.cursor() as cursor:
+                query = """
+                    SELECT DISTINCT categoria_precio 
+                    FROM coches 
+                    WHERE disponible = TRUE 
+                    ORDER BY categoria_precio ASC
+                    """
+                cursor.execute(query)
+                categorias: List[str] = [row[0] for row in cursor.fetchall()]
             
-    
-    
-    def obtener_categorias_precio(connection) -> list:
-        """
-        Devuelve una lista única de categorías de precio disponibles.
-        """
-        try:
-            cursor = connection.cursor()
-            query = "SELECT DISTINCT categoria_precio FROM coches WHERE disponible = TRUE ORDER BY categoria_precio"
-            cursor.execute(query)
-            return [row[0] for row in cursor.fetchall()]
+            return categorias
+        
         except Error as e:
-            raise ValueError(f"Error al obtener categorías de precio: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
-                
+            raise e
                 
     
-    def obtener_categorias_tipo(connection, categoria_precio: str) -> list:
+    @staticmethod
+    def obtener_categorias_tipo(
+        connection: 'MySQLConnection',
+        categoria_precio: str
+        ) -> List[str]: 
         """
-        Devuelve una lista de categorías de tipo únicas para una categoría de precio específica.
+        Obtiene una lista única y ordenada de tipos de categoría para una categoría de precio dada.
+
+        Filtra los coches disponibles por la `categoria_precio` especificada y
+        luego recupera los valores distintos de 'categoria_tipo' para esos coches.
+        Los tipos de categoría se devuelven ordenados alfabéticamente.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
+        categoria_precio : str
+            La categoría de precio específica por la cual filtrar los coches
+            (e.g., "Económico", "Premium").
+
+        Returns
+        -------
+        List[str]
+            Una lista de strings, donde cada string es un tipo de categoría único
+            (e.g., "SUV", "Sedán") para la `categoria_precio` dada.
+            Retorna una lista vacía si no se encuentran tipos de categoría para
+            la combinación dada o si no hay coches disponibles que coincidan.
+
+        Raises
+        ------
+        ValueError
+            Si `categoria_precio` es inválida (e.g., vacía).
+            En la versión original, también si no se encontraban resultados.
+            En esta versión, se devuelve lista vacía si no hay resultados,
+            a menos que se decida mantener el lanzamiento de error.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
+            La excepción original de `mysql.connector` se propaga.
         """
         try:
-            cursor = connection.cursor()
-            query = """
-            SELECT DISTINCT categoria_tipo 
-            FROM coches 
-            WHERE disponible = TRUE AND categoria_precio = %s
-            ORDER BY categoria_tipo
-            """
-            cursor.execute(query, (categoria_precio,))
-            resultados = [row[0] for row in cursor.fetchall()]
+            with connection.cursor() as cursor:
+                query = """
+                    SELECT DISTINCT categoria_tipo 
+                    FROM coches 
+                    WHERE disponible = TRUE AND categoria_precio = %s
+                    ORDER BY categoria_tipo ASC
+                """
+                cursor.execute(query, (categoria_precio,))
+                
+            resultados: List[str] = [row[0] for row in cursor.fetchall()]
+
             if not resultados:
                 raise ValueError("No hay categorías de tipo disponibles.")
             return resultados
+        
         except Error as e:
-            raise ValueError(f"Error al obtener categorías de tipo: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            raise e
     
     
-    
-    def obtener_marcas(connection, categoria_precio: str, categoria_tipo: str) -> list:
+    @staticmethod
+    def obtener_marcas(
+        connection: 'MySQLConnection',
+        categoria_precio: str,
+        categoria_tipo: str
+        ) -> List[str]:
         """
-        Devuelve una lista de marcas únicas para una combinación de categoría de precio y tipo.
+        Obtiene una lista única y ordenada de marcas de coches disponibles
+        para una combinación específica de categoría de precio y tipo de categoría.
+
+        Filtra los coches disponibles por la `categoria_precio` y `categoria_tipo`
+        especificadas, y luego recupera los valores distintos de 'marca' para
+        esos coches. Las marcas se devuelven ordenadas alfabéticamente.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
+        categoria_precio : str
+            La categoría de precio específica por la cual filtrar (e.g., "Económico").
+        categoria_tipo : str
+            El tipo de categoría específico por el cual filtrar (e.g., "SUV").
+
+        Returns
+        -------
+        List[str]
+            Una lista de strings, donde cada string es una marca única
+            (e.g., "Toyota", "Ford") para la combinación de filtros dada.
+            Retorna una lista vacía si no se encuentran marcas que coincidan
+            con los criterios.
+
+        Raises
+        ------
+        ValueError
+            Si `categoria_precio` o `categoria_tipo` son inválidas (e.g., vacías).
+            En la versión original, también si no se encontraban resultados.
+            En esta versión, se devuelve lista vacía si no hay resultados.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
+            La excepción original de `mysql.connector` se propaga.
         """
         try:
-            cursor = connection.cursor()
-            query = """
-            SELECT DISTINCT marca 
-            FROM coches 
-            WHERE disponible = TRUE 
-            AND categoria_precio = %s 
-            AND categoria_tipo = %s
-            ORDER BY marca
-            """
-            cursor.execute(query, (categoria_precio, categoria_tipo))
-            resultados = [row[0] for row in cursor.fetchall()]
-            if not resultados:
+            with connection.cursor() as cursor:
+                query = """
+                    SELECT DISTINCT marca 
+                    FROM coches 
+                    WHERE disponible = TRUE 
+                        AND categoria_precio = %s 
+                        AND categoria_tipo = %s
+                    ORDER BY marca ASC
+                """
+                # Los parámetros deben pasarse como una tupla
+                cursor.execute(query, (categoria_precio, categoria_tipo))
+
+            marcas: List[str] = [row[0] for row in cursor.fetchall()]
+
+            if not marcas:
                 raise ValueError("No hay marcas disponibles con esos filtros.")
-            return resultados
+            return marcas
         except Error as e:
-            raise ValueError(f"Error al obtener marcas: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            raise e
     
     
     
-    def obtener_modelos(connection, categoria_precio: str, categoria_tipo: str, marca: str) -> list:
+    @staticmethod
+    def obtener_modelos(
+        connection: 'MySQLConnection',
+        categoria_precio: str,
+        categoria_tipo: str,
+        marca: str
+        ) -> List[str]:
         """
-        Devuelve una lista de modelos únicos para una marca, categoría de precio y tipo específicos.
+        Obtiene una lista única y ordenada de modelos de coches disponibles
+        para una combinación específica de categoría de precio, tipo de categoría y marca.
+
+        Filtra los coches disponibles por `categoria_precio`, `categoria_tipo` y `marca`
+        especificadas, y luego recupera los valores distintos de 'modelo' para
+        esos coches. Los modelos se devuelven ordenados alfabéticamente.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
+        categoria_precio : str
+            La categoría de precio específica por la cual filtrar (e.g., "Económico").
+        categoria_tipo : str
+            El tipo de categoría específico por el cual filtrar (e.g., "SUV").
+        marca : str
+            La marca específica del coche por la cual filtrar (e.g., "Toyota").
+
+        Returns
+        -------
+        List[str]
+            Una lista de strings, donde cada string es un modelo único
+            (e.g., "Corolla", "RAV4") para la combinación de filtros dada.
+            Retorna una lista vacía si no se encuentran modelos que coincidan
+            con los criterios.
+
+        Raises
+        ------
+        ValueError
+            Si `categoria_precio`, `categoria_tipo` o `marca` son inválidas (e.g., vacías).
+            En la versión original, también si no se encontraban resultados.
+            En esta versión, se devuelve lista vacía si no hay resultados.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
+            La excepción original de `mysql.connector` se propaga.
         """
         try:
-            cursor = connection.cursor()
-            query = """
-            SELECT DISTINCT modelo 
-            FROM coches 
-            WHERE disponible = TRUE 
-            AND categoria_precio = %s 
-            AND categoria_tipo = %s 
-            AND marca = %s
-            ORDER BY modelo
-            """
-            cursor.execute(query, (categoria_precio, categoria_tipo, marca))
-            resultados = [row[0] for row in cursor.fetchall()]
-            if not resultados:
+            with connection.cursor() as cursor:
+                query = """
+                    SELECT DISTINCT modelo 
+                    FROM coches 
+                    WHERE disponible = TRUE 
+                        AND categoria_precio = %s 
+                        AND categoria_tipo = %s 
+                        AND marca = %s
+                    ORDER BY modelo ASC
+                """
+                cursor.execute(query, (categoria_precio, categoria_tipo, marca))
+                
+                modelos: List[str] = [row[0] for row in cursor.fetchall()]
+
+            if not modelos:
                 raise ValueError("No hay modelos disponibles con esos filtros.")
-            return resultados
+            return modelos
         except Error as e:
-            raise ValueError(f"Error al obtener modelos: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            raise e
     
     
-    
-    def filtrar_por_modelo(connection, categoria_precio: str, categoria_tipo: str, marca: str, modelo: str) -> list[dict]:
+    @staticmethod
+    def filtrar_por_modelo(
+        connection: 'MySQLConnection',
+        categoria_precio: str,
+        categoria_tipo: str,
+        marca: str,
+        modelo: str
+        ) -> List[Dict[str, Any]]:
         """
-        Devuelve los coches disponibles que coinciden con todos los criterios:
-        categoría de precio, categoría de tipo, marca y modelo.
+        Obtiene una lista de coches disponibles que coinciden con todos los criterios especificados.
+
+        Filtra los coches de la tabla 'coches' que están marcados como 'disponible'
+        y que además coinciden con la `categoria_precio`, `categoria_tipo`, `marca`
+        y `modelo` proporcionados.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
+        categoria_precio : str
+            La categoría de precio del coche a filtrar.
+        categoria_tipo : str
+            El tipo de categoría del coche a filtrar.
+        marca : str
+            La marca del coche a filtrar.
+        modelo : str
+            El modelo específico del coche a filtrar.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            Una lista de diccionarios, donde cada diccionario representa un coche
+            que coincide con todos los criterios de filtrado. Contiene todos
+            los campos del coche. Retorna una lista vacía si no se encuentran
+            coches que coincidan.
+
+        Raises
+        ------
+        ValueError
+            Si alguno de los parámetros de filtro (`categoria_precio`,
+            `categoria_tipo`, `marca`, `modelo`) es inválido (e.g., vacío).
+            En la versión original, también si no se encontraban resultados.
+            En esta versión, se devuelve lista vacía si no hay resultados.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
+            La excepción original de `mysql.connector` se propaga.
         """
+
         try:
-            cursor = connection.cursor(dictionary=True)
-            query = """
-            SELECT * FROM coches 
-            WHERE disponible = TRUE 
-            AND categoria_precio = %s 
-            AND categoria_tipo = %s 
-            AND marca = %s 
-            AND modelo = %s
-            """
-            cursor.execute(query, (categoria_precio, categoria_tipo, marca, modelo))
-            resultados = cursor.fetchall()
+            with connection.cursor(dictionary=True) as cursor:
+                query = """
+                    SELECT * 
+                    FROM coches 
+                    WHERE disponible = TRUE 
+                        AND categoria_precio = %s 
+                        AND categoria_tipo = %s 
+                        AND marca = %s 
+                        AND modelo = %s
+                    ORDER BY id ASC -- Opcional: añadir un orden para consistencia
+                """
+                # Los parámetros deben pasarse como una tupla
+                params = (categoria_precio, categoria_tipo, marca, modelo)
+                cursor.execute(query, params)
+                
+                # cursor.fetchall() con dictionary=True devuelve List[Dict[str, Any]]
+                resultados: List[Dict[str, Any]] = cursor.fetchall()
+
             if not resultados:
                 raise ValueError("No se encontraron coches con estos filtros.")
             return resultados
         except Error as e:
-            raise ValueError(f"Error al filtrar por modelo: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            raise e
     
     
     @staticmethod
-    def mostrar_categorias_tipo(connection) -> list:
+    def mostrar_categorias_tipo(connection: 'MySQLConnection') -> List[str]:
         """
-        Muestra las categorías de tipo de los coches disponibles en el sistema.
+        Obtiene una lista única y ordenada de los tipos de categoría de los coches disponibles.
 
-        Este método consulta la base de datos y devuelve una lista 
-        de las categorías de tipo únicas disponibles.
+        Consulta la base de datos para recuperar los valores distintos de la columna
+        'categoria_tipo' de la tabla 'coches', considerando solo aquellos coches
+        que están marcados como 'disponible'. Las categorías se devuelven
+        ordenadas alfabéticamente.
+
+        El nombre "mostrar_" sugiere una acción de UI, pero el método devuelve datos.
+        Considerar renombrar a "obtener_categorias_tipo" si es más preciso para su uso.
 
         Parameters
         ----------
-        connection : mysql.connection.MySQLConnection
-            Conexión activa a la base de datos.
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
 
         Returns
         -------
-        list
-            Una lista de las categorías de tipo únicas de los coches.
+        List[str]
+            Una lista de strings, donde cada string es un tipo de categoría único
+            (e.g., "SUV", "Sedán"). Retorna una lista vacía si no se encuentran
+            categorías o coches disponibles.
 
         Raises
         ------
-        ValueError
-            Si no se pueden obtener las categorías de tipo desde la base de datos.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
+            La excepción original de `mysql.connector` se propaga.
         """
         try:
-            cursor = connection.cursor(dictionary=True)
-            query = "SELECT DISTINCT categoria_tipo FROM coches WHERE disponible = TRUE ORDER BY categoria_tipo"
-            cursor.execute(query)
-            resultados = cursor.fetchall()
-
-            if not resultados:
+            with connection.cursor(dictionary=True) as cursor:
+                query = """
+                    SELECT DISTINCT categoria_tipo 
+                    FROM coches 
+                    WHERE disponible = TRUE 
+                    ORDER BY categoria_tipo ASC
+                """
+                cursor.execute(query)
+                
+                # cursor.fetchall() devolverá una lista de diccionarios,
+                # ej: [{'categoria_tipo': 'Compacto'}, {'categoria_tipo': 'SUV'}, ...]
+                # La comprensión de listas extrae el valor asociado a la clave 'categoria_tipo'.
+                categorias_tipo: List[str] = [row['categoria_tipo'] for row in cursor.fetchall()]
+                
+            if not categorias_tipo:
                 raise ValueError("No hay categorías de tipo disponibles en la base de datos.")
-
-            return [row['categoria_tipo'] for row in resultados]
+            return categorias_tipo
 
         except Error as e:
-            raise ValueError(f"Error al obtener las categorías de tipo: {e}")
-
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            raise e
     
     
     @staticmethod
-    def mostrar_categorias_precio(connection) -> list:
+    def mostrar_categorias_precio(connection: 'MySQLConnection') -> List[str]:
         """
-        Muestra las categorías de precio de los coches disponibles en el sistema.
+        Obtiene una lista única y ordenada de las categorías de precio de los coches disponibles.
 
-        Este método consulta la base de datos y devuelve una lista 
-        de las categorías de precio únicas disponibles.
+        Consulta la base de datos para recuperar los valores distintos de la columna
+        'categoria_precio' de la tabla 'coches', considerando solo aquellos coches
+        que están marcados como 'disponible'. Las categorías se devuelven
+        ordenadas alfabéticamente.
+
+        El nombre "mostrar_" sugiere una acción de UI, pero el método devuelve datos.
+        Considerar renombrar a "obtener_categorias_precio" si es más preciso para su uso.
 
         Parameters
         ----------
-        connection : mysql.connection.MySQLConnection
-            Conexión activa a la base de datos.
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
 
         Returns
         -------
-        list
-            Una lista de las categorías de precio únicas de los coches.
+        List[str]
+            Una lista de strings, donde cada string es una categoría de precio única
+            (e.g., "Económico", "Premium"). Retorna una lista vacía si no se encuentran
+            categorías o coches disponibles.
 
         Raises
         ------
-        ValueError
-            Si no se pueden cargar los datos o si no hay categorías disponibles.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
+            La excepción original de `mysql.connector` se propaga.
         """
         try:
-            cursor = connection.cursor(dictionary=True)
-            query = "SELECT DISTINCT categoria_precio FROM coches WHERE disponible = TRUE ORDER BY categoria_precio"
-            cursor.execute(query)
-            resultados = cursor.fetchall()
-
-            if not resultados:
+            with connection.cursor(dictionary=True) as cursor:
+                query = """
+                    SELECT DISTINCT categoria_precio 
+                    FROM coches 
+                    WHERE disponible = TRUE 
+                    ORDER BY categoria_precio ASC
+                """
+                cursor.execute(query)
+                categorias_precio: List[str] = [row['categoria_precio'] for row in cursor.fetchall()]
+                
+            if not categorias_precio:
                 raise ValueError("No hay categorías de precio disponibles en la base de datos.")
-
-            return [row['categoria_precio'] for row in resultados]
-
+            return categorias_precio
+        
         except Error as e:
-            raise ValueError(f"Error al obtener las categorías de precio: {e}")
-
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
-    
-    
+            raise e
