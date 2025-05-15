@@ -1,84 +1,211 @@
-
 from mysql.connector import Error
+from mysql.connector.connection import MySQLConnection
+from typing import Optional, List, Dict, Any
+
 
 class Coche:
+    """
+    Representa un coche en el sistema de alquiler.
+    """
     def __init__(self, id: str, marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,
                 año: int, precio_diario: float, kilometraje: float, color: str, combustible: str, cv: int,
                 plazas: int, disponible: bool):
-        self.id = id
-        self.marca = marca
-        self.modelo = modelo
-        self.matricula = matricula
-        self.categoria_tipo = categoria_tipo
-        self.categoria_precio = categoria_precio
-        self.año = año
-        self.precio_diario = precio_diario
-        self.kilometraje = kilometraje
-        self.color = color
-        self.combustible = combustible
-        self.cv = cv
-        self.plazas = plazas
-        self.disponible = disponible
-        
+        """
+        Inicializa una nueva instancia de Coche.
+
+        Parameters
+        ----------
+        id : str
+            Identificador único del coche.
+        marca : str
+            Marca del coche.
+        modelo : str
+            Modelo del coche.
+        matricula : str
+            Matrícula del coche.
+        categoria_tipo : str
+            Tipo de categoría del coche (e.g., "SUV", "Sedán").
+        categoria_precio : str
+            Categoría de precio del coche (e.g., "Económico", "Premium").
+        año : int
+            Año de fabricación del coche.
+        precio_diario : float
+            Precio del alquiler por día.
+        kilometraje : float
+            Kilometraje actual del coche.
+        color : str
+            Color del coche.
+        combustible : str
+            Tipo de combustible del coche.
+        cv : int
+            Caballos de vapor del coche.
+        plazas : int
+            Número de plazas del coche.
+        disponible : bool
+            Estado de disponibilidad del coche.
+        """
+        self.id: str = id
+        self.marca: str = marca
+        self.modelo: str = modelo
+        self.matricula: str = matricula
+        self.categoria_tipo: str = categoria_tipo
+        self.categoria_precio: str = categoria_precio
+        self.año: int = año
+        self.precio_diario: float = precio_diario
+        self.kilometraje: float = kilometraje
+        self.color: str = color
+        self.combustible: str = combustible
+        self.cv: int = cv
+        self.plazas: int = plazas
+        self.disponible: bool = disponible
         
     @staticmethod
-    def obtener_todos(connection):
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM coches")
-        resultados = cursor.fetchall()
-        
-        return [Coche(**row)for row in resultados]
-    
-
-    def obtener_por_matricula(connection, matricula: str) -> dict:
+    def obtener_todos(connection:'MySQLConnection') -> List['Coche']:
         """
-        Obtiene los detalles de un coche por su matrícula desde MySQL.
+        Recupera todos los coches de la base de datos.
+
+        Este método ejecuta una consulta SQL para seleccionar todos los registros
+        de la tabla 'coches' y los convierte en una lista de instancias
+        de la clase Coche.
 
         Parameters
         ----------
         connection : mysql.connector.connection.MySQLConnection
-            Conexión activa a la base de datos.
-        matricula : str
-            Matrícula única del coche.
+            Una conexión activa a la base de datos MySQL.
 
         Returns
         -------
-        dict
-            Un diccionario con todos los campos del coche.
+        List[Coche]
+            Una lista de objetos `Coche`. Retorna una lista vacía si no se
+            encuentran coches en la base de datos.
+        """
+        try:
+            with connection.cursor(dictionary=True) as cursor:
+                cursor.execute("SELECT * FROM coches")
+                resultados = cursor.fetchall() # Lista de diccionarios
+                coches = [Coche(**row) for row in resultados]
+            return coches
+        except Error as e:
+            raise e
+    
+    @staticmethod
+    def obtener_por_matricula(
+        connection: 'MySQLConnection',
+        matricula: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene los detalles de un coche por su matrícula desde la base de datos.
+
+        Busca un coche en la tabla 'coches' que coincida con la matrícula proporcionada
+        y devuelve sus datos como un diccionario.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
+        matricula : str
+            La matrícula del coche a buscar.
+
+        Returns
+        -------
+        Optional[Dict[str, Any]]
+            Un diccionario conteniendo los datos del coche si se encuentra.
+            Los nombres de las claves del diccionario corresponden a los nombres
+            de las columnas en la tabla 'coches'.
+            Retorna `None` si no se encuentra ningún coche con la matrícula dada.
+
+        Raises
+        ------
+        mysql.connector.Error
+            Si ocurre un error durante la ejecución de la consulta SQL
+            (e.g., problema de conexión, error de sintaxis SQL).
+            La excepción original de `mysql.connector` se propaga.
+        """
+        try:
+            with connection.cursor(dictionary=True) as cursor:
+                query = "SELECT * FROM coches WHERE matricula = %s"
+                cursor.execute(query, (matricula,))
+                resultado: Optional[Dict[str, Any]] = cursor.fetchone()
+                return resultado
+
+        except Error as e:
+            raise e
+
+
+
+    @staticmethod
+    def registrar_coche(
+        connection: 'MySQLConnection',
+        marca: str,
+        modelo: str,
+        matricula: str,
+        categoria_tipo: str,
+        categoria_precio: str,
+        año: int,
+        precio_diario: float,
+        kilometraje: float,
+        color: str,
+        combustible: str,
+        cv: int,
+        plazas: int,
+        disponible: bool
+        ) -> int:
+        """
+        Registra un nuevo coche en la base de datos tras validar los datos.
+
+        Este método primero valida que los datos proporcionados cumplan con ciertos
+        criterios (campos obligatorios, rangos numéricos, tipo booleano).
+        Si las validaciones son exitosas, inserta el nuevo coche en la tabla 'coches'.
+
+        Parameters
+        ----------
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
+        marca : str
+            Marca del coche.
+        modelo : str
+            Modelo del coche.
+        matricula : str
+            Matrícula única del coche.
+        categoria_tipo : str
+            Tipo de categoría del coche (e.g., "SUV", "Sedán").
+        categoria_precio : str
+            Categoría de precio del coche (e.g., "Económico", "Premium").
+        año : int
+            Año de fabricación del coche.
+        precio_diario : float
+            Precio del alquiler por día. Debe ser mayor que 0.
+        kilometraje : float
+            Kilometraje actual del coche. No puede ser negativo.
+        color : str
+            Color del coche.
+        combustible : str
+            Tipo de combustible del coche.
+        cv : int
+            Caballos de vapor del coche. Debe ser mayor que 0.
+        plazas : int
+            Número de plazas del coche. Debe ser mayor o igual a 2.
+        disponible : bool
+            Estado de disponibilidad inicial del coche.
+
+        Returns
+        -------
+        int
+            El ID del coche recién registrado, generado por la base de datos
+            (usualmente el valor de la clave primaria autoincremental).
 
         Raises
         ------
         ValueError
-            Si no se encuentra el coche o si hay errores en la consulta.
-        Exception
-            Si ocurre un error en la conexión.
-        """
-        try:
-            cursor = connection.cursor(dictionary=True)
-            query = "SELECT * FROM coches WHERE matricula = %s"
-            cursor.execute(query, (matricula,))
-            resultado = cursor.fetchone()
-
-            if not resultado:
-                raise ValueError(f"No se encontró ningún coche con la matrícula {matricula}")
-
-            return resultado
-
-        except Error as e:
-            raise ValueError(f"Error al obtener detalles del coche: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
-
-
-
-    def registrar_coche(connection,marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,
-                        año: int, precio_diario: float, kilometraje: float, color: str, combustible: str, cv: int,
-                        plazas: int, disponible: bool) -> bool:
-        """
-        Registra un nuevo coche en el sistema.
-
-        Este método realiza validaciones y añade el coche al archivo CSV correspondiente.
+            Si alguna de las validaciones de los datos de entrada falla,
+            o si ocurre un error al interactuar con la base de datos que no sea
+            un `mysql.connector.Error` directo (aunque aquí se envuelve).
+        TypeError
+            Si el campo 'disponible' no es un booleano.
+        mysql.connector.Error
+            Si ocurre un error específico de la base de datos durante la inserción
+            (e.g., violación de constraint UNIQUE para matrícula, error de conexión).
+            El método propaga esta excepción.
         """
         # Validaciones de campos obligatorios
         if not all([marca, modelo, matricula, categoria_tipo, categoria_precio]):
@@ -97,144 +224,152 @@ class Coche:
 
         
         try:
-            cursor = connection.cursor()
-            query = """
-            INSERT INTO coches (
-                marca, modelo, matricula, categoria_tipo, categoria_precio, año, 
-                precio_diario, kilometraje, color, combustible, cv, plazas, disponible
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """
+            with connection.cursor() as cursor:
+                query = """
+                INSERT INTO coches (
+                    marca, modelo, matricula, categoria_tipo, categoria_precio, año, 
+                    precio_diario, kilometraje, color, combustible, cv, plazas, disponible
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
 
-            valores = (
-                marca, modelo, matricula, categoria_tipo, categoria_precio,
-                año, precio_diario, kilometraje, color, combustible, cv, plazas, disponible
-            )
-            cursor.execute(query, valores)
-            connection.commit()
-            return cursor.lastrowid  # Devuelve el ID generado por MySQL
+                valores = (
+                    marca, modelo, matricula, categoria_tipo, categoria_precio,
+                    año, precio_diario, kilometraje, color, combustible, cv, plazas, disponible
+                )
+                cursor.execute(query, valores)
+                connection.commit()
+                last_id = cursor.lastrowid  # Devuelve el ID generado por MySQL
+                return last_id
             
         except Error as e:
             connection.rollback()
             raise ValueError(f"Error al registrar coche en la base de datos: {e}")
-        finally:
-            if cursor:
-                cursor.close()
-                
-        
-    @staticmethod
-    def actualizar_matricula(connection,id_coche: int, nueva_matricula: str) -> bool:
-        """
-        Actualiza la matrícula de un coche existente en el sistema.
 
-        Este método verifica si el ID del coche existe y si la nueva matrícula no está duplicada 
-        antes de realizar la actualización en el archivo CSV correspondiente.
+                
+    
+    @staticmethod
+    def actualizar_matricula(
+        connection: 'MySQLConnection',
+        id_coche: int,
+        nueva_matricula: str
+        ) -> bool:  
+        """
+        Actualiza la matrícula de un coche existente en la base de datos.
+
+        Este método primero verifica que el coche con `id_coche` exista.
+        Luego, comprueba que la `nueva_matricula` no esté ya en uso por otro coche.
+        Si ambas verificaciones son exitosas, procede a actualizar la matrícula.
 
         Parameters
         ----------
-        connection: mysql.connector.connection.MySQLConnection
-            Conexion activa a la base de datos
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
         id_coche : int
-            El ID único del coche cuya matrícula se desea actualizar.
+            El ID único del coche cuya matrícula se va a actualizar.
         nueva_matricula : str
-            La nueva matrícula que se asignará al coche.
+            La nueva matrícula que se asignará al coche. Se recomienda validar
+            su formato y longitud antes de llamar a este método.
 
         Returns
         -------
         bool
-            True si la matrícula se actualizó correctamente.
+            `True` si la matrícula se actualizó correctamente (es decir, si la
+            sentencia UPDATE afectó a una o más filas).
 
         Raises
         ------
         ValueError
-            Si el ID del coche no está registrado o si la nueva matrícula ya está en uso.
-        Exception
-            Si ocurre un error al guardar los cambios en el archivo CSV.
+            - Si el `id_coche` no corresponde a un coche existente.
+            - Si la `nueva_matricula` ya está registrada para otro coche.
+            - Si la actualización no afecta a ninguna fila (inesperado si el coche existe).
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
+            Se propaga la excepción original de la base de datos.
         """
+
         
         try:
-            cursor = connection.cursor()
-            
-            # Verificar si el coche existe
-            cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_coche))
-            if not cursor.fetchone()[0]:
-                raise ValueError(f"El coche con ID {id_coche} no existe")
-            
-            # Verificar si la nueva matricula ya esta en uso
-            cursor.execute("SELECT COUNT(*) FROM coches WHERE matricula = %s",(nueva_matricula))
-            if cursor.fetchone()[0] > 0:
-                raise ValueError(f"La matricula {nueva_matricula} ya está registrada")
-            
-            query = ("UPDATE coches SET matricula=%s WHERE id = %s")
-            valores = (nueva_matricula,id_coche)
-            
-            cursor.execute(query, valores)
-            connection.commit()
-            
-            if cursor.rowcount > 0:
-                return True
-            else:
-                raise ValueError(f"No se ha podido actualizar la matricula del coche con id: {id_coche}")
+            with connection.cursor() as cursor:
+                # Verificar si el coche existe
+                cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_coche))
+                if not cursor.fetchone()[0]:
+                    raise ValueError(f"El coche con ID {id_coche} no existe")
+                
+                # Verificar si la nueva matricula ya esta en uso
+                cursor.execute("SELECT COUNT(*) FROM coches WHERE matricula = %s",(nueva_matricula))
+                if cursor.fetchone()[0] > 0:
+                    raise ValueError(f"La matricula {nueva_matricula} ya está registrada")
+                
+                query = ("UPDATE coches SET matricula=%s WHERE id = %s")
+                valores = (nueva_matricula,id_coche)
+                
+                cursor.execute(query, valores)
+                connection.commit()
+                
+                if cursor.rowcount > 0:
+                    return True
+                else:
+                    raise ValueError(f"No se ha podido actualizar la matricula del coche con id: {id_coche}")
             
         except Error as e:
             connection.rollback()
             raise ValueError(f"Error al actualizar la matricula: {e}")
-        finally:
-            if cursor:
-                cursor.close()
+
     
-    
+    @staticmethod
     def eliminar_coche(connection,id_coche: int) -> bool:
         """
-        Elimina un coche del sistema basándose en su ID.
+        Elimina un coche de la base de datos basándose en su ID.
 
-        Este método verifica si el coche con el ID proporcionado existe en el sistema 
-        y lo elimina del archivo CSV correspondiente.
+        Este método primero intenta eliminar el coche con el ID proporcionado.
+        Si la operación de eliminación no afecta a ninguna fila (es decir,
+        el coche no existía o ya había sido eliminado), se considera que
+        el coche no se encontró y se podría lanzar un error o devolver False
+        según la política deseada.
 
         Parameters
         ----------
-        empresa : Empresa
-            Instancia de la clase Empresa para cargar/guardar datos.
-        id_coche : str
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
+        id_coche : int
             El ID único del coche que se desea eliminar.
 
         Returns
         -------
         bool
-            True si el coche se eliminó correctamente.
+            `True` si el coche se eliminó correctamente (es decir, si la
+            sentencia DELETE afectó a una o más filas).
 
         Raises
         ------
         ValueError
-            Si el coche con el ID proporcionado no está registrado o si ocurre un error al guardar los cambios.
-
-        Notes
-        -----
-        - Antes de eliminar el coche, se verifica que el ID exista en el sistema.
-        - El método utiliza el archivo CSV como fuente de datos, por lo que los cambios son persistentes.
+            - Si `id_coche` es inválido (e.g., no positivo).
+            - Si la eliminación no afecta a ninguna fila y la política es tratar
+            esto como un error de "no encontrado" (como en tu código original).
+        mysql.connector.Error
+            Si ocurre un error específico de la base de datos durante la eliminación
+            (e.g., problemas de conexión, violación de claves foráneas si
+            el coche está referenciado en alquileres y no hay CASCADE DELETE).
+            La excepción original de `mysql.connector` se propaga.
         """
         
         try:
-            cursor = connection.cursor()
-            
-            # Verificar si el coche existe
-            cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_coche,))
-            if not cursor.fetchone()[0]:
-                raise ValueError(f"El coche con ID {id_coche} no existe")
-            
-            query = ('DELETE FROM coches WHERE id=%s')
-            cursor.execute(query,(id_coche,))
-            connection.commit()
-            
-            if cursor.rowcount > 0:
-                return True
-            else:
-                raise ValueError(f"No se ha podido eliminar el coche con id: {id_coche}")
+            with connection.cursor() as cursor:
+                # Verificar si el coche existe
+                query = ('DELETE FROM coches WHERE id=%s')
+                cursor.execute(query,(id_coche,))
+                if cursor.rowcount > 0:
+                    connection.commit() # Hacer commit SOLO si la eliminación tuvo efecto
+                    return True
+                else:
+                    connection.rollback()
+                    raise ValueError(
+                        f"No se encontró o no se pudo eliminar el coche con ID {id_coche}. "
+                        "Es posible que el ID no exista.")
+
         except Error as e:
             connection.rollback()
             raise ValueError(f"Error al eliminar el coche: {e}")
-        finally:
-            if cursor:
-                cursor.close()
             
         
     @staticmethod
