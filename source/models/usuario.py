@@ -1,132 +1,197 @@
 
-'''Clase Usuario para representar a los clientes y sus datos'''
+# --- Imports ---
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from mysql.connector.connection import MySQLConnection
 from mysql.connector import Error
 from source.utils import hash_contraseña, es_email_valido
+# --- Clase Usuario ---
 class Usuario:
+    """
+    Representa un usuario del sistema de alquiler de coches.
 
-    def __init__(self, id_usuario, nombre, email, tipo, contraseña_hasheada):
-        if not nombre:
-            raise ValueError("El nombre no puede estar vacío")
+    Esta clase encapsula la información y las operaciones relacionadas con
+    los usuarios, como clientes o administradores.
 
-        if not es_email_valido(email):
-            raise ValueError(f"Email '{email}' no es válido")
+    Attributes
+    ----------
+    id_usuario : str  # O int, dependiendo de tu esquema de BD
+        Identificador único del usuario.
+    nombre : str
+        Nombre completo del usuario.
+    email : str
+        Correo electrónico del usuario, utilizado para inicio de sesión y
+        como identificador único en muchos contextos.
+    tipo : str
+        Rol del usuario en el sistema (e.g., "cliente", "admin").
+    contraseña : str
+        Contraseña hasheada del usuario. No se almacena la contraseña en texto plano.
+    historial_alquileres : List[Dict[str, Any]]
+        Lista que puede contener el historial de alquileres del usuario.
+        Nota: En la implementación actual, este atributo se inicializa vacío y
+        el historial se obtiene a través de un método específico.
+    """
+    def __init__(self, id_usuario: str, nombre: str, email: str, tipo: str,             contraseña_hasheada: str):
+        """
+        Inicializa una nueva instancia de Usuario.
 
-        self.id_usuario = id_usuario
-        self.nombre = nombre
-        self.email = email
-        self.tipo = tipo
-        self.contraseña = contraseña_hasheada
-        self.historial_alquileres = []
+        Parameters
+        ----------
+        id_usuario : str
+            Identificador único para el usuario.
+        nombre : str
+            Nombre del usuario. No puede estar vacío.
+        email : str
+            Correo electrónico del usuario. Debe ser un formato válido.
+        tipo : str
+            Tipo de usuario (e.g., "cliente", "admin").
+        contraseña_hasheada : str
+            La contraseña del usuario, ya hasheada.
+
+        Raises
+        ------
+        ValueError
+            Si el nombre está vacío o el email no es válido.
+        """
+        if not nombre or not nombre.strip():
+            raise ValueError("El nombre del usuario no puede estar vacío.")
+        if not es_email_valido(email): # Asume que es_email_valido está disponible
+            raise ValueError(f"El formato del correo electrónico '{email}' no es válido.")
+        if not tipo or not tipo.strip():
+            raise ValueError("El tipo de usuario no puede estar vacío.")
+
+        self.id_usuario: str = id_usuario
+        self.nombre: str = nombre
+        self.email: str = email
+        self.tipo: str = tipo
+        self.contraseña: str = contraseña_hasheada # Contraseña ya hasheada
 
 
-    def obtener_usuarios(connection) -> list[dict]:
+    @staticmethod
+    def obtener_usuarios(connection: 'MySQLConnection') -> List[Dict[str, Any]]:
         """
         Obtiene todos los usuarios registrados desde la base de datos.
 
+        Recupera una lista de todos los usuarios, incluyendo su ID, nombre,
+        tipo y correo electrónico. No se recupera la contraseña hasheada por seguridad.
+
         Parameters
         ----------
         connection : mysql.connector.connection.MySQLConnection
-            Conexión activa a la base de datos.
+            Una conexión activa a la base de datos MySQL.
 
         Returns
         -------
-        list[dict]
-            Una lista de diccionarios con los campos id_usuario, nombre, tipo, email.
+        List[Dict[str, Any]]
+            Una lista de diccionarios, donde cada diccionario representa un usuario.
+            Contiene los campos 'id_usuario', 'nombre', 'tipo', 'email'.
+            Retorna una lista vacía si no hay usuarios registrados.
 
         Raises
         ------
-        ValueError
-            Si no hay usuarios registrados o si ocurre un error en la consulta.
-        Exception
-            Si hay un fallo en la conexión.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
         """
         try:
-            cursor = connection.cursor(dictionary=True)
-            query = "SELECT id_usuario, nombre, tipo, email FROM usuarios"
-            cursor.execute(query)
-
-            resultados = cursor.fetchall()
-            if not resultados:
-                raise ValueError("No hay usuarios registrados.")
-
-            return resultados
-
+            with connection.cursor(dictionary=True) as cursor:
+                query = """SELECT id_usuario, nombre, tipo, email 
+                        FROM usuarios 
+                        ORDER BY nombre ASC"""
+                cursor.execute(query)
+                usuarios: List[Dict[str, Any]] = cursor.fetchall()
+                return usuarios
         except Error as e:
-            raise ValueError(f"Error al obtener la lista de usuarios: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            raise e
+
                 
 
-    def obtener_usuario_por_email(connection, email: str) -> dict:
+    @staticmethod
+    def obtener_usuario_por_email(
+        connection: 'MySQLConnection',
+        email: str
+    ) -> Optional[Dict[str, Any]]:
         """
-        Obtiene los detalles de un usuario por su correo electrónico desde MySQL.
+        Obtiene los detalles de un usuario por su correo electrónico.
+
+        Busca un usuario en la tabla 'usuarios' que coincida con el email proporcionado.
+        No se recupera la contraseña hasheada.
 
         Parameters
         ----------
         connection : mysql.connector.connection.MySQLConnection
-            Conexión activa a la base de datos.
+            Una conexión activa a la base de datos MySQL.
         email : str
-            Correo electrónico del usuario a buscar.
+            El correo electrónico del usuario a buscar.
 
         Returns
         -------
-        dict or None
-            Diccionario con los campos id_usuario, nombre, tipo, email
+        Optional[Dict[str, Any]]
+            Un diccionario con los datos del usuario ('id_usuario', 'nombre', 'tipo', 'email')
+            si se encuentra. Retorna `None` si no se encuentra ningún usuario con ese correo.
 
         Raises
         ------
-        ValueError
-            Si no hay ningún usuario con ese correo o si ocurre un error en la consulta.
-        Exception
-            Si hay un fallo en la conexión.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
         """
         try:
-            cursor = connection.cursor(dictionary=True)
-            query = "SELECT id_usuario, nombre, tipo, email FROM usuarios WHERE email = %s"
-            cursor.execute(query, (email,))
-            resultado = cursor.fetchone()
-
-            if not resultado:
-                raise ValueError(f"No hay ningún usuario con el correo {email}")
-
-            return resultado
+            with connection.cursor(dictionary=True) as cursor:
+                query ="""
+                    SELECT id_usuario, nombre, tipo, email 
+                    FROM usuarios
+                    WHERE email = %s
+                """
+                cursor.execute(query, (email,))
+                usuario: Optional[Dict[str, Any]] = cursor.fetchone()
+                return usuario
 
         except Error as e:
-            raise ValueError(f"Error al obtener detalles del usuario: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            raise e
 
 
-    def registrar_usuario(connection, nombre: str, tipo: str, email: str, contraseña: str) -> int:
+    @staticmethod
+    def registrar_usuario(
+        connection: 'MySQLConnection',
+        nombre: str,
+        tipo: str,
+        email: str,
+        contraseña: str 
+        ) -> int:
         """
-        Registra un nuevo usuario en la base de datos MySQL.
+        Registra un nuevo usuario en la base de datos.
+
+        Valida los datos de entrada, verifica que el email no esté ya registrado,
+        hashea la contraseña y luego inserta el nuevo usuario.
 
         Parameters
         ----------
-        connection : mysql.connection.MySQLConnection
-            Conexión activa a la base de datos.
+        connection : mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
         nombre : str
             Nombre completo del usuario.
         tipo : str
-            Tipo de usuario (debe ser 'Cliente' o 'Admin').
+            Tipo de usuario (e.g., "cliente", "admin"). Debe ser uno de los valores permitidos.
         email : str
-            Correo electrónico del usuario (único y válido).
+            Correo electrónico del usuario. Debe ser único y tener un formato válido.
         contraseña : str
-            Contraseña del usuario (se guardará como hash SHA-256).
+            Contraseña del usuario en texto plano. Será hasheada antes de almacenarse.
 
         Returns
         -------
-        int
-            El ID del usuario recién registrado.
+        int # o str
+            El ID del usuario recién registrado, generado por la base de datos.
 
         Raises
         ------
         ValueError
-            Si hay errores en los datos proporcionados o si el correo ya existe.
+            - Si alguno de los campos obligatorios está vacío.
+            - Si el `tipo` de usuario no es válido.
+            - Si el `email` no tiene un formato válido.
+            - Si el `email` ya está registrado.
+        mysql.connector.Error
+            Si ocurre un error específico de la base de datos durante la inserción
+            (e.g., problemas de conexión, violación de otras constraints).
         Exception
-            Si ocurre un error al insertar en la base de datos.
+            Si `lastrowid` no devuelve un ID válido tras la inserción.
         """
         # Validaciones iniciales
         if not nombre or not tipo or not email or not contraseña:
@@ -139,60 +204,67 @@ class Usuario:
             raise ValueError(f"Correo electrónico inválido: {email}")
 
         try:
-            cursor = connection.cursor()
-
-            # Verificar si el correo ya está registrado
-            cursor.execute("SELECT COUNT(*) FROM usuarios WHERE email = %s", (email,))
-            if cursor.fetchone()[0] > 0:
-                raise ValueError(f"El correo {email} ya está registrado.")
-
-            # Hashear la contraseña
-            contraseña_hasheada = hash_contraseña(contraseña)
-
-            # Insertar el nuevo usuario
-            query = """
-            INSERT INTO usuarios (nombre, tipo, email, contraseña)
-            VALUES (%s, %s, %s, %s)
-            """
-            valores = (nombre, tipo, email, contraseña_hasheada)
-
-            cursor.execute(query, valores)
-            connection.commit()
-
-            # Devolver el ID generado por MySQL
-            return cursor.lastrowid
+            with connection.cursor() as cursor:
+                # Verificar si el correo ya está registrado
+                query_check_email = "SELECT 1 FROM usuarios WHERE email = %s"
+                cursor.execute(query_check_email, (email,))
+                if cursor.fetchone() is not None:
+                    raise ValueError(f"El correo electrónico '{email}' ya está registrado.")
+                # Hashear la contraseña
+                contraseña_hasheada = hash_contraseña(contraseña) 
+                
+                # Insertar el nuevo usuario
+                query_insert = """
+                INSERT INTO usuarios (nombre, tipo, email, contraseña)
+                VALUES (%s, %s, %s, %s)
+                """
+                valores = (nombre, tipo, email, contraseña_hasheada)
+                cursor.execute(query_insert, valores)
+                connection.commit()
+                
+                # Devolver el ID generado por MySQL
+                return cursor.lastrowid
 
         except Error as e:
-            connection.rollback()
-            raise ValueError(f"Error al registrar usuario: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            if connection.is_connected():
+                connection.rollback()
+            raise e
         
         
     @staticmethod
-    def actualizar_contraseña(connection, email: str, nueva_contraseña: str) -> bool:
+    def actualizar_contraseña(
+        connection: 'MySQLConnection',
+        email: str,
+        nueva_contraseña: str # Contraseña en texto plano
+        ) -> bool:
         """
-        Actualiza la contraseña de un usuario en la base de datos usando su correo electrónico.
+        Actualiza la contraseña de un usuario existente.
+
+        Verifica que el usuario exista, hashea la nueva contraseña y la actualiza
+        en la base de datos.
 
         Parameters
         ----------
         connection : mysql.connector.connection.MySQLConnection
-            Conexión activa a la base de datos.
+            Una conexión activa a la base de datos MySQL.
         email : str
-            Correo electrónico del usuario que se desea actualizar.
+            Correo electrónico del usuario cuya contraseña se va a actualizar.
         nueva_contraseña : str
-            Nueva contraseña del usuario (se guardará como hash).
+            La nueva contraseña en texto plano. Será hasheada.
 
         Returns
         -------
         bool
-            True si la contraseña se actualizó correctamente.
+            `True` si la contraseña se actualizó correctamente (1 fila afectada).
 
         Raises
         ------
         ValueError
-            Si el correo no existe o si ocurre un error al actualizar la contraseña.
+            - Si el `email` es inválido o no está registrado.
+            - Si la `nueva_contraseña` está vacía.
+            - Si la actualización no afecta a ninguna fila (inesperado si el email existe).
+        mysql.connector.Error
+            Si ocurre un error específico de la base de datos.
         """
         if not email:
             raise ValueError("El correo electrónico es obligatorio.")
@@ -201,200 +273,201 @@ class Usuario:
             raise ValueError("La nueva contraseña no puede estar vacía.")
 
         try:
-            cursor = connection.cursor()
+            with connection.cursor() as cursor:
+                # Verificar si el usuario (email) existe
+                query_check_email = "SELECT 1 FROM usuarios WHERE email = %s"
+                cursor.execute(query_check_email, (email,))
+                if cursor.fetchone() is None:
+                    raise ValueError(f"No existe ningún usuario con el correo electrónico '{email}'.")
 
-            # Verificar si el correo existe
-            cursor.execute("SELECT COUNT(*) FROM usuarios WHERE email = %s", (email,))
-            if cursor.fetchone()[0] == 0:
-                raise ValueError(f"No hay ningún usuario con el correo {email}")
+                # Hashear la nueva contraseña
+                contraseña_hasheada = hash_contraseña(nueva_contraseña)
 
-            # Generar hash de la nueva contraseña
-            contraseña_hasheada = hash_contraseña(nueva_contraseña)
+                # Actualizar la contraseña
+                query_update = "UPDATE usuarios SET contraseña = %s WHERE email = %s"
+                cursor.execute(query_update, (contraseña_hasheada, email))
 
-            # Actualizar en la base de datos
-            query = "UPDATE usuarios SET contraseña = %s WHERE email = %s"
-            cursor.execute(query, (contraseña_hasheada, email))
-            connection.commit()
-
-            if cursor.rowcount > 0:
-                return True
-            else:
-                raise ValueError(f"No se pudo actualizar la contraseña del correo {email}")
-
+                if cursor.rowcount > 0:
+                    connection.commit()
+                    return True
+                else:
+                    # si la nueva contraseña hasheada es igual a la antigua.
+                    connection.rollback() # Revertir si no hubo cambios efectivos
+                    raise ValueError(
+                        f"No se pudo actualizar la contraseña para el usuario '{email}'. "
+                        "Es posible que la nueva contraseña sea igual a la anterior."
+                    )
         except Error as e:
-            connection.rollback()
-            raise ValueError(f"Error al actualizar la contraseña: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            if connection.is_connected():
+                connection.rollback()
+            raise e
     
     
-    def dar_baja_usuario(connection, email: str) -> bool:
+    @staticmethod 
+    def dar_baja_usuario(connection: 'MySQLConnection', email: str) -> bool:
         """
         Elimina un usuario del sistema basándose en su correo electrónico.
-
-        Este método verifica si el correo existe en la base de datos y elimina 
-        al usuario correspondiente.
 
         Parameters
         ----------
         connection : mysql.connector.connection.MySQLConnection
-            Conexión activa a la base de datos.
+            Una conexión activa a la base de datos MySQL.
         email : str
             El correo electrónico del usuario que se desea eliminar.
 
         Returns
         -------
         bool
-            True si el usuario se eliminó correctamente.
+            `True` si el usuario se eliminó correctamente (1 fila afectada).
 
         Raises
         ------
         ValueError
-            Si no se pueden cargar los usuarios o si el correo electrónico no está registrado.
-        Exception
-            Si ocurre un error al guardar los cambios en la base de datos.
-
-        Notes
-        -----
-        - Antes de eliminar el usuario, se verifica que el correo exista en la base de datos.
-        - El método utiliza MySQL como fuente de datos, por lo que los cambios son persistentes.
+            - Si el `email` es inválido.
+            - Si el usuario con el `email` proporcionado no existe y por tanto no se puede eliminar.
+        mysql.connector.Error
+            Si ocurre un error específico de la base de datos (e.g., claves foráneas).
         """
         if not es_email_valido(email):
             raise ValueError("Correo electrónico inválido.")
 
         try:
-            cursor = connection.cursor()
-
-            # Verificar si el correo existe
-            cursor.execute("SELECT COUNT(*) FROM usuarios WHERE email = %s", (email,))
-            if cursor.fetchone()[0] == 0:
-                raise ValueError(f"El correo {email} no está registrado.")
-
-            # Eliminar al usuario por su correo electrónico
-            query = "DELETE FROM usuarios WHERE email = %s"
-            cursor.execute(query, (email,))
-            connection.commit()
+            with connection.cursor() as cursor:
+                # Eliminar al usuario por su correo electrónico
+                query = "DELETE FROM usuarios WHERE email = %s"
+                cursor.execute(query, (email,))
 
             if cursor.rowcount > 0:
+                connection.commit()
                 return True
             else:
-                raise ValueError(f"No se pudo eliminar el usuario con email {email}")
+                connection.rollback()
+                raise ValueError(f"No se encontró ningún usuario con el correo '{email}'para eliminar.")
 
         except Error as e:
-            connection.rollback()
-            raise ValueError(f"Error al eliminar el usuario: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            if connection.is_connected():
+                connection.rollback()
+            raise e
+
         
         
-    def iniciar_sesion(connection, email: str, contraseña: str) -> dict:
+    @staticmethod 
+    def iniciar_sesion(
+        connection: 'MySQLConnection',
+        email: str,
+        contraseña: str 
+        ) -> Dict[str, Any]:
         """
-        Verifica si un usuario con el correo electrónico y contraseña dados existe en la base de datos.
+        Autentica a un usuario comparando el hash de la contraseña proporcionada
+        con el hash almacenado en la base de datos.
 
         Parameters
         ----------
         connection : mysql.connector.connection.MySQLConnection
-            Conexión activa a la base de datos.
+            Una conexión activa a la base de datos MySQL.
         email : str
-            Correo electrónico del usuario.
+            Correo electrónico del usuario que intenta iniciar sesión.
         contraseña : str
-            Contraseña proporcionada por el usuario (sin hashear).
+            Contraseña proporcionada por el usuario, en texto plano.
 
         Returns
         -------
-        bool
-            True si las credenciales son correctas.
+        Dict[str, Any]
+            Un diccionario con los datos del usuario autenticado:
+            `{'autenticado': True, 'id_usuario': ..., 'nombre': ..., 'rol': ...}`.
 
         Raises
         ------
         ValueError
-            Si el correo no existe o la contraseña es incorrecta.
-        Exception
-            Si ocurre un error de conexión o consulta.
+            - Si el `email` es inválido.
+            - Si no se encuentra un usuario con el `email` proporcionado.
+            - Si la `contraseña` es incorrecta.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
         """
         if not es_email_valido(email):
             raise ValueError("Correo electrónico inválido.")
 
         try:
-            cursor = connection.cursor(dictionary=True)
+            with connection.cursor(dictionary=True) as cursor:
 
-            # Buscar al usuario por su email
-            query = "SELECT * FROM usuarios WHERE email = %s"
-            cursor.execute(query, (email,))
-            usuario = cursor.fetchone()
+                query = """
+                SELECT id_usuario, nombre, tipo, contraseña FROM usuarios WHERE email = %s
+                """
+                cursor.execute(query, (email,))
+                usuario_db: Optional[Dict[str, Any]] = cursor.fetchone()
 
-            if not usuario:
-                raise ValueError(f"No se encontró ningún usuario con el correo: {email}")
+                if not usuario_db:
+                    raise ValueError(f"No se encontró ningún usuario con el correo: {email}")
 
-            # Hashear la contraseña ingresada y comparar con la almacenada
-            contraseña_hasheada_ingresada = hash_contraseña(contraseña)
-            contraseña_almacenada = usuario['contraseña']
+                # Hashear la contraseña ingresada y comparar con la almacenada
+                contraseña_hasheada_ingresada = hash_contraseña(contraseña)
+                contraseña_almacenada = usuario_db['contraseña']
 
-            if contraseña_hasheada_ingresada != contraseña_almacenada:
-                raise ValueError("Contraseña incorrecta.")
+                if contraseña_hasheada_ingresada != contraseña_almacenada:
+                    raise ValueError("Contraseña incorrecta.")
 
             return {
-                "autenticado": True,
-                "rol": usuario['tipo'],
-                "nombre": usuario['nombre'],
-                "id_usuario": usuario['id_usuario']
-            }
+                    "autenticado": True,
+                    "id_usuario": usuario_db['id_usuario'],
+                    "nombre": usuario_db['nombre'],
+                    "rol": usuario_db['tipo']
+                }
+        except Error as e: 
+            raise e
 
-        except Exception as e:
-            raise Exception(f"Error al iniciar sesión: {e}")
-        finally:
-            if cursor:
-                cursor.close()
     
-    
-    def obtener_historial_alquileres(connection, email: str) -> list[dict]:
+    @staticmethod # Corregido: obtener_historial_alquileres no usa self
+    def obtener_historial_alquileres(
+        connection: 'MySQLConnection',
+        email: str
+    ) -> List[Dict[str, Any]]:
         """
-        Obtiene el historial de alquileres de un usuario desde la base de datos.
+        Obtiene el historial de alquileres de un usuario específico.
+
+        Primero verifica la existencia del usuario por su email para obtener su ID,
+        luego consulta todos los alquileres asociados a ese ID de usuario.
 
         Parameters
         ----------
         connection : mysql.connector.connection.MySQLConnection
-            Conexión activa a la base de datos.
+            Una conexión activa a la base de datos MySQL.
         email : str
             Correo electrónico del usuario cuyo historial se desea obtener.
 
         Returns
         -------
-        list[dict]
-            Una lista de diccionarios con los detalles de cada alquiler.
+        List[Dict[str, Any]]
+            Una lista de diccionarios, donde cada diccionario representa un alquiler
+            del usuario. Retorna una lista vacía si el usuario no tiene alquileres
+            o si el usuario no existe (después de la verificación).
 
         Raises
         ------
-        ValueError
-            Si no hay alquileres para el usuario o si ocurre un error en la consulta.
-        Exception
-            Si hay un fallo en la conexión o en la consulta SQL.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
         """
         try:
-            cursor = connection.cursor(dictionary=True)
+            with connection.cursor(dictionary=True) as cursor:
+                # Obtener el id_usuario a partir del email
+                query = """SELECT id_usuario FROM usuarios WHERE email = %s"""
+                cursor.execute(query, (email,))
+                usuario_info = cursor.fetchone()
+                
+                if not usuario_info:
+                    raise ValueError(f"El correo {email} no está registrado.")
 
-            # Verificar si el usuario existe
-            cursor.execute("SELECT id_usuario FROM usuarios WHERE email = %s", (email,))
-            resultado = cursor.fetchone()
-            if not resultado:
-                raise ValueError(f"El correo {email} no está registrado.")
+                id_usuario = usuario_info['id_usuario']
 
-            id_usuario = resultado['id_usuario']
-
-            # Consultar los alquileres del usuario
-            query = "SELECT * FROM alquileres WHERE id_usuario = %s ORDER BY fecha_inicio DESC"
-            cursor.execute(query, (id_usuario,))
-            resultados = cursor.fetchall()
-
-            if not resultados:
-                raise ValueError(f"No hay alquileres registrados para el usuario {email}")
-
-            return resultados
-
+                # Consultar los alquileres del usuario
+                query_alquileres = """
+                    SELECT * FROM alquileres 
+                    WHERE id_usuario = %s 
+                    ORDER BY fecha_inicio DESC
+                """
+                cursor.execute(query_alquileres, (id_usuario,))
+                historial_alquileres: List[Dict[str, Any]] = cursor.fetchall()
+                
+                return historial_alquileres
         except Error as e:
-            raise ValueError(f"Error al obtener el historial de alquileres: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            raise e
