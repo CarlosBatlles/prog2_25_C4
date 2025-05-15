@@ -515,7 +515,7 @@ def registrar_coche() -> None:
     
     try:
         año = int(input("Año (1900 - actual): ").strip())
-        if año < 1900 or año > datetime.now().year:
+        if año < 1900 or año > datetime.datetime.now().year:
             print("❌ El año debe estar entre 1900 y el año actual.")
             return
     except ValueError:
