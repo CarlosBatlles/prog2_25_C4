@@ -2,6 +2,8 @@
 '''Clase Alquiler para representar y gestionar un alquiler de coche'''
 from datetime import date
 from mysql.connector import Error
+from mysql.connector.connection import MySQLConnection
+from typing import Optional, List, Dict, Any
 from source.utils import formatear_id, generar_factura_pdf
 
 
@@ -50,49 +52,51 @@ class Alquiler:
         self.activo = activo
         
 
-    def obtener_todos(connection) -> list[dict]:
+    def obtener_todos(connection: 'MySQLConnection') -> List[Dict[str, Any]]:
         """
-        Obtiene todos los alquileres registrados desde la base de datos.
+        Obtiene todos los alquileres registrados desde la base de datos, incluyendo la matrícula del coche.
 
         Parameters
         ----------
         connection : mysql.connector.connection.MySQLConnection
-            Conexión activa a la base de datos.
+            Una conexión activa a la base de datos MySQL.
 
         Returns
         -------
-        list[dict]
-            Lista de diccionarios con todos los alquileres registrados.
+        List[Dict[str, Any]]
+            Una lista de diccionarios, donde cada diccionario representa un alquiler
+            e incluye los datos del alquiler y la matrícula del coche asociado.
+            Retorna una lista vacía si no hay alquileres.
 
         Raises
         ------
-        ValueError
-            Si no hay alquileres o si ocurre un error en la consulta.
-        Exception
-            Si hay un fallo en la conexión o ejecución.
+        mysql.connector.Error
+            Si ocurre un error durante la interacción con la base de datos.
+            La excepción original de `mysql.connector` se propaga.
         """
         try:
-            cursor = connection.cursor(dictionary=True)
-            query = """
-            SELECT 
-                id_alquiler, id_coche, id_usuario, 
-                fecha_inicio, fecha_fin, coste_total, activo
-            FROM alquileres
-            ORDER BY fecha_inicio DESC
-            """
+            # Usamos 'with' para el manejo automático del cursor
+            with connection.cursor(dictionary=True) as cursor:
+                query = """
+                SELECT 
+                    a.id_alquiler, 
+                    a.id_coche, 
+                    c.matricula,      -- <--- CAMBIO PRINCIPAL: Seleccionamos la matrícula de la tabla coches
+                    a.id_usuario, 
+                    a.fecha_inicio, 
+                    a.fecha_fin, 
+                    a.coste_total, 
+                    a.activo
+                FROM alquileres a INNER JOIN coches c ON a.id_coche = c.id 
+                ORDER BY a.fecha_inicio DESC
+                """
+
             cursor.execute(query)
-            resultados = cursor.fetchall()
-
-            if not resultados:
-                raise ValueError("No hay alquileres registrados.")
-
+            resultados: List[Dict[str, Any]] = cursor.fetchall()
             return resultados
 
         except Error as e:
-            raise ValueError(f"Error al obtener todos los alquileres: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+            raise e
 
 
     def obtener_por_id(connection, id_alquiler: str) -> dict:
