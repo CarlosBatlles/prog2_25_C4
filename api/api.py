@@ -1128,8 +1128,6 @@ def historial_alquileres(email):
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        print(f"Error interno: {e}")
-        raise e
         return jsonify({"error": f"Error interno del servidor : {e}"}), 500
         
 
