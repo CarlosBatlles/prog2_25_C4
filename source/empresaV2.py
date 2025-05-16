@@ -212,7 +212,7 @@ class Empresa():
                 connection.close() # Empresa cierra la conexión que abrió
     
     
-    def eliminar_coche(self, id_coche: str) -> bool:
+    def eliminar_coche(self, id_coche: int) -> bool:
         """
         Elimina un coche llamando al método estático de la clase Coche.
         """

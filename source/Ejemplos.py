@@ -651,8 +651,14 @@ def eliminar_coche() -> None:
     print("\n🗑️ --- Eliminar Coche --- 🗑️")
     id_input = input('🆔 Introduce el ID del coche a eliminar (ej: UID001): ').strip()
     
-    if not id_input:
-        print("❌ Error: El ID del coche es obligatorio.")
+    if not id_input.startswith("UID"):
+            print("❌ Error: El ID debe comenzar con 'UID' seguido de un número válido (ej: UID090).")
+            return
+
+    try:
+        id_numero = int(id_input[3:])  # Extraemos los números después de "UID"
+    except ValueError:
+        print("❌ Error: El ID debe ser como 'UID090', donde 090 es un número válido.")
         return
 
     # Obtener los headers con el token JWT
@@ -661,7 +667,7 @@ def eliminar_coche() -> None:
     # Realizar la solicitud DELETE
     try:
         r = requests.delete(
-            f'{BASE_URL}/coches/eliminar/{id_input}',
+            f'{BASE_URL}/coches/eliminar/{id_numero}',
             headers=headers  # Incluir los headers con el token JWT
         )
         if r.status_code == 200:
