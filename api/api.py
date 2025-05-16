@@ -851,6 +851,7 @@ def listar_alquileres() -> tuple[dict, int]:
                 "id_alquiler": formatear_id(alquiler["id_alquiler"], "A"),
                 "id_coche": formatear_id(alquiler["id_coche"], "UID"),
                 "id_usuario": formatear_id(alquiler["id_usuario"], "U") if alquiler["id_usuario"] else "INVITADO",
+                "matricula": alquiler["matricula"],
                 "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
                 "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
                 "coste_total": float(alquiler["coste_total"]),
