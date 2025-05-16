@@ -1097,7 +1097,7 @@ def historial_alquileres(email):
     email_usuario_autenticado = get_jwt_identity()
 
     # Verificar autorización
-    if rol != 'admin' and email != email_usuario_autenticado:
+    if rol == 'admin' and email != email_usuario_autenticado:
         return jsonify({'error': 'Acceso no autorizado'}), 403
 
     try:
@@ -1105,10 +1105,9 @@ def historial_alquileres(email):
 
         # Obtener el historial desde MySQL usando el método adaptado
         resultados = empresa.obtener_historial_alquileres(connection, email)
-        print(f"DEBUG Endpoint historial para {email} - resultados de empresa:", resultados)
 
         # Formatear los resultados antes de devolverlos
-        ''' historial_formateado = []
+        historial_formateado = []
         for alquiler in resultados:
             historial_formateado.append({
                 "id_alquiler": formatear_id(alquiler["id_alquiler"], prefijo="A"),
@@ -1118,11 +1117,11 @@ def historial_alquileres(email):
                 "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
                 "coste_total": float(alquiler["coste_total"]),
                 "activo": bool(alquiler["activo"])
-            })'''
+            })
 
         return jsonify({
             "mensaje": f"Historial de alquileres del usuario {email}",
-            "alquileres": resultados #cuando acabe debug cambiar a historial_formateado
+            "alquileres": historial_formateado #cuando acabe debug cambiar a historial_formateado
         }), 200
 
     except ValueError as ve:
