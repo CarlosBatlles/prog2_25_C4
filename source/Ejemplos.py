@@ -1503,9 +1503,15 @@ def ver_historial_alquileres() -> None:
             print(f"Mensaje del servidor: {error}")
 
         elif r.status_code == 500:
-            print(f"\n🚨 Error interno del servidor: {r.status_code}")
-            print("⚠️ Hubo un fallo en el servidor. Inténtalo más tarde.")
-            print("📢 Si eres administrador, revisa los logs del servidor.")
+            try:
+                respuesta = r.json()
+                mensaje_error = respuesta.get('error', 'Error desconocido')
+            except ValueError:
+                mensaje_error = r.text  # Si no es JSON, muestra el texto plano
+
+            print(f"\n🚨 Error interno del servidor (500):")
+            print(f"❌ Mensaje del servidor: {mensaje_error}")
+            print("📢 Revisa los datos introducidos o contacta con el administrador.")
 
         else:
             print(f"\n⚠️ Error inesperado ({r.status_code}): {r.text}")
