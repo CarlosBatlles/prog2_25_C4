@@ -458,8 +458,6 @@ class Usuario:
                     raise ValueError(f"El correo {email} no está registrado.")
 
                 id_usuario = usuario_info['id_usuario']
-                print(f"DEBUG: ID del usuario obtenido: {id_usuario}")
-                raise ValueError(f"Debug: ID del usuario es {id_usuario}")
 
                 # Consultar los alquileres del usuario
                 query_alquileres = """SELECT 
@@ -473,7 +471,7 @@ class Usuario:
                 FROM alquileres a INNER JOIN coches c ON a.id_coche = c.id WHERE a.id_usuario = %s ORDER BY a.fecha_inicio DESC, a.id_alquiler DESC"""
                 cursor.execute(query_alquileres, (id_usuario,))
                 historial_alquileres: List[Dict[str, Any]] = cursor.fetchall()
-                print(f"DEBUG Usuario.obtener_historial_alquileres para id_usuario {id_usuario}: {historial_alquileres}")
+
                 return historial_alquileres
         except Error as e:
             print(f"Error al obtener el historial de alquileres: {e}")
