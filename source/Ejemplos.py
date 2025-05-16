@@ -1475,7 +1475,7 @@ def ver_historial_alquileres() -> None:
                 print(f"\n🚫 No se encontró historial de alquileres para '{email}'.")
                 return
 
-            # Mostrar datos en formato tabla
+            '''# Mostrar datos en formato tabla
             headers_table = [
                 "ID Alquiler", "ID Coche", "Matrícula", 
                 "Fecha Inicio", "Fecha Fin", "Coste Total", "Activo"
@@ -1489,10 +1489,11 @@ def ver_historial_alquileres() -> None:
                 a.get('fecha_fin', 'N/A'),
                 f"€{a.get('coste_total', 0):.2f}",
                 "✅ Sí" if a.get('activo') else "❌ No"
-            ] for a in alquileres]
+            ] for a in alquileres]'''
 
             print(f"\n📅 Historial de alquileres para {email}:")
-            print(tabulate(table_data, headers=headers_table, tablefmt="rounded_grid"))
+            print(alquileres)
+            #print(tabulate(table_data, headers=headers_table, tablefmt="rounded_grid"))
 
         elif r.status_code == 403:
             print("\n❌ Acceso denegado: No tienes permiso para ver este historial.")

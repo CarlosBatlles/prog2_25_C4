@@ -1108,7 +1108,7 @@ def historial_alquileres(email):
         print(f"DEBUG Endpoint historial para {email} - resultados de empresa:", resultados)
 
         # Formatear los resultados antes de devolverlos
-        historial_formateado = []
+        ''' historial_formateado = []
         for alquiler in resultados:
             historial_formateado.append({
                 "id_alquiler": formatear_id(alquiler["id_alquiler"], prefijo="A"),
@@ -1118,11 +1118,11 @@ def historial_alquileres(email):
                 "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
                 "coste_total": float(alquiler["coste_total"]),
                 "activo": bool(alquiler["activo"])
-            })
+            })'''
 
         return jsonify({
             "mensaje": f"Historial de alquileres del usuario {email}",
-            "alquileres": historial_formateado
+            "alquileres": resultados
         }), 200
 
     except ValueError as ve:
