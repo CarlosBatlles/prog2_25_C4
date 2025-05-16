@@ -1105,6 +1105,7 @@ def historial_alquileres(email):
 
         # Obtener el historial desde MySQL usando el método adaptado
         resultados = empresa.obtener_historial_alquileres(connection, email)
+        print(f"DEBUG Endpoint historial para {email} - resultados de empresa:", resultados)
 
         # Formatear los resultados antes de devolverlos
         historial_formateado = []
