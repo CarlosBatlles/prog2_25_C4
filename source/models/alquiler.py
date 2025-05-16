@@ -1,5 +1,5 @@
 
-'''Clase Alquiler para representar y gestionar un alquiler de coche'''
+# --- Imports --
 from datetime import date
 from mysql.connector import Error
 from mysql.connector.connection import MySQLConnection
@@ -8,50 +8,75 @@ from source.utils import formatear_id, generar_factura_pdf
 
 
 
+# --- Clase Alquiler ---
 class Alquiler:
+    """
+    Representa un alquiler de un coche en el sistema.
+
+    Esta clase encapsula la información de un alquiler, incluyendo el coche,
+    el usuario, las fechas y el coste. También proporciona métodos para
+    gestionar los alquileres.
+
+    Attributes
+    ----------
+    id_alquiler : int
+        Identificador único del alquiler.
+    id_coche : int
+        Identificador del coche alquilado.
+    id_usuario : Optional[int]
+        Identificador del usuario que realizó el alquiler. Puede ser None para invitados.
+    fecha_inicio : date
+        Fecha de inicio del alquiler.
+    fecha_fin : date
+        Fecha de fin del alquiler.
+    coste_total : float
+        Coste total calculado para el alquiler.
+    activo : bool
+        Indica si el alquiler está actualmente activo (True) o ha finalizado (False).
+    """
     def __init__(self, id_alquiler: int, id_coche: int, id_usuario: int,
                 fecha_inicio: str, fecha_fin: str, coste_total: float,
                 activo: bool = True):
-        
         """
-        Inicializa un nuevo objeto de tipo Alquiler.
+        Inicializa un nuevo objeto Alquiler.
 
         Parameters
         ----------
         id_alquiler : int
-            ID único del alquiler generado por la base de datos.
+            ID único del alquiler.
         id_coche : int
             ID del coche asociado al alquiler.
-        id_usuario : int
-            ID del usuario que realiza el alquiler.
-        fecha_inicio : str
-            Fecha de inicio del alquiler en formato 'YYYY-MM-DD'.
-        fecha_fin : str
-            Fecha de fin del alquiler en formato 'YYYY-MM-DD'.
+        id_usuario : Optional[int]
+            ID del usuario que realiza el alquiler. `None` si es un invitado.
+        fecha_inicio : Union[str, date]
+            Fecha de inicio del alquiler. Si es string, debe ser en formato 'YYYY-MM-DD'.
+        fecha_fin : Union[str, date]
+            Fecha de fin del alquiler. Si es string, debe ser en formato 'YYYY-MM-DD'.
         coste_total : float
             Costo total del alquiler.
         activo : bool, optional
-            Estado del alquiler (True si está activo, False si ha finalizado).
-            Por defecto es True.
+            Estado del alquiler. Por defecto es `True`.
 
         Raises
         ------
         ValueError
-            Si las fechas están mal formateadas o si `fecha_inicio >= fecha_fin`.
+            Si `fecha_inicio` no es anterior a `fecha_fin`.
         """
+        
         # Validar que fecha_inicio sea menor que fecha_fin
         if fecha_inicio >= fecha_fin:
             raise ValueError("Error: La fecha de inicio debe ser anterior a la fecha de fin.")
 
-        self.id_alquiler = id_alquiler
-        self.id_coche = id_coche
-        self.id_usuario = id_usuario
-        self.fecha_inicio = fecha_inicio
-        self.fecha_fin = fecha_fin
-        self.coste_total = coste_total
-        self.activo = activo
-        
+        self.id_alquiler: int = id_alquiler
+        self.id_coche: int = id_coche
+        self.id_usuario: Optional[int] = id_usuario
+        self.fecha_inicio: date = fecha_inicio
+        self.fecha_fin: date = fecha_fin
+        self.coste_total: float = coste_total
+        self.activo: bool = activo
 
+        
+    @staticmethod
     def obtener_todos(connection: 'MySQLConnection') -> List[Dict[str, Any]]:
         """
         Obtiene todos los alquileres registrados desde la base de datos, incluyendo la matrícula del coche.
@@ -75,7 +100,6 @@ class Alquiler:
             La excepción original de `mysql.connector` se propaga.
         """
         try:
-            # Usamos 'with' para el manejo automático del cursor
             with connection.cursor(dictionary=True) as cursor:
                 query = """
                 SELECT 

@@ -184,13 +184,12 @@ class Empresa():
             Si el ID no puede convertirse a entero o si hay errores en la actualización.
         """
         try:
-            # Convertir el ID formateado ("UID01") a su parte numérica (1)
-            if not id_coche.startswith("UID"):
-                raise ValueError("Formato de ID inválido. Debe comenzar con 'UID'")
+            # Validar y convertir el ID formateado ("UID001") a su parte numérica (1)
+            if not isinstance(id_coche, str) or not id_coche.upper().startswith("UID") or not id_coche[3:].isdigit() or int(id_coche[3:]) <= 0:
+                raise ValueError("Formato de ID de coche inválido. Debe ser 'UID' seguido de números (e.g., 'UID001').")
             
-            id_numero = int(id_coche[3:])  # UID01 → 1
+            id_numero = int(id_coche[3:])
 
-            # Pasar solo los valores necesarios
             connection = self.get_connection()
             return Coche.actualizar_matricula(connection, id_numero, nueva_matricula)
 
