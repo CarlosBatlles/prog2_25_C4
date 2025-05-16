@@ -649,16 +649,10 @@ def eliminar_coche() -> None:
 
     # Solicitar el ID del coche a eliminar
     print("\n🗑️ --- Eliminar Coche --- 🗑️")
-    id_input = input('🆔 Introduce el ID del coche a eliminar: ').strip()
-
-    # Validación del ID
-    try:
-        id_coche = int(id_input)
-        if id_coche <= 0:
-            print("❌ Error: El ID debe ser un número entero positivo.")
-            return
-    except ValueError:
-        print("❌ Error: El ID debe ser un número válido.")
+    id_input = input('🆔 Introduce el ID del coche a eliminar (ej: UID001): ').strip()
+    
+    if not id_input:
+        print("❌ Error: El ID del coche es obligatorio.")
         return
 
     # Obtener los headers con el token JWT
@@ -667,11 +661,11 @@ def eliminar_coche() -> None:
     # Realizar la solicitud DELETE
     try:
         r = requests.delete(
-            f'{BASE_URL}/coches/eliminar/{id_coche}',
+            f'{BASE_URL}/coches/eliminar/{id_input}',
             headers=headers  # Incluir los headers con el token JWT
         )
         if r.status_code == 200:
-            data = [[f"ID {id_coche}", "✅ Eliminado", "✔️ Sí"]]
+            data = [[f"ID {id_input}", "✅ Eliminado", "✔️ Sí"]]
             headers_table = ["Coche", "Estado", "Acción"]
             print("\n✅ ¡Eliminación exitosa!")
             print(tabulate(data, headers=headers_table, tablefmt="rounded_grid"))
