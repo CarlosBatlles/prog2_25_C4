@@ -461,22 +461,8 @@ class Usuario:
                 print(f"DEBUG Usuario.obtener_historial_alquileres para id_usuario {id_usuario}")
 
                 # Consultar los alquileres del usuario
-                query_alquileres = """
-                    SELECT 
-                    a.id_alquiler, 
-                    a.id_coche, 
-                    c.matricula,      
-                    a.id_usuario,
-                    a.fecha_inicio, 
-                    a.fecha_fin, 
-                    a.coste_total, 
-                    a.activo
-                    FROM alquileres a
-                    INNER JOIN coches c ON a.id_coche = c.id  -- Unimos con la tabla coches
-                    WHERE a.id_usuario = %s 
-                    ORDER BY a.fecha_inicio DESC, a.id_alquiler DESC
-                """
-                query = """SELECT 
+               
+                query_alquileres = """SELECT 
                 a.id_alquiler,
                 a.id_coche,
                 c.matricula,
@@ -484,8 +470,8 @@ class Usuario:
                 a.fecha_fin,
                 a.coste_total,
                 a.activo 
-                FROM alquileres a INNER JOIN coches c ON a.id_coche = c.id WHERE a.id_usuario = 1 ORDER BY a.fecha_inicio DESC, a.id_alquiler DESC"""
-                cursor.execute(query, (id_usuario,))
+                FROM alquileres a INNER JOIN coches c ON a.id_coche = c.id WHERE a.id_usuario = %s ORDER BY a.fecha_inicio DESC, a.id_alquiler DESC"""
+                cursor.execute(query_alquileres, (id_usuario,))
                 historial_alquileres: List[Dict[str, Any]] = cursor.fetchall()
                 print(f"DEBUG Usuario.obtener_historial_alquileres para id_usuario {id_usuario}: {historial_alquileres}")
                 return historial_alquileres
