@@ -1104,7 +1104,7 @@ def historial_alquileres(email):
         connection = empresa.get_connection()
 
         # Obtener el historial desde MySQL usando el método adaptado
-        resultados = empresa.obtener_historial_alquileres(connection, email)
+        resultados = empresa.obtener_historial_alquileres(email)
 
         # Formatear los resultados antes de devolverlos
         historial_formateado = []
