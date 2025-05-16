@@ -5,6 +5,7 @@ import re
 from fpdf import FPDF
 import os
 from datetime import datetime
+from data import Logo
 
 
 def hash_contraseña(contraseña: str) -> str:
@@ -105,7 +106,9 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
 
         # Intentar cargar el logo
         try:
-            logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "Logo.png")
+            logo_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), 
+                "..","data","Logo.png")
             if os.path.exists(logo_path):
                 pdf.image(logo_path, x=10, y=10, w=50)
         except Exception as e:
