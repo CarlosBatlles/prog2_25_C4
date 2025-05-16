@@ -1407,7 +1407,7 @@ def actualizar_matricula(id_coche: str) -> tuple[dict, int]:
 
 @app.route('/coches/eliminar/<string:id_coche>', methods=['DELETE'])
 @jwt_required()
-def eliminar_coche(id_coche: str) -> tuple[dict, int]:
+def eliminar_coche(id_coche: int) -> tuple[dict, int]:
     """
     Endpoint para eliminar un coche específico mediante su ID.
 

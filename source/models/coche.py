@@ -318,7 +318,7 @@ class Coche:
 
     
     @staticmethod
-    def eliminar_coche(connection,id_coche: str) -> bool:
+    def eliminar_coche(connection,id_coche: int) -> bool:
         """
         Elimina un coche de la base de datos basándose en su ID.
 
