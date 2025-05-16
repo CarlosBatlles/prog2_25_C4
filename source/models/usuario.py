@@ -477,7 +477,7 @@ class Usuario:
                 """
                 cursor.execute(query_alquileres, (id_usuario,))
                 historial_alquileres: List[Dict[str, Any]] = cursor.fetchall()
-                
+                print(f"DEBUG Usuario.obtener_historial_alquileres para id_usuario {id_usuario}: {historial_alquileres}")
                 return historial_alquileres
         except Error as e:
             raise e
