@@ -1122,7 +1122,7 @@ def historial_alquileres(email):
 
         return jsonify({
             "mensaje": f"Historial de alquileres del usuario {email}",
-            "alquileres": resultados
+            "alquileres": resultados #cuando acabe debug cambiar a historial_formateado
         }), 200
 
     except ValueError as ve:
