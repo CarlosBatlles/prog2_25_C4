@@ -212,19 +212,6 @@ class Empresa():
                 connection.close() # Empresa cierra la conexión que abrió
     
     
-    def eliminar_coche(self, id_coche: int) -> bool:
-        """
-        Elimina un coche llamando al método estático de la clase Coche.
-        """
-        connection = None
-        try:
-            connection = self.get_connection()
-            return Coche.eliminar_coche(connection, id_coche)
-        finally:
-            if connection and connection.is_connected():
-                connection.close() # Empresa cierra la conexión que abrió
-    
-    
     def mostrar_categorias_precio(self) -> list:
         """
         Muestra las categorías de precio llamando al método estático de la clase Coche.
