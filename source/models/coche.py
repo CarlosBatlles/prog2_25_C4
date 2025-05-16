@@ -291,29 +291,30 @@ class Coche:
         try:
             with connection.cursor() as cursor:
                 # Verificar si el coche existe
-                cursor.execute("SELECT COUNT(*) FROM coches WHERE id = %s",(id_coche))
-                if not cursor.fetchone()[0]:
+                cursor.execute("SELECT 1 FROM coches WHERE id = %s",(id_coche,))
+                if cursor.fetchone() is None:
                     raise ValueError(f"El coche con ID {id_coche} no existe")
                 
                 # Verificar si la nueva matricula ya esta en uso
-                cursor.execute("SELECT COUNT(*) FROM coches WHERE matricula = %s",(nueva_matricula))
-                if cursor.fetchone()[0] > 0:
+                cursor.execute("SELECT 1 FROM coches WHERE matricula = %s AND id != %s",(nueva_matricula,id_coche))
+                if cursor.fetchone() is not None:
                     raise ValueError(f"La matricula {nueva_matricula} ya está registrada")
                 
                 query = ("UPDATE coches SET matricula=%s WHERE id = %s")
                 valores = (nueva_matricula,id_coche)
                 
                 cursor.execute(query, valores)
-                connection.commit()
                 
                 if cursor.rowcount > 0:
+                    connection.commit()
                     return True
                 else:
+                    connection.rollback()
                     raise ValueError(f"No se ha podido actualizar la matricula del coche con id: {id_coche}")
             
         except Error as e:
             connection.rollback()
-            raise ValueError(f"Error al actualizar la matricula: {e}")
+            raise e
 
     
     @staticmethod

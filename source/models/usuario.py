@@ -108,7 +108,7 @@ class Usuario:
     def obtener_usuario_por_email(
         connection: 'MySQLConnection',
         email: str
-    ) -> Optional[Dict[str, Any]]:
+        ) -> Optional[Dict[str, Any]]:
         """
         Obtiene los detalles de un usuario por su correo electrónico.
 
@@ -417,11 +417,11 @@ class Usuario:
             raise e
 
     
-    @staticmethod # Corregido: obtener_historial_alquileres no usa self
+    @staticmethod 
     def obtener_historial_alquileres(
         connection: 'MySQLConnection',
         email: str
-    ) -> List[Dict[str, Any]]:
+        ) -> List[Dict[str, Any]]:
         """
         Obtiene el historial de alquileres de un usuario específico.
 
@@ -461,9 +461,19 @@ class Usuario:
 
                 # Consultar los alquileres del usuario
                 query_alquileres = """
-                    SELECT * FROM alquileres 
-                    WHERE id_usuario = %s 
-                    ORDER BY fecha_inicio DESC
+                SELECT 
+                    a.id_alquiler, 
+                    a.id_coche, 
+                    c.matricula,      
+                    a.id_usuario,
+                    a.fecha_inicio, 
+                    a.fecha_fin, 
+                    a.coste_total, 
+                    a.activo
+                FROM alquileres a
+                INNER JOIN coches c ON a.id_coche = c.id  -- Unimos con la tabla coches
+                WHERE a.id_usuario = %s 
+                ORDER BY a.fecha_inicio DESC, a.id_alquiler DESC
                 """
                 cursor.execute(query_alquileres, (id_usuario,))
                 historial_alquileres: List[Dict[str, Any]] = cursor.fetchall()
