@@ -172,24 +172,22 @@ def menu_admin() -> None:
         if opcion == "1":
             registrar_coche()
         elif opcion == "2":
-            eliminar_coche()
-        elif opcion == "3":
             listar_usuarios()
-        elif opcion == "4":
+        elif opcion == "3":
             detalles_usuario()
-        elif opcion == "5":
+        elif opcion == "4":
             actualizar_coche()
-        elif opcion == "6":
+        elif opcion == "5":
             listar_alquileres()
-        elif opcion == "7":
+        elif opcion == "6":
             alquiler_detalles()
-        elif opcion == "8":
+        elif opcion == "7":
             finalizar_alquiler()
-        elif opcion == "9":
+        elif opcion == "8":
             print("👋 Volviendo al menú principal...")
             break
         else:
-            print("❌ Opción no válida. Por favor, elige entre 1 y 9.")
+            print("❌ Opción no válida. Por favor, elige entre 1 y 8.")
 
 
 def menu_cliente() -> None:
@@ -618,71 +616,6 @@ def registrar_coche() -> None:
             print("\n❌ Acceso denegado. Solo los administradores pueden registrar coches.")
         else:
             print(f"\n⚠️ Error inesperado: {r.status_code} - {r.text}")
-
-    except requests.exceptions.RequestException as e:
-        print(f"\n🌐 Error al conectar con el servidor: {e}")
-
-
-def eliminar_coche() -> None:
-    """
-    Elimina un coche del sistema enviando una solicitud al servidor.
-
-    Returns
-    -------
-    None
-        La función no retorna valores, pero imprime la respuesta del servidor.
-
-    Notes
-    -----
-    - Solicita al usuario el ID del coche a eliminar mediante entrada estándar.
-    - Realiza una solicitud DELETE al endpoint /coches/eliminar/{id_coche}.
-    - Requiere la biblioteca `requests`, las variables globales BASE_URL y TOKEN,
-    y la función get_headers para generar los encabezados con autenticación.
-    - Maneja excepciones de red e imprime errores si ocurren.
-    """
-    global TOKEN  # Acceder a la variable global TOKEN
-
-    # Verificar si hay un token JWT válido
-    if not TOKEN:
-        print("❌ No has iniciado sesión. Por favor, inicia sesión primero.")
-        return
-
-    # Solicitar el ID del coche a eliminar
-    print("\n🗑️ --- Eliminar Coche --- 🗑️")
-    id_input = input('🆔 Introduce el ID del coche a eliminar (ej: UID001): ').strip()
-    
-    if not id_input.startswith("UID"):
-            print("❌ Error: El ID debe comenzar con 'UID' seguido de un número válido (ej: UID090).")
-            return
-
-    try:
-        id_numero = int(id_input[3:])  # Extraemos los números después de "UID"
-    except ValueError:
-        print("❌ Error: El ID debe ser como 'UID090', donde 090 es un número válido.")
-        return
-
-    # Obtener los headers con el token JWT
-    headers = get_headers(auth_required=True)
-
-    # Realizar la solicitud DELETE
-    try:
-        r = requests.delete(
-            f'{BASE_URL}/coches/eliminar/{id_numero}',
-            headers=headers  # Incluir los headers con el token JWT
-        )
-        if r.status_code == 200:
-            data = [[f"ID {id_input}", "✅ Eliminado", "✔️ Sí"]]
-            headers_table = ["Coche", "Estado", "Acción"]
-            print("\n✅ ¡Eliminación exitosa!")
-            print(tabulate(data, headers=headers_table, tablefmt="rounded_grid"))
-
-        elif r.status_code == 404:
-            error = r.json().get('error', 'Coche no encontrado')
-            print(f"\n❌ Error ({r.status_code}): {error}")
-        elif r.status_code == 403:
-            print("\n❌ Acceso denegado. Solo los administradores pueden eliminar coches.")
-        else:
-            print(f"\n⚠️ Error ({r.status_code}): {r.text}")
 
     except requests.exceptions.RequestException as e:
         print(f"\n🌐 Error al conectar con el servidor: {e}")
