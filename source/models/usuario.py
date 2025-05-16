@@ -458,8 +458,8 @@ class Usuario:
                     raise ValueError(f"El correo {email} no está registrado.")
 
                 id_usuario = usuario_info['id_usuario']
-                return id_usuario
-                print(f"DEBUG Usuario.obtener_historial_alquileres para id_usuario {id_usuario}")
+                print(f"DEBUG: ID del usuario obtenido: {id_usuario}")
+                raise ValueError(f"Debug: ID del usuario es {id_usuario}")
 
                 # Consultar los alquileres del usuario
                
