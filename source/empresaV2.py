@@ -365,7 +365,7 @@ class Empresa():
             if connection and connection.is_connected():
                 connection.close() # Empresa cierra la conexión que abrió
     
-    def obtener_historial_alquileres(self, email: str) -> list[dict]:
+    def obtener_historial_alquileres(self, email: str) -> List[Dict[str, Any]]:
         """
         Llama al método estático `Usuario.obtener_historial_alquileres(...)` pasando la conexión.
         """

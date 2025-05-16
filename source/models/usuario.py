@@ -462,7 +462,6 @@ class Usuario:
                 raise ValueError(f"Debug: ID del usuario es {id_usuario}")
 
                 # Consultar los alquileres del usuario
-               
                 query_alquileres = """SELECT 
                 a.id_alquiler,
                 a.id_coche,
