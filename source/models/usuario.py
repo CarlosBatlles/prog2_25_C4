@@ -480,4 +480,5 @@ class Usuario:
                 print(f"DEBUG Usuario.obtener_historial_alquileres para id_usuario {id_usuario}: {historial_alquileres}")
                 return historial_alquileres
         except Error as e:
+            print(f"Error al obtener el historial de alquileres: {e}")
             raise e
