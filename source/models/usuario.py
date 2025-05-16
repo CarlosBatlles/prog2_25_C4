@@ -480,7 +480,6 @@ class Usuario:
                 a.id_alquiler,
                 a.id_coche,
                 c.matricula,
-                a.id_usuario,
                 a.fecha_inicio,
                 a.fecha_fin,
                 a.coste_total,
