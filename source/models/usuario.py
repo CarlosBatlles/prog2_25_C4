@@ -108,7 +108,7 @@ class Usuario:
     def obtener_usuario_por_email(
         connection: 'MySQLConnection',
         email: str
-    ) -> Optional[Dict[str, Any]]:
+        ) -> Optional[Dict[str, Any]]:
         """
         Obtiene los detalles de un usuario por su correo electrónico.
 
@@ -417,11 +417,11 @@ class Usuario:
             raise e
 
     
-    @staticmethod # Corregido: obtener_historial_alquileres no usa self
+    @staticmethod 
     def obtener_historial_alquileres(
         connection: 'MySQLConnection',
         email: str
-    ) -> List[Dict[str, Any]]:
+        ) -> List[Dict[str, Any]]:
         """
         Obtiene el historial de alquileres de un usuario específico.
 
