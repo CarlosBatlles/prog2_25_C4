@@ -5,7 +5,6 @@ import re
 from fpdf import FPDF
 import os
 from datetime import datetime
-from data import Logo
 
 
 def hash_contraseña(contraseña: str) -> str:
