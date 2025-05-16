@@ -318,7 +318,7 @@ class Coche:
 
     
     @staticmethod
-    def eliminar_coche(connection,id_coche: int) -> bool:
+    def eliminar_coche(connection,id_coche: str) -> bool:
         """
         Elimina un coche de la base de datos basándose en su ID.
 
@@ -353,12 +353,16 @@ class Coche:
             el coche está referenciado en alquileres y no hay CASCADE DELETE).
             La excepción original de `mysql.connector` se propaga.
         """
+        if not id_coche.startswith("UID") or not id_coche[3:].isdigit():
+            raise ValueError("Formato de ID inválido. Debe ser tipo A001.")
+
+        id_numero = int(id_coche[3:])
         
         try:
             with connection.cursor() as cursor:
                 # Verificar si el coche existe
                 query = ('DELETE FROM coches WHERE id=%s')
-                cursor.execute(query,(id_coche,))
+                cursor.execute(query,(id_numero,))
                 if cursor.rowcount > 0:
                     connection.commit() # Hacer commit SOLO si la eliminación tuvo efecto
                     return True
