@@ -360,6 +360,14 @@ class Coche:
         
         try:
             with connection.cursor() as cursor:
+                
+                # Verificar si hay alquileres activos para este coche
+                cursor.execute("SELECT COUNT(*) FROM alquileres WHERE id_coche = %s AND activo = TRUE", (id_coche,))
+                alquileres_activos = cursor.fetchone()[0]
+
+                if alquileres_activos > 0:
+                    raise ValueError(f"No se puede eliminar el coche con ID {id_coche} porque tiene alquileres activos.")
+
                 # Verificar si el coche existe
                 query = ('DELETE FROM coches WHERE id=%s')
                 cursor.execute(query,(id_numero,))
