@@ -117,6 +117,7 @@ class Alquiler:
 
                 cursor.execute(query)
                 resultados: List[Dict[str, Any]] = cursor.fetchall()
+                print("DEBUG Alquiler.obtener_todos - resultados:", resultados)
                 return resultados
 
         except Error as e:
