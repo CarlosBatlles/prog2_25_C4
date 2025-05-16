@@ -1375,7 +1375,7 @@ def finalizar_alquiler() -> None:
     """
     
     print("\n✅ --- Finalizar Alquiler --- ✅")
-    id_alquiler = input("🆔 ID del alquiler a finalizar: ").strip()
+    id_alquiler = input("🆔 ID del alquiler a finalizar (ej: A001): ").strip()
     
     if not id_alquiler:
         print("❌ Error: El ID del alquiler es obligatorio.")
@@ -1385,7 +1385,6 @@ def finalizar_alquiler() -> None:
     headers = get_headers(auth_required=True)
 
     try:
-        id_alquiler: str = input("🆔 ID del alquiler a finalizar: ").strip()
         r: requests.Response = requests.put(
             f"{BASE_URL}/alquileres/finalizar/{id_alquiler}", headers=headers)
         if r.status_code == 200:
