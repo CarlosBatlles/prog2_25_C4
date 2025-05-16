@@ -91,9 +91,9 @@ class Alquiler:
                 ORDER BY a.fecha_inicio DESC
                 """
 
-            cursor.execute(query)
-            resultados: List[Dict[str, Any]] = cursor.fetchall()
-            return resultados
+                cursor.execute(query)
+                resultados: List[Dict[str, Any]] = cursor.fetchall()
+                return resultados
 
         except Error as e:
             raise e
