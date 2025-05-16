@@ -1093,11 +1093,11 @@ def historial_alquileres(email):
         Si ocurre un error interno en la base de datos.
     """
     claims = get_jwt()
-    rol = claims.get('rol', None)
+    rol = claims.get('rol')
     email_usuario_autenticado = get_jwt_identity()
 
     # Verificar autorización
-    if rol == 'admin' and email != email_usuario_autenticado:
+    if rol == 'admin' or email != email_usuario_autenticado:
         return jsonify({'error': 'Acceso no autorizado'}), 403
 
     try:
