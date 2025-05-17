@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import filedialog
 import datetime
 from tabulate import tabulate
+import re
 
 
 BASE_URL = "https://alexiss1.pythonanywhere.com/"
@@ -160,7 +161,7 @@ def menu_admin() -> None:
         print("1. 🚗 Registrar coche")
         print("2. 👥 Listar usuarios")
         print("3. 📄 Obtener detalles de usuario")
-        print("4. 🛠️ Actualizar datos de coche")
+        print("4. 🛠️  Actualizar datos de coche")
         print("5. 📋 Listar alquileres")
         print("6. 🔍 Detalle específico de alquiler")
         print("7. ✅ Finalizar alquiler")
@@ -506,7 +507,7 @@ def registrar_coche() -> None:
     
     marca = input('Marca: ').strip()
     modelo = input('Modelo: ').strip()
-    matricula = input('Matricula: ').strip()
+    matricula = input('Matricula (p.ej: 0000 XXX): ').strip()
     categoria_tipo = input('Categoria tipo: ').strip()
     categoria_precio = input('Categoria precio: ').strip()
     
@@ -1023,7 +1024,7 @@ def detalles_coche() -> None:
     - La función imprime directamente la respuesta o el mensaje de error en lugar de devolver valores.
     """
     print("\n📄 --- Detalles del Coche --- 📄")
-    matricula = input("🔤 Matrícula del coche: ").strip()
+    matricula = input("🔤 Matrícula del coche (p.ej: 0000 XXX): ").strip()
 
     if not matricula:
         print("❌ Error: La matrícula es obligatoria.")
@@ -1099,8 +1100,8 @@ def actualizar_coche() -> None:
     
     print("\n🛠️ --- Actualizar Matrícula de Coche --- 🛠️")
 
-    id_coche = input("🆔 ID del coche a actualizar: ").strip()
-    nueva_matricula = input("🔤 Nueva matrícula: ").strip()
+    id_coche = input("🆔 ID del coche a actualizar (p.ej: UID001): ").strip()
+    nueva_matricula = input("🔤 Nueva matrícula (p.ej: 0000 XXX): ").strip()
     
     if not id_coche:
         print("❌ Error: El ID del coche es obligatorio.")
@@ -1108,6 +1109,15 @@ def actualizar_coche() -> None:
 
     if not nueva_matricula:
         print("❌ Error: La nueva matrícula es obligatoria.")
+        return
+    
+    # Validar formato de matrícula
+    patron_matricula = r'^\d{4} [A-Z]{3}$'
+    if not re.match(patron_matricula, nueva_matricula):
+        print("❌ Error: El formato de la matrícula debe ser '0000 XXX', donde:")
+        print("     - 4 dígitos seguidos de un espacio")
+        print("     - 3 letras mayúsculas después del espacio")
+        print("     Ejemplo: 1234 ABC")
         return
     
     headers = get_headers(auth_required=True)
@@ -1242,7 +1252,7 @@ def alquiler_detalles() -> None:
     """
     
     print("\n📄 --- Detalles del Alquiler --- 📄")
-    id_alquiler = input("🆔 ID del alquiler: ").strip()
+    id_alquiler = input("🆔 ID del alquiler (p.ej: A001): ").strip()
     
     headers = get_headers(auth_required=True)
     
@@ -1477,7 +1487,7 @@ def alquilar_coche() -> None:
     - La función imprime mensajes informativos sobre el resultado de la operación.
     """
     print("\n🚗 --- Alquilar Coche --- 🚗")
-    matricula = input("🔤 Matrícula del coche: ").strip()
+    matricula = input("🔤 Matrícula del coche (p.ej: 0000 XXX): ").strip()
     fecha_inicio = input("📅 Fecha de inicio (YYYY-MM-DD): ").strip()
     fecha_fin = input("📆 Fecha de fin (YYYY-MM-DD): ").strip()
     email = input("📧 Email del usuario (dejar en blanco para invitado): ").strip() or None

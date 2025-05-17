@@ -1322,8 +1322,7 @@ def detalles_coche(matricula: str) -> tuple[dict, int]:
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 404
     except Exception as e:
-        print(f"Error interno: {e}")
-        return jsonify({"error": "Error interno del servidor"}), 500
+        return jsonify({"error": f"{e}"}), 500
     
     
 @app.route('/coches/actualizar-matricula/<string:id_coche>', methods=['PUT'])
