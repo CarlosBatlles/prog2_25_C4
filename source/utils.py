@@ -118,7 +118,7 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
 
         # --- Información General de la Factura ---
         pdf.set_font("Arial", size=10)
-        pdf.cell(0, 7, txt=f"ID Alquilerde: {alquiler.get('id_alquiler', 'N/A')}", ln=True, align="R")
+        pdf.cell(0, 7, txt=f"ID Alquiler: {alquiler.get('id_alquiler', 'N/A')}", ln=True, align="R")
         pdf.cell(0, 7, txt=f"Fecha de Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="R")
         pdf.ln(10) # Espacio
         
@@ -152,8 +152,8 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
         
         # Preparar datos para mostrar en la tabla
         items_factura = [
-            (f"Alquiler Vehículo: {alquiler.get('marca', '')} {alquiler.get('modelo', '')} (Matrícula: {alquiler.get('matricula', 'N/A')})", ""), # Usar ""
-            (f"  Periodo: Desde {datetime.strptime(alquiler.get('fecha_inicio', '1900-01-01'), '%Y-%m-%d').strftime('%d/%m/%Y')} hasta {datetime.strptime(alquiler.get('fecha_fin', '1900-01-01'), '%Y-%m-%d').strftime('%d/%m/%Y')}", ""), # Usar "" y .get() para fechas
+            (f"Alquiler Vehículo: {alquiler.get('marca', '')} {alquiler.get('modelo', '')} (Matrícula: {alquiler.get('matricula', 'N/A')})", ""),
+            (f"  Periodo: Desde {datetime.strptime(alquiler.get('fecha_inicio', '1900-01-01'), '%Y-%m-%d').strftime('%d/%m/%Y')} hasta {datetime.strptime(alquiler.get('fecha_fin', '1900-01-01'), '%Y-%m-%d').strftime('%d/%m/%Y')}", ""), 
             ("  Precio Base Diario:", f"{alquiler.get('precio_diario', 0.0):.2f} EUR"),
             ("  Descuento Aplicado:", f"{alquiler.get('porcentaje_descuento', 0.0):.0f}%"),
         ]

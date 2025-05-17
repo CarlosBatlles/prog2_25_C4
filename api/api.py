@@ -1097,7 +1097,7 @@ def historial_alquileres(email):
     email_usuario_autenticado = get_jwt_identity()
 
     # Verificar autorización
-    if rol != 'admin' or email != email_usuario_autenticado:
+    if rol != 'admin' and email != email_usuario_autenticado:
         return jsonify({'error': 'Acceso no autorizado'}), 403
 
     try:
