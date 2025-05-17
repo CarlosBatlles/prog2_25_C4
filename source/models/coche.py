@@ -450,7 +450,7 @@ class Coche:
                 """
                 cursor.execute(query, (categoria_precio,))
                 
-            resultados: List[str] = [row[0] for row in cursor.fetchall()]
+                resultados: List[str] = [row[0] for row in cursor.fetchall()]
 
             if not resultados:
                 raise ValueError("No hay categorías de tipo disponibles.")
@@ -514,7 +514,7 @@ class Coche:
                 # Los parámetros deben pasarse como una tupla
                 cursor.execute(query, (categoria_precio, categoria_tipo))
 
-            marcas: List[str] = [row[0] for row in cursor.fetchall()]
+                marcas: List[str] = [row[0] for row in cursor.fetchall()]
 
             if not marcas:
                 raise ValueError("No hay marcas disponibles con esos filtros.")
