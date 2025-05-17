@@ -166,7 +166,7 @@ class Empresa():
         connection = None
         try:
             connection = self.get_connection()
-            return Coche.obtener_detalle_por_matricula(connection, matricula)
+            return Coche.obtener_por_matricula(connection, matricula)
         finally:
             if connection and connection.is_connected():
                 connection.close() # Empresa cierra la conexión que abrió   
