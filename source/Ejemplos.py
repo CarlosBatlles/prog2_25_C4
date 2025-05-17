@@ -158,16 +158,15 @@ def menu_admin() -> None:
     while True:
         print("\n--- Opciones del Administrador ---")
         print("1. 🚗 Registrar coche")
-        print("2. 🚫 Eliminar coche")
-        print("3. 👥 Listar usuarios")
-        print("4. 📄 Obtener detalles de usuario")
-        print("5. 🛠️ Actualizar datos de coche")
-        print("6. 📋 Listar alquileres")
-        print("7. 🔍 Detalle específico de alquiler")
-        print("8. ✅ Finalizar alquiler")
-        print("9. 🚪 Volver al menú principal")
+        print("2. 👥 Listar usuarios")
+        print("3. 📄 Obtener detalles de usuario")
+        print("4. 🛠️ Actualizar datos de coche")
+        print("5. 📋 Listar alquileres")
+        print("6. 🔍 Detalle específico de alquiler")
+        print("7. ✅ Finalizar alquiler")
+        print("8. 🚪 Volver al menú principal")
         
-        opcion = input("👉 Selecciona una opción (1-9): ").strip()
+        opcion = input("👉 Selecciona una opción (1-8): ").strip()
 
         if opcion == "1":
             registrar_coche()
