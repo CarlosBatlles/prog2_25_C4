@@ -1,60 +1,114 @@
-# source/utils.py
 
+# --- Imports ---
 import hashlib
 import re
-from fpdf import FPDF
 import os
 from datetime import datetime
+from typing import Dict, Any, Optional, Union # Añadido Optional y Union
+from fpdf import FPDF
+
+
+# --------------------------------------------------------------------------
+# SECCIÓN 1: FUNCIONES DE SEGURIDAD Y VALIDACIÓN
+# --------------------------------------------------------------------------
 
 
 def hash_contraseña(contraseña: str) -> str:
     """
     Genera un hash SHA-256 de la contraseña proporcionada.
 
+    Utiliza la codificación UTF-8 para la contraseña antes de hashearla
+    y devuelve el hash como una cadena hexadecimal.
+
     Parameters
     ----------
     contraseña : str
-        La contraseña que se desea hashear.
+        La contraseña en texto plano que se desea hashear.
 
     Returns
     -------
     str
-        Un hash SHA-256 de la contraseña en formato hexadecimal.
+        El hash SHA-256 de la contraseña, representado como una cadena
+        hexadecimal de 64 caracteres.
 
-    Notes
-    -----
-    Este método utiliza la biblioteca hashlib para generar un hash seguro de la contraseña.
-    El resultado es una cadena hexadecimal de 64 caracteres.
+    Examples
+    --------
+    hash_contraseña("miClaveSegura123")
+    '...' # (el hash correspondiente)
+
+    return hashlib.sha256(contraseña.encode()).hexdigest()
     """
+    # Genera un hash SHA-256 de la contraseña
     return hashlib.sha256(contraseña.encode()).hexdigest()
 
-
-def es_email_valido(email: str) -> bool:
+def es_email_valido(email: Optional[str]) -> bool:
     """
-    Verifica si un correo electrónico es válido utilizando una expresión regular.
+    Verifica si una cadena de texto tiene el formato de un correo electrónico válido.
+
+    Utiliza una expresión regular para comprobar si el formato del email
+    cumple con los patrones comunes de direcciones de correo electrónico.
 
     Parameters
     ----------
-    email : str
-        El correo electrónico que se desea validar.
+    email : Optional[str]
+        El correo electrónico que se desea validar. Puede ser `None`.
 
     Returns
     -------
     bool
-        True si el correo electrónico es válido, False en caso contrario.
+        `True` si el `email` es una cadena no vacía y coincide con el patrón
+        de email válido, `False` en caso contrario (incluyendo si `email` es `None`
+        o una cadena vacía).
+
+    Examples
+    --------
+    >>> es_email_valido("usuario@ejemplo.com")
+    True
+    >>> es_email_valido("usuario.ejemplo.com")
+    False
+    >>> es_email_valido(None)
+    False
+    >>> es_email_valido("")
+    False
 
     Notes
     -----
-    Esta función utiliza una expresión regular para validar el formato del correo electrónico.
-    El patrón utilizado sigue las reglas estándar para correos electrónicos válidos.
+    - El patrón de expresión regular utilizado es una aproximación común y cubre
+    la mayoría de los casos, pero la validación completa de emails según RFC
+    es extremadamente compleja.
+    - Esta función no verifica si el dominio del email existe o si el buzón está activo.
     """
-    patron = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
-    return re.match(patron, email) is not None
+    patron: str = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if re.fullmatch(patron, email): # fullmatch para asegurar que todo el string coincida
+        return True
+    return False
 
 
-def formatear_id(id_registro: int, prefijo: str) -> str:
+# --------------------------------------------------------------------------
+# SECCIÓN 3: FUNCIONES DE FORMATEO
+# --------------------------------------------------------------------------
+
+
+def formatear_id(id_registro: Optional[Union[int, str]], prefijo: str) -> str:
     """
-    Convierte un ID numérico en un formato amigable con prefijo.
+    Convierte un ID numérico o string numérico en un formato con prefijo y padding de ceros.
+
+    Asegura que la parte numérica del ID tenga al menos 3 dígitos,
+    añadiendo ceros a la izquierda si es necesario.
+
+    Parameters
+    ----------
+    id_registro : Optional[Union[int, str]]
+        El ID numérico o string que representa un número.
+        Si es `None`, se devuelve un valor por defecto "N/A" o similar.
+    prefijo : str
+        El prefijo a añadir al ID formateado (e.g., "UID", "A", "U").
+
+    Returns
+    -------
+    str
+        El ID formateado como una cadena de texto (e.g., "UID001", "A007").
+        Devuelve `f"{prefijo}N/A"` si `id_registro` es `None`.
     
     Ejemplos:
         formatear_id(1, 'UID') → 'UID001'
@@ -64,34 +118,46 @@ def formatear_id(id_registro: int, prefijo: str) -> str:
     return f"{prefijo}{id_registro:03d}"
 
 
+# --------------------------------------------------------------------------
+# SECCIÓN 4: GENERACIÓN DE DOCUMENTOS
+# --------------------------------------------------------------------------
+
+
 def generar_factura_pdf(alquiler: dict) -> bytes:
     """
     Genera una factura en formato PDF para un alquiler específico.
 
+    Utiliza la librería FPDF para construir el documento PDF con los detalles
+    proporcionados del alquiler.
+
     Parameters
     ----------
-    alquiler : dict
-        Diccionario con los siguientes campos:
-        - id_alquiler (str): ID único del alquiler.
-        - marca (str): Marca del coche.
-        - modelo (str): Modelo del coche.
-        - matricula (str): Matrícula del coche.
-        - fecha_inicio (str): Fecha de inicio ('YYYY-MM-DD').
-        - fecha_fin (str): Fecha de fin ('YYYY-MM-DD').
-        - coste_total (float): Costo total del alquiler.
-        - nombre_usuario (str, optional): Nombre del cliente.
+    alquiler_info : Dict[str, Any]
+        Diccionario con los datos del alquiler. Se esperan las siguientes claves:
+        - 'id_alquiler' (str): ID formateado del alquiler (e.g., "A001").
+        - 'marca' (str): Marca del coche.
+        - 'modelo' (str): Modelo del coche.
+        - 'matricula' (str): Matrícula del coche.
+        - 'fecha_inicio' (str): Fecha de inicio del alquiler en formato 'YYYY-MM-DD'.
+        - 'fecha_fin' (str): Fecha de fin del alquiler en formato 'YYYY-MM-DD'.
+        - 'precio_diario' (float): Precio diario del coche.
+        - 'porcentaje_descuento' (float): Porcentaje de descuento aplicado (e.g., 6.0 para 6%).
+        - 'coste_total' (float): Costo total final del alquiler.
+        - 'nombre_usuario' (str, optional): Nombre del cliente. Por defecto "Invitado".
+        - 'id_usuario' (str, optional): ID formateado del usuario.
 
     Returns
     -------
     bytes
-        El archivo PDF generado como bytes.
+        El contenido del archivo PDF generado como una secuencia de bytes.
 
     Raises
     ------
     ValueError
-        Si faltan datos obligatorios.
+        Si faltan campos obligatorios en `alquiler_info` o si las fechas
+        son inválidas.
     Exception
-        Si ocurre un error durante la generación del PDF.
+        Si ocurre cualquier otro error durante la generación del PDF.
     """
     # Validaciones básicas
     campos_obligatorios = ['id_alquiler', 'marca', 'modelo', 'matricula', 'fecha_inicio', 'fecha_fin', 'coste_total']
