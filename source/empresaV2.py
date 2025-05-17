@@ -628,7 +628,7 @@ class Empresa:
                 connection.close() # Empresa cierra la conexión que abrió
         
     
-    def alquilar_coche_( self, matricula: str, fecha_inicio: str, fecha_fin: str, 
+    def alquilar_coche( self, matricula: str, fecha_inicio: str, fecha_fin: str, 
         email: Optional[str] = None
     ) -> bytes:
         """
