@@ -103,72 +103,90 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
         pdf = FPDF()
         pdf.add_page()
 
-        # Intentar cargar el logo
+        # --- Encabezado: Logo (opcional) y Título ---
         try:
-            logo_path = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), 
-                "..","data","Logo.png")
+            logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "Logo.png")
             if os.path.exists(logo_path):
-                pdf.image(logo_path, x=10, y=10, w=50)
+                pdf.image(logo_path, x=10, y=8, w=40) # Ajustar x, y, w según necesidad
         except Exception as e:
             raise Exception(f"Error al cargar el logo: {e}")
 
         # Título
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 20, txt="Factura de Alquiler", ln=True, align="C")
-        pdf.ln(10)
+        pdf.set_font("Arial", "B", 20)
+        pdf.cell(0, 10, txt="Factura de Alquiler", ln=0, align="C") 
+        pdf.ln(20) # Salto de línea después del título y logo
 
-        # Fecha de emisión
-        pdf.set_font("Arial", size=12)
-        pdf.cell(0, 10, txt=f"Fecha de Emisión: {datetime.now().strftime('%Y-%m-%d')}", ln=True, align="C")
-        pdf.ln(10)
-
-        # Tabla de detalles
-        pdf.set_fill_color(240, 240, 240)
+        # --- Información General de la Factura ---
+        pdf.set_font("Arial", size=10)
+        pdf.cell(0, 7, txt=f"Factura Nº: {alquiler.get('id_alquiler', 'N/A')}", ln=True, align="R")
+        pdf.cell(0, 7, txt=f"Fecha de Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="R")
+        pdf.ln(10) # Espacio
+        
+        # --- Detalles del Cliente ---
         pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, txt="Datos del Cliente:", ln=True)
+        pdf.set_font("Arial", size=11)
+        pdf.cell(0, 6, txt=f"  Nombre: {alquiler.get('nombre_usuario', 'Invitado')}", ln=True)
+        id_usuario_factura = alquiler.get('id_usuario')
+        if id_usuario_factura and id_usuario_factura not in ["INVITADO", "N/A"]: 
+            pdf.cell(0, 6, txt=f"  ID Cliente: {id_usuario_factura}", ln=True)
+        pdf.ln(8)
 
-        ancho_tabla = 150
-        posicion_x = (pdf.w - ancho_tabla) / 2
+        # --- Tabla de Detalles del Alquiler ---
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, txt="Conceptos Facturados:", ln=True)
+        
+        # Definir anchos de columna
+        col_desc_width = 130
+        col_valor_width = 50
+        line_height = 8
 
-        pdf.set_x(posicion_x)
-        pdf.cell(50, 10, "Campo", border=1, fill=True)
-        pdf.cell(100, 10, "Valor", border=1, fill=True, ln=True)
+        # Cabecera de la tabla
+        pdf.set_font("Arial", "B", 10)
+        pdf.set_fill_color(230, 230, 230) 
+        pdf.cell(col_desc_width, line_height, "Descripción", border=1, fill=True, align="C")
+        pdf.cell(col_valor_width, line_height, "Importe", border=1, fill=True, align="C", ln=True)
 
-        pdf.set_font("Arial", size=12)
-
-        # Datos del alquiler sin caracteres UTF-8 problemáticos
-        datos_factura = [
-            ("ID de Alquiler", alquiler['id_alquiler']),
-            ("Marca", alquiler['marca']),
-            ("Modelo", alquiler['modelo']),
-            ("Matrícula", alquiler['matricula']),
-            ("Fecha Inicio", datetime.strptime(alquiler['fecha_inicio'], "%Y-%m-%d").strftime("%d/%m/%Y")),
-            ("Fecha Fin", datetime.strptime(alquiler['fecha_fin'], "%Y-%m-%d").strftime("%d/%m/%Y")),
-            ("Precio Diario", f"{alquiler.get('precio_diario', 'N/A')}"),
-            ("Descuento", f"{alquiler.get('descuento', 0) * 100:.0f}%"),
-            ("Total", f"{alquiler['coste_total']:.2f} EUR"),
-            ("Cliente", alquiler.get('nombre_usuario', 'Invitado')),
+        # Filas de la tabla
+        pdf.set_font("Arial", size=10)
+        
+        # Preparar datos para mostrar en la tabla
+        items_factura = [
+            (f"Alquiler Vehículo: {alquiler.get('marca', '')} {alquiler.get('modelo', '')} (Matrícula: {alquiler.get('matricula', 'N/A')})", None), # Título de sección
+            (f"  Periodo: Desde {datetime.strptime(alquiler['fecha_inicio'], '%Y-%m-%d').strftime('%d/%m/%Y')} hasta {datetime.strptime(alquiler['fecha_fin'], '%Y-%m-%d').strftime('%d/%m/%Y')}", None),
+            ("  Precio Base Diario:", f"{alquiler.get('precio_diario', 0.0):.2f} EUR"),
+            ("  Descuento Aplicado:", f"{alquiler.get('porcentaje_descuento', 0.0):.0f}%"),
         ]
 
-        for campo, valor in datos_factura:
-            pdf.set_x(posicion_x)
-            pdf.cell(50, 10, str(campo), border=1)
-            pdf.cell(100, 10, str(valor), border=1, ln=True)
+        for descripcion, valor_str in items_factura:
+            if valor_str is not None: # Línea con descripción y valor
+                pdf.cell(col_desc_width, line_height, descripcion, border=1)
+                pdf.cell(col_valor_width, line_height, valor_str, border=1, align="R", ln=True)
+            else: 
+                pdf.set_font("Arial", "I", 10)
+                pdf.cell(col_desc_width + col_valor_width, line_height, descripcion, border=1, ln=True)
+                pdf.set_font("Arial", "", 10)
 
-        # Precio total destacado
-        pdf.ln(10)
+
+        # --- Total General ---
+        pdf.ln(5) # Espacio antes del total
+        pdf.set_font("Arial", "B", 12)
+        pdf.set_fill_color(200, 220, 255) 
+        pdf.cell(col_desc_width, line_height + 2, "TOTAL FACTURA (EUR)", border=1, fill=True, align="R")
         pdf.set_font("Arial", "B", 14)
-        pdf.set_text_color(255, 0, 0)
-        pdf.cell(0, 10, txt=f"Precio Total: {alquiler['coste_total']:.2f} EUR", ln=True, align="R")
+        pdf.cell(col_valor_width, line_height + 2, f"{alquiler.get('coste_total', 0.0):.2f}", border=1, fill=True, align="R", ln=True)
+        pdf.ln(15)
 
-        # Mensaje final
-        pdf.ln(10)
-        pdf.set_font("Arial", "I", 12)
-        pdf.set_text_color(0, 0, 0)
-        pdf.cell(0, 10, txt="Gracias por elegirnos. ¡Esperamos verte pronto!", ln=True, align="C")
+        # --- Mensaje Final ---
+        pdf.set_font("Arial", "I", 10)
+        pdf.set_text_color(0, 0, 0) 
+        pdf.multi_cell(0, 5, txt="Gracias por elegir nuestros servicios. Para cualquier consulta, no dude en contactarnos.", align="C")
 
-        # Devolver el PDF como bytes usando codificación segura
-        return pdf.output(dest='S').encode('latin1')
-
+        # --- Pie de página ---
+        pdf_bytes = pdf.output(dest='S')
+        if isinstance(pdf_bytes, str): 
+            return pdf_bytes.encode('latin-1')
+        return pdf_bytes
+    
     except Exception as e:
         raise Exception(f"Error al generar la factura en PDF: {e}")
