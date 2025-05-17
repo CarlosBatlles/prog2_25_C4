@@ -1,7 +1,7 @@
 # Importaciones básicas
 from flask import Flask, request, jsonify, make_response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Importación relativa para acceder a la clase Empresa desde el módulo source
 from source.empresaV2 import Empresa
@@ -548,7 +548,7 @@ def actualizar_usuario(email: str) -> tuple[dict, int]:
 
     try:
         # Llamar al método actualizar_usuario de la clase Empresa
-        empresa.actualizar_usuario(email=email, nueva_contraseña=nueva_contraseña)
+        empresa.actualizar_contraseña_usuario(email=email, nueva_contraseña=nueva_contraseña)
         return jsonify({'mensaje': 'Contraseña actualizada exitosamente'}), 200
 
     except ValueError as e:
