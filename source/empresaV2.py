@@ -149,7 +149,7 @@ class Empresa():
         ValueError
             Si hay un error al registrar el coche.
         """
-        connection
+        connection = None
         try:
             connection = self.get_connection()
             return Coche.registrar_coche(connection, marca, modelo, matricula, categoria_tipo, categoria_precio,
