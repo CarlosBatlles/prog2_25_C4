@@ -152,11 +152,12 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
         
         # Preparar datos para mostrar en la tabla
         items_factura = [
-            (f"Alquiler Vehículo: {alquiler.get('marca', '')} {alquiler.get('modelo', '')} (Matrícula: {alquiler.get('matricula', 'N/A')})", None), # Título de sección
-            (f"  Periodo: Desde {datetime.strptime(alquiler['fecha_inicio'], '%Y-%m-%d').strftime('%d/%m/%Y')} hasta {datetime.strptime(alquiler['fecha_fin'], '%Y-%m-%d').strftime('%d/%m/%Y')}", None),
+            (f"Alquiler Vehículo: {alquiler.get('marca', '')} {alquiler.get('modelo', '')} (Matrícula: {alquiler.get('matricula', 'N/A')})", ""), # Usar ""
+            (f"  Periodo: Desde {datetime.strptime(alquiler.get('fecha_inicio', '1900-01-01'), '%Y-%m-%d').strftime('%d/%m/%Y')} hasta {datetime.strptime(alquiler.get('fecha_fin', '1900-01-01'), '%Y-%m-%d').strftime('%d/%m/%Y')}", ""), # Usar "" y .get() para fechas
             ("  Precio Base Diario:", f"{alquiler.get('precio_diario', 0.0):.2f} EUR"),
             ("  Descuento Aplicado:", f"{alquiler.get('porcentaje_descuento', 0.0):.0f}%"),
         ]
+
 
         for descripcion, valor_str in items_factura:
             pdf.set_font("Arial", "", 10)
