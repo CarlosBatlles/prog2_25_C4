@@ -2,6 +2,7 @@
 from flask import Flask, request, jsonify, make_response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
+from mysql.connector import Error as MySQLError
 
 # Importación relativa para acceder a la clase Empresa desde el módulo source
 from source.empresaV2 import Empresa
@@ -659,6 +660,9 @@ def buscar_coches_disponibles() -> tuple[dict, int]:
 
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 400
+    except MySQLError as dbe: # Captura errores de MySQL específicamente
+        # print(f"DEBUG Endpoint: Error de BD capturado: {dbe}") # Para el log del servidor
+        return jsonify({"error": f"Error de base de datos: {dbe}"}), 500
     except Exception:
         return jsonify({"error": "Error interno del servidor"}), 500
 
