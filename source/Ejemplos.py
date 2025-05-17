@@ -474,6 +474,7 @@ def entrar_como_invitado() -> None:
             listar_precios()
         elif opcion == "6":
             print("👋 Volviendo al menú principal...")
+            ROL = None  # Limpiar el rol al salir
             break
         else:
             print("❌ Opción no válida. Por favor, elige entre 1 y 6.")
