@@ -118,7 +118,7 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
 
         # --- Información General de la Factura ---
         pdf.set_font("Arial", size=10)
-        pdf.cell(0, 7, txt=f"Factura Nº: {alquiler.get('id_alquiler', 'N/A')}", ln=True, align="R")
+        pdf.cell(0, 7, txt=f"ID Alquilerde: {alquiler.get('id_alquiler', 'N/A')}", ln=True, align="R")
         pdf.cell(0, 7, txt=f"Fecha de Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="R")
         pdf.ln(10) # Espacio
         
@@ -159,14 +159,17 @@ def generar_factura_pdf(alquiler: dict) -> bytes:
         ]
 
         for descripcion, valor_str in items_factura:
-            if valor_str is not None: # Línea con descripción y valor
-                pdf.cell(col_desc_width, line_height, descripcion, border=1)
+            pdf.set_font("Arial", "", 10)
+            if descripcion.startswith("Alquiler Vehículo:") or descripcion.startswith("  Periodo:"):
+                pdf.set_font("Arial", "I", 10)
+                
+            pdf.cell(col_desc_width, line_height, descripcion, border=1)
+            
+            if valor_str and "EUR" in valor_str or "%" in valor_str:
                 pdf.cell(col_valor_width, line_height, valor_str, border=1, align="R", ln=True)
             else: 
-                pdf.set_font("Arial", "I", 10)
-                pdf.cell(col_desc_width + col_valor_width, line_height, descripcion, border=1, ln=True)
-                pdf.set_font("Arial", "", 10)
-
+                pdf.cell(col_valor_width, line_height, valor_str, border=1, align="L", ln=True) 
+            
 
         # --- Total General ---
         pdf.ln(5) # Espacio antes del total
