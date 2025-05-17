@@ -1,29 +1,42 @@
 
+# --- Imports ---
 from datetime import date
-from fpdf import FPDF
 import os
-import mysql.connector
-from .models.coche import *
-from .models.usuario import *
-from .models.alquiler import *
+import mysql.connector 
+from mysql.connector import Error as MySQLError 
+from typing import List, Dict, Any, Optional, Union
+from mysql.connector.connection import MySQLConnection
 
-class Empresa():
+from .models.coche import Coche
+from .models.usuario import Usuario
+from .models.alquiler import Alquiler
+
+
+# --- Clase Empresa ---
+class Empresa:
     """
     Clase principal para gestionar el sistema de alquiler de coches.
+
+    Actúa como una capa de servicio que coordina las operaciones con la base de datos
+    a través de las clases de modelo (Coche, Usuario, Alquiler). Gestiona la
+    conexión a la base de datos para cada operación.
 
     Attributes
     ----------
     nombre : str
         El nombre de la empresa de alquiler de coches.
-    coches : list
-        Lista temporal para almacenar coches cargados en memoria.
-    usuarios : list
-        Lista temporal para almacenar usuarios cargados en memoria.
-    alquileres : list
-        Lista temporal para almacenar alquileres cargados en memoria.
-    data_dir : str
-        Ruta relativa al directorio 'data' donde se almacenan los archivos CSV.
+    db_config : Dict[str, str]
+        Diccionario con los parámetros de configuración para la conexión MySQL.
+    connection : Optional[MySQLConnection]
+        La conexión activa a la base de datos MySQL. Se gestiona internamente.
+        (Nota: En la implementación actual, cada método gestiona su propia conexión,
+        por lo que este atributo podría no mantenerse abierto constantemente).
+
     """
+    
+    # --------------------------------------------------------------------------
+    # SECCIÓN 1: INICIALIZACIÓN Y GESTIÓN DE CONEXIÓN A BD
+    # --------------------------------------------------------------------------
     
     
     def __init__(self,nombre: str):
@@ -36,7 +49,7 @@ class Empresa():
             El nombre de la empresa de alquiler de coches.
         """
         self.nombre = nombre
-        self.connection = self.conectar_mysql()
+        self.connection: Optional['MySQLConnection'] = None 
         
         
     # ---------------------------------------
@@ -44,8 +57,24 @@ class Empresa():
     # ---------------------------------------
         
     
-    def conectar_mysql(self):
+    def _conectar_mysql(self) -> Optional['MySQLConnection']:
+        """
+        Establece una nueva conexión con la base de datos MySQL.
+
+        Utiliza los parámetros de configuración almacenados en `self.db_config`.
+
+        Returns
+        -------
+        Optional[mysql.connector.connection.MySQLConnection]
+            Un objeto de conexión MySQL si la conexión es exitosa,
+            `None` en caso de error.
+
+        Raises
+        ------
+        # Este método ahora imprime el error y devuelve None, pero podría propagar MySQLError
+        """
         try:
+
             connection = mysql.connector.connect(
                 host="Alexiss1.mysql.pythonanywhere-services.com",  # Reemplaza con tu nombre de usuario
                 user="Alexiss1",                                    # Reemplaza con tu nombre de usuario
@@ -55,61 +84,50 @@ class Empresa():
             return connection
         except mysql.connector.Error as err:
             print(f"Error al conectar a MySQL: {err}")
-            return None
+            raise err
         
-    def get_connection(self):
+    def get_connection(self) -> 'MySQLConnection':
         """
-        Reutiliza la conexión activa o vuelve a conectarse si es necesario.
-        """
-        if self.connection is None or not self.connection.is_connected():
-            self.connection = self.conectar_mysql()
-        return self.connection
-        
+        Proporciona una conexión activa a la base de datos.
 
-    def _ruta_archivo(self, archivo: str) -> str:
-        """
-        Construye la ruta completa al archivo CSV en la carpeta 'data'.
-
-        Este método genera la ruta absoluta al archivo especificado dentro del directorio 'data'. 
-        Es útil para acceder a los archivos CSV de manera consistente desde cualquier ubicación, 
-        independientemente del sistema operativo.
-
-        Parameters
-        ----------
-        archivo : str
-            Nombre del archivo (por ejemplo, 'coches.csv') o ruta relativa dentro del directorio 'data'.
+        Si la conexión existente (self.connection) está cerrada o no existe,
+        intenta establecer una nueva.
 
         Returns
         -------
-        str
-            Ruta completa al archivo en el sistema de archivos.
+        mysql.connector.connection.MySQLConnection
+            Una conexión activa a la base de datos MySQL.
 
-        Example
-        -------
-        >>> rentacar = RentACar("MiEmpresa")
-        >>> rentacar._ruta_archivo('coches.csv')
-        '/ruta/al/proyecto/data/coches.csv'
-        
-        Notes
-        -----
-        - El método utiliza `os.path.join` para asegurar que la ruta sea compatible con el sistema operativo.
-        - El atributo `self.data_dir` debe estar correctamente configurado para apuntar al directorio 'data'.
+        Raises
+        ------
+        MySQLError
+            Si no se puede establecer una conexión a la base de datos.
         """
-        # Asumimos que el directorio 'data' está en el mismo nivel que 'source'
-        return os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', archivo)
-
-    
-    # ---------------------------------------
-    # Métodos de Carga/Guardado de Datos
-    # ---------------------------------------
-
+        if self.connection is None or not self.connection.is_connected():
+            self.connection = self._conectar_mysql()
+            
+        if self.connection is None: 
+            raise MySQLError("Fallo al obtener la conexión a la base de datos desde get_connection.")
         
-    def registrar_coche(self, marca: str, modelo: str, matricula: str, categoria_tipo: str, categoria_precio: str,
-                    año: int, precio_diario: float, kilometraje: float, color: str, combustible: str, cv: int,
-                    plazas: int, disponible: bool) -> bool:
+        return self.connection
+
+
+    # --------------------------------------------------------------------------
+    # SECCIÓN 2: OPERACIONES RELACIONADAS CON COCHES
+    # --------------------------------------------------------------------------
+
+
+    def registrar_coche(
+        self, marca: str, modelo: str, matricula: str, categoria_tipo: str, 
+        categoria_precio: str, año: int, precio_diario: float, kilometraje: float, 
+        color: str, combustible: str, cv: int, plazas: int, disponible: bool
+    ) -> int:
         """
-        Registra un nuevo coche llamando al método estático de la clase Coche.
-        
+        Registra un nuevo coche en el sistema.
+
+        Delega la operación al método estático `Coche.registrar_coche` después
+        de obtener una conexión a la base de datos.
+
         Parameters
         ----------
         marca : str
@@ -119,13 +137,13 @@ class Empresa():
         matricula : str
             Matrícula única del coche.
         categoria_tipo : str
-            Categoría tipo del coche (ej. SUV, Compacto).
+            Tipo de categoría del coche (e.g., "SUV", "Sedán").
         categoria_precio : str
-            Categoría de precio del coche (ej. Económico, Medio, Lujo).
+            Categoría de precio del coche (e.g., "Lujo", "Premium").
         año : int
             Año de fabricación del coche.
         precio_diario : float
-            Precio diario del coche.
+            Precio del alquiler por día.
         kilometraje : float
             Kilometraje actual del coche.
         color : str
@@ -133,37 +151,65 @@ class Empresa():
         combustible : str
             Tipo de combustible del coche.
         cv : int
-            Potencia del coche en caballos de vapor.
+            Caballos de vapor (potencia) del coche.
         plazas : int
             Número de plazas del coche.
         disponible : bool
-            Indica si el coche está disponible para alquilar.
+            Estado de disponibilidad inicial del coche.
 
         Returns
         -------
-        bool or int
-            Devuelve el ID generado por MySQL si se registró correctamente.
+        int
+            El ID del coche recién registrado, generado por la base de datos.
 
         Raises
         ------
         ValueError
-            Si hay un error al registrar el coche.
+            Si las validaciones de datos fallan en `Coche.registrar_coche`.
+        MySQLError
+            Si ocurre un error de base de datos durante el registro.
+        Exception
+            Si no se puede obtener el ID del coche tras la inserción.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
+
         try:
             connection = self.get_connection()
-            return Coche.registrar_coche(connection, marca, modelo, matricula, categoria_tipo, categoria_precio,
-                                    año, precio_diario, kilometraje, color, combustible, cv, plazas, disponible)
+            id_coche_generado = Coche.registrar_coche(
+                connection, marca, modelo, matricula, categoria_tipo, categoria_precio,
+                año, precio_diario, kilometraje, color, combustible, cv, plazas, disponible
+            )
+            return id_coche_generado
         finally:
             if connection and connection.is_connected():
-                connection.close() # Empresa cierra la conexión que abrió
+                connection.close()
         
 
-    def obtener_detalle_coche_por_matricula(self, matricula: str) -> dict:
+    def obtener_detalle_coche_por_matricula(self, matricula: str) -> Optional[Dict[str, Any]]:
         """
-        Obtiene los detalles de un coche por su matrícula desde MySQL.
+        Obtiene los detalles de un coche específico por su matrícula.
+
+        Delega la operación a `Coche.obtener_por_matricula`.
+
+        Parameters
+        ----------
+        matricula : str
+            Matrícula del coche a buscar.
+
+        Returns
+        -------
+        Optional[Dict[str, Any]]
+            Un diccionario con los datos del coche si se encuentra, `None` en caso contrario.
+
+        Raises
+        ------
+        ValueError
+            Si la matrícula es inválida (según `Coche.obtener_por_matricula`).
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
+
         try:
             connection = self.get_connection()
             return Coche.obtener_por_matricula(connection, matricula)
@@ -176,17 +222,21 @@ class Empresa():
         """
         Actualiza la matrícula de un coche llamando al método estático de la clase Coche.
         
+        Valida el formato del ID del coche, lo convierte a numérico y delega
+        la operación a `Coche.actualizar_matricula`.
+
         Parameters
         ----------
-        id_coche : str
-            El ID del coche como cadena (ej. "UID01").
+        id_coche_str : str
+            ID del coche formateado (e.g., "UID001").
         nueva_matricula : str
-            Nueva matrícula que se asignará al coche.
+            La nueva matrícula a asignar.
 
         Returns
         -------
         bool
-            True si la matrícula se actualizó correctamente.
+            `True` si la actualización fue exitosa, `False` en caso contrario
+            (si `Coche.actualizar_matricula` devolviera `False`).
 
         Raises
         ------
@@ -212,11 +262,24 @@ class Empresa():
                 connection.close() # Empresa cierra la conexión que abrió
     
     
-    def mostrar_categorias_precio(self) -> list:
+    def mostrar_categorias_precio(self) -> List[str]:
         """
-        Muestra las categorías de precio llamando al método estático de la clase Coche.
+        Obtiene una lista de todas las categorías de precio disponibles.
+
+        Delega a `Coche.mostrar_categorias_precio`
+
+        Returns
+        -------
+        List[str]
+            Lista de categorías de precio. Vacía si no hay.
+
+        Raises
+        ------
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
+
         try:
             connection = self.get_connection()
             return Coche.mostrar_categorias_precio(connection)
@@ -225,11 +288,23 @@ class Empresa():
                 connection.close() # Empresa cierra la conexión que abrió
     
     
-    def mostrar_categorias_tipo(self) -> list:
+    def mostrar_categorias_tipo(self) -> List[str]: 
         """
-        Muestra las categorías de tipo llamando al método estático de la clase Coche.
+        Obtiene una lista de todas las categorías de tipo disponibles.
+
+        Delega a `Coche.mostrar_categorias_tipo`
+
+        Returns
+        -------
+        List[str]
+            Lista de tipos de categoría. Vacía si no hay.
+
+        Raises
+        ------
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Coche.mostrar_categorias_tipo(connection)
@@ -238,27 +313,44 @@ class Empresa():
                 connection.close() # Empresa cierra la conexión que abrió
     
     
-    def buscar_coches_por_filtros(self, categoria_precio: str, categoria_tipo: str = None, marca: str = None, modelo: str = None) -> list:
+    def buscar_coches_por_filtros(
+        self, categoria_precio: str, categoria_tipo: Optional[str] = None, 
+        marca: Optional[str] = None, modelo: Optional[str] = None
+    ) -> Union[List[str], List[Dict[str, Any]]]:
         """
-        Realiza una búsqueda progresiva de coches basada en los filtros proporcionados.
+        Realiza una búsqueda progresiva de coches o sus atributos.
+
+        Dependiendo de los filtros proporcionados, devuelve:
+        - Lista de tipos de categoría (si solo se da `categoria_precio`).
+        - Lista de marcas (si se da `categoria_precio` y `categoria_tipo`).
+        - Lista de modelos (si se da `categoria_precio`, `categoria_tipo` y `marca`).
+        - Lista de coches (diccionarios) (si se dan todos los filtros).
 
         Parameters
         ----------
         categoria_precio : str
-            Categoría de precio obligatoria.
-        categoria_tipo : str, optional
-            Categoría de tipo del coche.
-        marca : str, optional
+            Categoría de precio (obligatoria).
+        categoria_tipo : Optional[str], optional
+            Tipo de categoría del coche.
+        marca : Optional[str], optional
             Marca del coche.
-        modelo : str, optional
+        modelo : Optional[str], optional
             Modelo del coche.
 
         Returns
         -------
-        list
-            Lista de diccionarios con los coches que cumplen los criterios de búsqueda.
+        Union[List[str], List[Dict[str, Any]]]
+            Una lista de strings (tipos, marcas o modelos) o una lista de
+            diccionarios (coches), según los filtros aplicados.
+
+        Raises
+        ------
+        ValueError
+            Si los parámetros de filtro son inválidos.
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
 
@@ -274,13 +366,43 @@ class Empresa():
         finally:
             if connection and connection.is_connected():
                 connection.close() # Empresa cierra la conexión que abrió
+
+
+    # --------------------------------------------------------------------------
+    # SECCIÓN 3: OPERACIONES RELACIONADAS CON USUARIOS
+    # --------------------------------------------------------------------------
     
     
-    def registrar_usuario(self, nombre: str, tipo: str, email: str, contraseña: str) -> int:
+    def registrar_usuario(self, nombre: str, tipo: str, email: str, contraseña: str) ->int:
         """
-        Llama al método estático de `Usuario.registrar_usuario()` pasando la conexión.
+        Registra un nuevo usuario en el sistema.
+
+        Delega a `Usuario.registrar_usuario`.
+
+        Parameters
+        ----------
+        nombre : str
+            Nombre del usuario.
+        tipo : str
+            Tipo de usuario (e.g., "cliente", "admin").
+        email : str
+            Correo electrónico del usuario.
+        contraseña : str
+            Contraseña en texto plano.
+
+        Returns
+        -------
+        int
+            ID del usuario recién registrado.
+
+        Raises
+        ------
+        ValueError
+            Si las validaciones de datos fallan.
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Usuario.registrar_usuario(connection, nombre, tipo, email, contraseña)
@@ -288,11 +410,32 @@ class Empresa():
             if connection and connection.is_connected():
                 connection.close() # Empresa cierra la conexión que abrió
     
-    def actualizar_usuario(self, email: str, nueva_contraseña: str) -> bool:
+    def actualizar_contraseña_usuario(self, email: str, nueva_contraseña: str) -> bool:
         """
-        Llama al método estático de `Usuario.actualizar_contraseña(...)`.
+        Actualiza la contraseña de un usuario.
+
+        Delega a `Usuario.actualizar_contraseña`.
+
+        Parameters
+        ----------
+        email : str
+            Email del usuario.
+        nueva_contraseña : str
+            Nueva contraseña en texto plano.
+
+        Returns
+        -------
+        bool
+            `True` si la actualización fue exitosa.
+
+        Raises
+        ------
+        ValueError
+            Si el email es inválido, no existe, o la nueva contraseña está vacía.
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Usuario.actualizar_contraseña(connection, email, nueva_contraseña)
@@ -301,24 +444,32 @@ class Empresa():
                 connection.close() # Empresa cierra la conexión que abrió
     
     
-    def dar_baja_usuario(self, email: str) -> bool:
+    def iniciar_sesion(self, email: str, contraseña: str) -> Dict[str, Any]:
         """
-        Llama al método estático de `Usuario.dar_baja_usuario(...)` pasando la conexión.
+        Autentica a un usuario.
+
+        Delega a `Usuario.iniciar_sesion`.
+
+        Parameters
+        ----------
+        email : str
+            Email del usuario.
+        contraseña : str
+            Contraseña en texto plano.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Diccionario con información del usuario autenticado si es exitoso.
+
+        Raises
+        ------
+        ValueError
+            Si el email es inválido, no existe, o la contraseña es incorrecta.
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
-        try:
-            connection = self.get_connection()
-            return Usuario.dar_baja_usuario(connection, email)
-        finally:
-            if connection and connection.is_connected():
-                connection.close() # Empresa cierra la conexión que abrió
-    
-    
-    def iniciar_sesion(self, email: str, contraseña: str) -> dict:
-        """
-        Llama al método estático `Usuario.iniciar_sesion(...)` pasando la conexión.
-        """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Usuario.iniciar_sesion(connection, email, contraseña)
@@ -327,11 +478,23 @@ class Empresa():
                 connection.close() # Empresa cierra la conexión que abrió
     
     
-    def obtener_usuarios(self) -> list[dict]:
+    def obtener_usuarios(self) -> List[Dict[str, Any]]:
         """
-        Llama al método `usuario.obtener_usuarios(...)` pasando la conexión.
+        Obtiene una lista de todos los usuarios registrados.
+
+        Delega a `Usuario.obtener_usuarios`.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            Lista de diccionarios, cada uno representando un usuario.
+
+        Raises
+        ------
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Usuario.obtener_usuarios(connection)
@@ -340,11 +503,30 @@ class Empresa():
                 connection.close() # Empresa cierra la conexión que abrió
     
 
-    def obtener_usuario_por_email(self, email: str) -> dict:
+    def obtener_usuario_por_email(self, email: str) -> Optional[Dict[str, Any]]:
         """
-        Llama al método `usuario.obtener_usuario_por_email(...)` pasando la conexión.
+        Obtiene los detalles de un usuario por su email.
+
+        Delega a `Usuario.obtener_usuario_por_email`.
+
+        Parameters
+        ----------
+        email : str
+            Email del usuario a buscar.
+
+        Returns
+        -------
+        Optional[Dict[str, Any]]
+            Diccionario con datos del usuario si se encuentra, `None` si no.
+
+        Raises
+        ------
+        ValueError
+            Si el email es inválido.
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Usuario.obtener_usuario_por_email(connection, email)
@@ -354,9 +536,28 @@ class Empresa():
     
     def obtener_historial_alquileres(self, email: str) -> List[Dict[str, Any]]:
         """
-        Llama al método estático `Usuario.obtener_historial_alquileres(...)` pasando la conexión.
+        Obtiene el historial de alquileres de un usuario específico.
+
+        Delega a `Usuario.obtener_historial_alquileres`.
+
+        Parameters
+        ----------
+        email : str
+            Email del usuario.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            Lista de alquileres del usuario.
+
+        Raises
+        ------
+        ValueError
+            Si el email es inválido o no está registrado.
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Usuario.obtener_historial_alquileres(connection, email)
@@ -364,12 +565,29 @@ class Empresa():
             if connection and connection.is_connected():
                 connection.close() # Empresa cierra la conexión que abrió
 
+
+    # --------------------------------------------------------------------------
+    # SECCIÓN 4: OPERACIONES RELACIONADAS CON ALQUILERES
+    # --------------------------------------------------------------------------
+
     
-    def cargar_alquileres(self) -> list[dict]:
+    def cargar_alquileres(self) -> List[Dict[str, Any]]:
         """
-        Llama al método `Alquiler.obtener_todos(...)` pasando la conexión.
+        Obtiene una lista de todos los alquileres registrados.
+
+        Delega a `Alquiler.obtener_todos`.
+
+        Returns
+        -------
+        List[Dict[str, Any]]
+            Lista de diccionarios, cada uno representando un alquiler.
+
+        Raises
+        ------
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Alquiler.obtener_todos(connection)
@@ -378,11 +596,30 @@ class Empresa():
                 connection.close()
     
     
-    def obtener_alquiler_por_id(self, id_alquiler: str) -> dict:
+    def obtener_alquiler_por_id(self, id_alquiler: str) -> Optional[Dict[str, Any]]:
         """
-        Obtiene un alquiler por su ID desde la base de datos.
+        Obtiene los detalles de un alquiler por su ID formateado.
+
+        Delega a `Alquiler.obtener_por_id`.
+
+        Parameters
+        ----------
+        id_alquiler_str : str
+            ID del alquiler formateado (e.g., "A001").
+
+        Returns
+        -------
+        Optional[Dict[str, Any]]
+            Diccionario con datos del alquiler si se encuentra, `None` si no.
+
+        Raises
+        ------
+        ValueError
+            Si el formato del ID es inválido.
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Alquiler.obtener_por_id(connection, id_alquiler)
@@ -391,48 +628,83 @@ class Empresa():
                 connection.close() # Empresa cierra la conexión que abrió
         
     
-    def alquilar_coche(self, matricula: str, fecha_inicio: str, fecha_fin: str, email: str = None):
-        connection = None
+    def alquilar_coche_( self, matricula: str, fecha_inicio: str, fecha_fin: str, 
+        email: Optional[str] = None
+    ) -> bytes:
+        """
+        Registra un nuevo alquiler y genera la factura.
+
+        Convierte las fechas de string a objetos `date` antes de delegar
+        a `Alquiler.alquilar_coche`.
+
+        Parameters
+        ----------
+        matricula : str
+            Matrícula del coche.
+        fecha_inicio : str
+            Fecha de inicio en formato 'YYYY-MM-DD'.
+        fecha_fin : str
+            Fecha de fin en formato 'YYYY-MM-DD'.
+        email : Optional[str], optional
+            Email del usuario.
+
+        Returns
+        -------
+        bytes
+            Contenido binario del PDF de la factura.
+
+        Raises
+        ------
+        ValueError
+            Si las fechas son inválidas o la lógica en `Alquiler.alquilar_coche` falla.
+        TypeError
+            Si las fechas no pueden convertirse a objetos `date`.
+        MySQLError
+            Si ocurre un error de base de datos.
+        """
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             
             # Convertir fechas de string a objetos date
-            fecha_inicio_dt = date.fromisoformat(fecha_inicio)
-            fecha_fin_dt = date.fromisoformat(fecha_fin)
+            try:
+                fecha_inicio_dt = date.fromisoformat(fecha_inicio)
+                fecha_fin_dt = date.fromisoformat(fecha_fin)
+            except ValueError:
+                raise ValueError("Formato de fecha inválido. Use 'YYYY-MM-DD'.")
 
             return Alquiler.alquilar_coche(connection, matricula, fecha_inicio_dt, fecha_fin_dt, email)
         finally:
             if connection and connection.is_connected():
-                connection.close() # Empresa cierra la conexión que abrió
-        
+                connection.close()
 
     def finalizar_alquiler(self, id_alquiler: str) -> bool:
         """
-        Llama al método estático `Alquiler.finalizar_alquiler(...)` pasando la conexión.
+        Finaliza un alquiler existente.
+
+        Delega a `Alquiler.finalizar_alquiler`.
+
+        Parameters
+        ----------
+        id_alquiler_str : str
+            ID del alquiler formateado (e.g., "A001").
+
+        Returns
+        -------
+        bool
+            `True` si la finalización fue exitosa.
+
+        Raises
+        ------
+        ValueError
+            Si el formato del ID es inválido o la lógica en `Alquiler.finalizar_alquiler` falla.
+        MySQLError
+            Si ocurre un error de base de datos.
         """
-        connection = None
+        connection: Optional['MySQLConnection'] = None
         try:
             connection = self.get_connection()
             return Alquiler.finalizar_alquiler(connection, id_alquiler)
         finally:
             if connection and connection.is_connected():
                 connection.close()
-    
-    
-    def calcular_precio_total(self, matricula: str, fecha_inicio: date, fecha_fin: date, email: str = None) -> float:
-        """
-        Llama al método estático `Alquiler.calcular_precio_total(...)` pasando la conexión.
-        """
-        connection = None
-        try:
-            connection = self.get_connection()
-            return Alquiler.calcular_precio_total(connection, matricula, fecha_inicio, fecha_fin, email)
-        finally:
-            if connection and connection.is_connected():
-                connection.close() # Empresa cierra la conexión que abrió
-    
-    def generar_factura_pdf(self, alquiler: dict) -> bytes:
-        """
-        Genera una factura llamando al método estático de la clase Alquiler.
-        """
-        return Alquiler.generar_factura_pdf(alquiler)
