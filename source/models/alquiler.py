@@ -216,8 +216,11 @@ class Alquiler:
                 raise ValueError(f"El coche {coche['marca']} - {coche['modelo']} no está disponible.")
 
             # Calcular el precio total usando el método ya creado
-            precio_total = Alquiler.calcular_precio_total(connection, matricula, fecha_inicio, fecha_fin, email)
+            componentes_precio = Alquiler.calcular_precio_total(connection, matricula, fecha_inicio, fecha_fin, email)
 
+            precio_total = componentes_precio['precio_total']
+            precio_diario = componentes_precio['precio_diario']
+            porcentaje_descuento_factura = (1 - componentes_precio["tasa_descuento"]) * 100
             # Registrar el alquiler en la base de datos
             id_usuario = None
             nombre_usuario = "Invitado"
@@ -258,6 +261,7 @@ class Alquiler:
                 'matricula': coche['matricula'],
                 'fecha_inicio': str(fecha_inicio),
                 'fecha_fin': str(fecha_fin),
+                'precio_diario': round(precio_diario, 2),                'porcentaje_descuento': round(porcentaje_descuento_factura, 0), 
                 'coste_total': round(precio_total, 2),
                 'id_usuario': formatear_id(id_usuario, "U") if id_usuario is not None else "INVITADO",
                 'nombre_usuario': nombre_usuario
@@ -371,51 +375,52 @@ class Alquiler:
             Si ocurre un error interno en la base de datos.
         """
         try:
-            cursor = connection.cursor(dictionary=True)
+            with connection.cursor(dictionary=True) as cursor:
 
-            # Validar fechas
-            if fecha_inicio > fecha_fin:
-                raise ValueError("La fecha de inicio no puede ser mayor a la fecha final.")
+                # Validar fechas
+                if fecha_inicio > fecha_fin:
+                    raise ValueError("La fecha de inicio no puede ser mayor a la fecha final.")
 
-            # Buscar el coche por matrícula
-            cursor.execute("SELECT * FROM coches WHERE matricula = %s", (matricula,))
-            coche = cursor.fetchone()
-            if not coche:
-                raise ValueError(f"No se encontró ningún coche con la matrícula: {matricula}.")
-            if not coche['disponible']:
-                raise ValueError(f"El coche con matrícula {matricula} no está disponible.")
+                # Buscar el coche por matrícula
+                cursor.execute("SELECT id,marca, modelo, precio_diario, disponible FROM coches WHERE matricula = %s", (matricula,))
+                coche = cursor.fetchone()
+                if not coche:
+                    raise ValueError(f"No se encontró ningún coche con la matrícula: {matricula}.")
+                if not coche['disponible']:
+                    raise ValueError(f"El coche con matrícula {matricula} no está disponible.")
 
-            # Determinar tipo de usuario
-            tipo_usuario = 'normal'
-            if email:
-                cursor.execute("SELECT tipo FROM usuarios WHERE email = %s", (email,))
-                resultado = cursor.fetchone()
-                if not resultado:
-                    raise ValueError(f"No se encontró el correo {email}")
-                tipo_usuario = resultado['tipo'].lower()
+                # Determinar tipo de usuario
+                tipo_usuario = 'normal'
+                if email:
+                    cursor.execute("SELECT tipo FROM usuarios WHERE email = %s", (email,))
+                    resultado = cursor.fetchone()
+                    if not resultado:
+                        raise ValueError(f"No se encontró el correo {email}")
+                    tipo_usuario = resultado['tipo'].lower()
 
-            # Definir descuentos
-            descuentos = {
-                'cliente': 0.94,
-                'admin': 1.0,
-                'normal': 1.0
-            }
-            descuento = descuentos.get(tipo_usuario, 1.0)
+                # Definir descuentos
+                descuentos = {
+                    'cliente': 0.94,
+                    'admin': 1.0,
+                    'normal': 1.0
+                }
+                descuento = descuentos.get(tipo_usuario, 1.0)
+                # Calcular rango de días
+                dias = (fecha_fin - fecha_inicio).days
+                if dias <= 0:
+                    raise ValueError("La fecha de inicio debe ser anterior a la fecha de fin.")
 
-            # Calcular rango de días
-            dias = (fecha_fin - fecha_inicio).days
-            if dias <= 0:
-                raise ValueError("La fecha de inicio debe ser anterior a la fecha de fin.")
+                
+                # Calcular precio total
+                precio_diario = float(coche['precio_diario'])
+                precio_total = precio_diario * dias * descuento
 
-            # Calcular precio total
-            precio_diario = float(coche['precio_diario'])
-            precio_total = precio_diario * dias * descuento
-
-            return round(precio_total, 2)
+                return {
+                    'precio_diario': precio_diario,
+                    'tasa_descuento':descuento,
+                    'precio_total':round(precio_total, 2)}
 
         except Error as e:
             raise ValueError(f"Error al calcular el precio: {e}")
-        finally:
-            if 'cursor' in locals() and cursor:
-                cursor.close()
+
     
