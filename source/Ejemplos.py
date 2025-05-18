@@ -99,64 +99,78 @@ def decode_token(token: str) -> Dict[str, Any]:
 
 def mostrar_menu_principal() -> None:
     """
-    Muestra y gestiona el menú principal interactivo del sistema.
+    Muestra el menú principal y gestiona la navegación inicial del usuario.
+
+    Las opciones del menú cambian dinámicamente según el estado de la sesión:
+    - Sin sesión: Iniciar sesión, Registrarse, Entrar como invitado, Salir.
+    - Con sesión: Muestra rol, opción para volver al menú de rol, Cerrar sesión, Salir.
 
     Returns
     -------
     None
-        La función no retorna valores, solo ejecuta un bucle interactivo
-        hasta que el usuario elige salir.
+        La función no retorna valores; ejecuta un bucle interactivo hasta
+        que el usuario elige salir.
 
     Notes
     -----
-    - La función utiliza un bucle infinito hasta que el usuario selecciona
-    la opción de salir (5).
-    - Depende de las funciones externas: login(), signup(), 
-    entrar_como_invitado(), logout() y mostrar_menu_por_rol().
-    - Utiliza la variable global ROL para determinar el rol del usuario tras
-    el inicio de sesión.
-    - Las opciones válidas son cadenas de texto del "1" al "5".
+    - Modifica y lee las variables globales `ROL` y `TOKEN`.
+    - Llama a sub-menús o funciones de acción basadas en la selección del usuario.
     """
-    
-    global ROL
-    
+    global ROL, TOKEN 
+
     while True:
         print("\n🏠 --- Menú Principal --- 🏠")
-        if not TOKEN: # Si no hay token, no hay sesión activa
+        opcion_salir_numero: str
+        opciones_menu_str: str # String para mostrar las opciones disponibles en el prompt
+
+        if not TOKEN: # Sin sesión activa
             print("1. 🔐 Iniciar sesión")
             print("2. 📝 Registrarse")
             print("3. 👤 Entrar como invitado")
-        else: # Si hay token, hay una sesión (puede ser admin o cliente)
-            print(f"🟢 Sesión activa como: {str(ROL).capitalize() if ROL else 'Usuario'}")
-
-        if TOKEN: # Solo mostrar cerrar sesión si hay un token
+            print("4. 🚪 Salir")
+            opcion_salir_numero = "4"
+            opciones_menu_str = "1-4"
+        else: # Con sesión activa 
+            rol_display: str = str(ROL).capitalize() if ROL else "Usuario Desconocido"
+            print(f"🟢 Sesión activa como: {rol_display}")
+            
+            print("M. 🛠️ Ir a mi Menú de Usuario") # Opción para volver al menú de rol
             print("4. 🔚 Cerrar sesión")
             print("5. 🚪 Salir")
-        print("4. 🚪 Salir")
-        
-        opcion = input("👉 Selecciona una opción (1-5): ").strip()
+            opcion_salir_numero = "5"
+            opciones_menu_str = "M, 4-5"
 
-        if opcion == "1":
-            if ROL:
-                print("❌ Ya has iniciado sesión. Cierra sesión antes de volver a hacerlo.")
+        opcion_seleccionada: str = input(f"👉 Selecciona una opción ({opciones_menu_str}): ").strip().lower()
+
+        # --- Lógica de Manejo de Opciones ---
+        if not TOKEN: # Lógica para cuando NO hay sesión
+            if opcion_seleccionada == "1":
+                login_exitoso = login()
+                if login_exitoso and ROL:
+                    mostrar_menu_por_rol(ROL) 
+            elif opcion_seleccionada == "2":
+                signup()
+            elif opcion_seleccionada == "3":
+                entrar_como_invitado()
+            elif opcion_seleccionada == opcion_salir_numero: # Salir (opción "4")
+                print("👋 Saliendo del sistema. ¡Hasta pronto!")
+                break
             else:
-                login()
-                if ROL:
-                    mostrar_menu_por_rol(ROL)
-        elif opcion == "2":
-            signup()
-        elif opcion == "3":
-            entrar_como_invitado()
-        elif opcion == "4":
-            if not ROL:
-                print("❌ No has iniciado sesión aún.")
+                print(f"❌ Opción no válida. Por favor, elige una opción entre 1 y {opcion_salir_numero}.")
+        
+        else: # Lógica para cuando SÍ hay sesión (TOKEN existe)
+            if opcion_seleccionada == "m" and ROL: # Opción "M" para ir al menú de rol
+                print(f"➡️ Accediendo al menú de {str(ROL).capitalize()}...")
+                mostrar_menu_por_rol(ROL)
+            elif opcion_seleccionada == "4": # Cerrar sesión
+                logout() 
+            elif opcion_seleccionada == opcion_salir_numero: # Salir (opción "5")
+                print("👋 Saliendo del sistema. ¡Hasta pronto!")
+                break
             else:
-                logout()
-        elif opcion == "5":
-            print("👋 Saliendo del sistema. ¡Hasta pronto!")
-            break
-        else:
-            print("❌ Opción no válida. Por favor, elige una opción entre 1 y 5.")
+                print(f"❌ Opción no válida. Por favor, elige una opción del menú (M, 4, o 5).")
+
+
 
 
 def mostrar_menu_por_rol(rol: str) -> None:
