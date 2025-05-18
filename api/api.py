@@ -1,78 +1,146 @@
-# Importaciones básicas
-from flask import Flask, request, jsonify, make_response
+"""
+API de Alquiler de Coches.
+
+Este script implementa una API web utilizando Flask para gestionar el alquiler
+de coches, incluyendo la administración de usuarios, coches y alquileres.
+Utiliza Flask-JWT-Extended para la autenticación basada en tokens.
+"""
+
+# --------------------------------------------------------------------------
+# SECCIÓN 1: IMPORTACIONES
+# --------------------------------------------------------------------------
+
+
+from flask import Flask, request, jsonify, make_response, Response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
 from datetime import datetime
 from mysql.connector import Error as MySQLError
-
-# Importación relativa para acceder a la clase Empresa desde el módulo source
 from source.empresaV2 import Empresa
-from source.utils import formatear_id, es_email_valido, generar_factura_pdf
+from source.utils import formatear_id, es_email_valido
+from typing import Dict, Any, Tuple, Set, Union, Optional # Para sugerencias de tipo
+
+
+# --------------------------------------------------------------------------
+# SECCIÓN 2: CONFIGURACIÓN DE LA APLICACIÓN FLASK Y EXTENSIONES
+# --------------------------------------------------------------------------
+
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = "grupo_4!"
 jwt = JWTManager(app)
+
+# Lista (conjunto) para almacenar JTI (JWT ID) de tokens revocados (para logout)
 token_blocklist = set()
 
-@app.route('/')
-def home():
-    return "Bienvenido a la API de Alquiler de Coches", 200
-
+# Instanciación del objeto principal de la lógica de negocio
 empresa = Empresa(nombre='RentAcar')
 
-@jwt.token_in_blocklist_loader
-def check_if_token_revoked(jwt_header, jwt_payload):
-    jti = jwt_payload['jti']
-    return jti in token_blocklist
 
-# ---------------------------------------
-# ENDPOINTS RELACIONADOS CON BUSQUEDAS
-# ---------------------------------------
+# --------------------------------------------------------------------------
+# SECCIÓN 3: RUTAS DE BIENVENIDA / ÍNDICE
+# --------------------------------------------------------------------------
 
-@app.route('/signup', methods=['POST'])
-def signup() -> tuple[dict, int]:
+
+@app.route('/')
+def home() -> Tuple[str, int]:
     """
-    Endpoint para registrar un nuevo usuario en el sistema.
+    Endpoint raíz de la API. Devuelve un mensaje de bienvenida.
 
-    Este endpoint permite registrar un nuevo usuario con un nombre, correo electrónico, 
-    contraseña y tipo de usuario. El tipo de usuario puede ser "admin" o "cliente". 
-    Si no se especifica, el tipo predeterminado será "cliente".
-
-    Methods
-    -------
-    POST
-        Registra un nuevo usuario en el sistema.
-
-    Parameters
-    ----------
-    nombre : str
-        Nombre del usuario.
-    tipo : str, optional
-        Tipo de usuario ("admin" o "cliente"). Por defecto es "cliente".
-    email : str
-        Correo electrónico del usuario.
-    contraseña : str
-        Contraseña del usuario (se almacenará como hash).
+    Este endpoint sirve como una prueba básica para verificar que la API
+    está en funcionamiento y accesible.
 
     Returns
     -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Usuario registrado exitosamente"
-        }
-
-    Raises
-    ------
-    HTTP 400 Bad Request
-        Si faltan campos obligatorios, el correo electrónico no es válido o el tipo de usuario no es correcto.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+    Tuple[str, int]
+        Una tupla conteniendo el mensaje de bienvenida y el código de estado HTTP 200.
+    
+    Examples
+    --------
+    Solicitud GET a `/`:
+    Respuesta:
+        "Bienvenido a la API de Alquiler de Coches" (status 200)
     """
-    data = request.json
-    nombre = data.get('nombre')
-    tipo = data.get('tipo', 'cliente')  # Por defecto aplicamos cliente
-    email = data.get('email')
-    contraseña = data.get('contraseña')
+    return "Bienvenido a la API de Alquiler de Coches", 200
+
+
+# --------------------------------------------------------------------------
+# SECCIÓN 4: CONFIGURACIÓN Y MANEJADORES DE JWT (Flask-JWT-Extended)
+# --------------------------------------------------------------------------
+
+
+@jwt.token_in_blocklist_loader
+def check_if_token_revoked(jwt_header: Dict[str, Any], jwt_payload: Dict[str, Any]) -> bool:
+    """
+    Verifica si un token JWT ha sido revocado (añadido a la blocklist).
+
+    Este callback es utilizado por Flask-JWT-Extended para determinar si un token
+    presentado es válido o si ha sido explícitamente revocado (e.g., durante
+    un cierre de sesión). Comprueba si el identificador único del token (JTI)
+    está presente en el `token_blocklist` global.
+
+    Parameters
+    ----------
+    jwt_header : Dict[str, Any]
+        El encabezado decodificado del JWT. No se usa directamente en esta implementación
+        pero es proporcionado por Flask-JWT-Extended.
+    jwt_payload : Dict[str, Any]
+        El payload (contenido) decodificado del JWT. Se espera que contenga la claim 'jti'.
+
+    Returns
+    -------
+    bool
+        `True` si el JTI del token se encuentra en la `token_blocklist` (indicando
+        que el token está revocado), `False` en caso contrario.
+    """
+    jti: Optional[str] = jwt_payload.get('jti')
+    return jti in token_blocklist
+
+
+# --------------------------------------------------------------------------
+# SECCIÓN 5: ENDPOINTS DE AUTENTICACIÓN Y GESTIÓN DE CUENTA DE USUARIO
+# --------------------------------------------------------------------------
+
+
+@app.route('/signup', methods=['POST'])
+def signup() -> Tuple[Response, int]:
+    """
+    Registra un nuevo usuario en el sistema.
+
+    Acepta datos de usuario (nombre, tipo, email, contraseña) en formato JSON.
+    Valida los datos de entrada. Si son válidos, llama a la lógica de negocio
+    para registrar al usuario y devuelve el ID del nuevo usuario formateado.
+
+    Body (JSON)
+    -----------
+    nombre : str
+        Nombre completo del nuevo usuario.
+    tipo : str, optional
+        Rol del usuario. Debe ser "admin" o "cliente".
+        Si no se proporciona, se asume "cliente".
+    email : str
+        Correo electrónico del nuevo usuario. Debe ser único y válido.
+    contraseña : str
+        Contraseña deseada para el nuevo usuario (en texto plano).
+        Será hasheada por la lógica de negocio antes de almacenarse.
+
+    Returns
+    -------
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 201 Created: Si el usuario se registra exitosamente.
+        JSON: `{"mensaje": "Usuario registrado exitosamente", "id_usuario": "U<ID>"}`
+        - 400 Bad Request: Si hay errores de validación en los datos de entrada
+        (e.g., campos faltantes, email inválido, tipo de usuario incorrecto,
+        o un `ValueError` de la lógica de negocio como email duplicado).
+        JSON: `{"error": "mensaje descriptivo del error"}`
+        - 500 Internal Server Error: Para otros errores inesperados en el servidor.
+        JSON: `{"error": "Error interno del servidor"}`
+    """
+    data: Optional[Dict[str, Any]] = request.json
+    nombre: Optional[str] = data.get('nombre')
+    tipo: str = str(data.get('tipo', 'cliente')).lower().strip()
+    email: Optional[str] = data.get('email')
+    contraseña: Optional[str] = data.get('contraseña')
 
     # Validar campos obligatorios
     if not nombre or not email or not contraseña:
@@ -87,10 +155,10 @@ def signup() -> tuple[dict, int]:
         return jsonify({'error': 'El tipo de usuario debe ser "admin" o "cliente"'}), 400
 
     try:
-        id_usuario_generado = empresa.registrar_usuario(nombre=nombre, tipo=tipo, email=email, contraseña=contraseña)
+        id_usuario: str = empresa.registrar_usuario(nombre=nombre, tipo=tipo, email=email, contraseña=contraseña)
         return jsonify({
             "mensaje": "Usuario registrado exitosamente",
-            "id_usuario": formatear_id(id_usuario_generado,'U')
+            "id_usuario": formatear_id(id_usuario,'U')
         }),201
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
@@ -99,47 +167,40 @@ def signup() -> tuple[dict, int]:
 
 
 @app.route('/login', methods=['POST'])
-def login() -> tuple[dict, int]:
+def login() -> Tuple[Response, int]:
     """
-    Endpoint para iniciar sesión en el sistema.
+    Autentica a un usuario y devuelve un token JWT si las credenciales son válidas.
 
-    Este endpoint permite a un usuario iniciar sesión proporcionando su correo electrónico 
-    y contraseña. Si las credenciales son válidas, se genera un token JWT que incluye el 
-    rol del usuario (por ejemplo, "admin" o "cliente").
+    Acepta 'email' y 'contraseña' en el cuerpo JSON de la solicitud.
+    Valida la entrada y llama a la lógica de negocio para verificar las credenciales.
+    Si la autenticación es exitosa, genera un token JWT que incluye el rol del
+    usuario como una claim adicional y lo devuelve junto con otros datos del usuario.
 
-    Methods
-    -------
-    POST
-        Inicia sesión en el sistema.
-
-    Parameters
-    ----------
+    Body (JSON)
+    -----------
     email : str
         Correo electrónico del usuario.
     contraseña : str
-        Contraseña del usuario.
+        Contraseña del usuario en texto plano.
 
     Returns
     -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Inicio de sesion exitoso",
-            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        }
-
-    Raises
-    ------
-    HTTP 400 Bad Request
-        Si faltan campos obligatorios o el correo electrónico no es válido.
-    HTTP 401 Unauthorized
-        Si las credenciales son inválidas.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si el inicio de sesión es exitoso.
+        JSON: `{"mensaje": "Inicio de sesion exitoso.", "token": "...", "rol": "...", "nombre": "...", "id_usuario": "..."}`
+        - 400 Bad Request: Si faltan campos, el email es inválido, o la lógica de
+        negocio devuelve un `ValueError` (e.g., usuario no encontrado).
+        JSON: `{"error": "mensaje descriptivo del error"}`
+        - 401 Unauthorized: Si la autenticación falla (e.g., contraseña incorrecta).
+        JSON: `{"error": "No se pudo autenticar al usuario"}`
+        - 500 Internal Server Error: Para otros errores inesperados en el servidor.
+        JSON: `{"error": "Error interno del servidor <detalle_error>"}`
     """
-    data = request.json
-    email = data.get('email')
-    contraseña = data.get('contraseña')
+    data: Optional[Dict[str, Any]] = request.json
+    email: Optional[str] = data.get('email')
+    contraseña: Optional[str] = data.get('contraseña')
+
 
     # Validar campos obligatorios
     if not email or not contraseña:
@@ -150,11 +211,11 @@ def login() -> tuple[dict, int]:
         return jsonify({'error': 'El correo electrónico no es válido'}), 400
 
     try:
-        resultado = empresa.iniciar_sesion(email,contraseña)
+        resultado: Dict[str, Any] = empresa.iniciar_sesion(email,contraseña)
         
         if resultado.get('autenticado'):
-            claims = {'rol': resultado['rol']}
-            token = create_access_token(identity=email, additional_claims=claims)
+            claims: Dict[str, Any] = {'rol': resultado['rol']}
+            token: str = create_access_token(identity=email, additional_claims=claims)
             
             return jsonify ({
                 'mensaje':'Inicio de sesion exitoso.',
@@ -167,7 +228,6 @@ def login() -> tuple[dict, int]:
         else:
             return jsonify({'error': 'No se pudo autenticar al usuario'}), 401
         
-    
     except ValueError as ve:
         return jsonify({'error': str(ve)}), 400
     except Exception as e:
@@ -176,34 +236,30 @@ def login() -> tuple[dict, int]:
 
 @app.route('/logout', methods=['POST'])
 @jwt_required()
-def logout() -> tuple[dict, int]:
+def logout() -> Tuple[Response, int]:
     """
-    Endpoint para cerrar sesión en el sistema.
+    Invalida el token JWT actual del usuario añadiéndolo a una blocklist.
 
-    Este endpoint permite al usuario cerrar su sesión actual. Cuando se llama a este endpoint,
-    el token JWT utilizado para autenticar la solicitud se invalida agregándolo a una lista 
-    de tokens revocados (blocklist). Esto asegura que el token no pueda ser utilizado nuevamente.
+    Este endpoint permite a un usuario autenticado cerrar su sesión.
+    El JTI (JWT ID) del token actual se extrae y se añade a `token_blocklist`.
+    Flask-JWT-Extended, a través del `token_in_blocklist_loader`
+    (la función `check_if_token_revoked`), verificará esta lista en futuras
+    solicitudes para rechazar tokens revocados.
 
-    Methods
-    -------
-    POST
-        Cierra la sesión del usuario.
+    Requiere
+    --------
+    Una cabecera `Authorization: Bearer <token_jwt>` válida.
 
     Returns
     -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Sesion cerrada exitosamente"
-        }
-
-    Raises
-    ------
-    HTTP 401 Unauthorized
-        Si el token JWT no es válido o está ausente.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si la sesión se cierra (token añadido a la blocklist) exitosamente.
+        JSON: `{"mensaje": "Sesion cerrada exitosamente"}`
+        - 500 Internal Server Error: Si ocurre un error inesperado al procesar el token.
+        JSON: `{"error": "mensaje del error"}`
     """
+
     try:
         # Obtener el identificador único del token JWT
         jti = get_jwt()['jti']
@@ -217,145 +273,105 @@ def logout() -> tuple[dict, int]:
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/usuarios/eliminar', methods=['DELETE'])
+@app.route('/usuarios/actualizar-contraseña/<string:email>', methods=['PUT'])
 @jwt_required()
-def eliminar_usuario() -> tuple[dict, int]:
+def actualizar_usuario(email: str) -> Tuple[Response, int]:
     """
-    Endpoint para eliminar un usuario del sistema.
+    Actualiza la contraseña del usuario autenticado.
 
-    Este endpoint permite a un administrador eliminar un usuario del sistema 
-    proporcionando su correo electrónico. Solo los usuarios con rol "admin" pueden 
-    acceder a este endpoint. El correo electrónico se obtiene como parámetro de la URL.
+    Permite a un usuario cambiar su propia contraseña. El `email` proporcionado
+    en la ruta DEBE coincidir con la identidad (email) del token JWT para autorizar
+    la operación. La nueva contraseña se recibe en el cuerpo JSON de la solicitud.
 
-    Methods
-    -------
-    DELETE
-        Elimina un usuario del sistema.
+    Parameters (URL)
+    ----------------
+    email : str  # Corresponde a <string:email> en la ruta
+        El correo electrónico del usuario cuya contraseña se va a actualizar.
+        Este email debe coincidir con el del usuario autenticado.
 
-    Parameters
-    ----------
-    email : str
-        Correo electrónico del usuario que se desea eliminar. Se pasa como parámetro 
-        en la URL (query string).
+    Body (JSON)
+    -----------
+    nueva_contraseña : str
+        La nueva contraseña deseada, en texto plano. Será hasheada por la
+        lógica de negocio.
 
     Headers
     -------
     Authorization : str
-        Token JWT válido con claims que incluyan el rol del usuario. El token debe 
-        ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
+        Token JWT válido. `Bearer <token_jwt>`.
 
     Returns
     -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Usuario con correo usuario@example.com eliminado con éxito"
-        }
-
-    Raises
-    ------
-    HTTP 400 Bad Request
-        Si falta el parámetro `email` o el correo electrónico no es válido.
-    HTTP 403 Forbidden
-        Si el usuario que realiza la solicitud no tiene rol de administrador.
-    HTTP 404 Not Found
-        Si no se encuentra ningún usuario con el correo electrónico proporcionado.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si la contraseña se actualiza exitosamente.
+        JSON: `{"mensaje": "Contraseña actualizada exitosamente"}`
+        - 400 Bad Request: Si falta `nueva_contraseña` en el cuerpo JSON,
+        o si la lógica de negocio devuelve un `ValueError`.
+        JSON: `{"error": "mensaje descriptivo del error"}`
+        - 401 Unauthorized: Si el token JWT no es válido o está ausente (manejado por `@jwt_required`).
+        - 403 Forbidden: Si el `email` de la URL no coincide con la identidad del token JWT.
+        JSON: `{"error": "Acceso no autorizado"}`
+        - 500 Internal Server Error: Para otros errores inesperados en el servidor,
+        incluyendo problemas al leer las claims del token o errores genéricos.
+        JSON: `{"error": "mensaje del error"}`
+    
+    Notes
+    -----
+    - Utiliza `get_jwt()` para obtener las claims del token y `get_jwt_identity()` para la identidad.
+    - Llama a `empresa.actualizar_contraseña_usuario` para la lógica de negocio.
     """
-    # Obtener las claims del token
-    claims = get_jwt()
 
-    # Verificar si las claims son un diccionario
-    if not isinstance(claims, dict):
-        return jsonify({'error': 'Error al leer las claims del token'}), 500
 
-    # Obtener el rol del usuario
-    rol = claims.get('rol')
+# --------------------------------------------------------------------------
+# SECCIÓN 6: ENDPOINTS DE ADMINISTRACIÓN DE USUARIOS
+# --------------------------------------------------------------------------    
 
-    # Verificar si el rol es admin
-    if rol != 'admin':
-        return jsonify({'error': 'Acceso no autorizado'}), 403
 
-    # Obtener el correo del usuario a eliminar desde los parámetros
-    email = request.args.get('email')
-    if not email:
-        return jsonify({'mensaje': 'El correo electrónico es obligatorio'}), 400
-
-    # Validar el formato del correo electrónico
-    if not es_email_valido(email):
-        return jsonify({'error': 'El correo electrónico no es válido'}), 400
-
-    try:
-        resultado = empresa.dar_baja_usuario(email)
-        if resultado:
-            return jsonify({'mensaje':f'Usuario con correo {email} eliminado con éxito'}), 200
-        else:
-            return jsonify({'error':'No se pudo eliminar el usuario'}), 404
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-    
 @app.route('/listar-usuarios', methods=['GET'])
 @jwt_required()
-def listar_usuarios() -> tuple[dict, int]:
+def listar_usuarios() -> Tuple[Response, int]:
     """
-    Endpoint para listar todos los usuarios registrados en el sistema.
+    Obtiene una lista de todos los usuarios registrados en el sistema.
 
-    Este endpoint permite a un administrador obtener una lista de todos los usuarios 
-    registrados en el sistema. Solo los usuarios con rol "admin" pueden acceder a este 
-    endpoint. Los datos de los usuarios se devuelven en formato JSON.
-
-    Methods
-    -------
-    GET
-        Obtiene una lista de todos los usuarios registrados.
+    Este endpoint es accesible solo por usuarios con rol "admin".
+    Devuelve información básica de cada usuario (ID formateado, nombre, tipo, email).
+    La contraseña hasheada no se incluye.
 
     Headers
     -------
     Authorization : str
-        Token JWT válido con claims que incluyan el rol del usuario. El token debe 
-        ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
+        Token JWT válido con la claim 'rol'="admin". `Bearer <token_jwt>`.
 
     Returns
     -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Lista de usuarios obtenida exitosamente",
-            "usuarios": [
-                {
-                    "id_usuario": "U001",
-                    "nombre": "Juan Pérez",
-                    "tipo": "cliente",
-                    "email": "juan@example.com",
-                    "contraseña": "hash_contraseña"
-                },
-                ...
-            ]
-        }
-
-    Raises
-    ------
-    HTTP 403 Forbidden
-        Si el usuario que realiza la solicitud no tiene rol de administrador.
-    HTTP 404 Not Found
-        Si no hay usuarios registrados en el sistema.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si la lista de usuarios se obtiene exitosamente.
+        JSON: `{"mensaje": "Lista de usuarios obtenida exitosamente", "usuarios": [{"id_usuarios": "U001", "nombre": ..., "tipo": ..., "email": ...}, ...]}`
+        - 403 Forbidden: Si el usuario autenticado no tiene rol "admin".
+        JSON: `{"error": "Acceso no autorizado"}`
+        - 404 Not Found: Si no hay usuarios registrados en el sistema.
+        JSON: `{"error": "No hay usuarios registrados"}`
+        - 500 Internal Server Error: Para errores al leer claims del token o
+        errores internos inesperados durante la obtención de datos.
+        JSON: `{"error": "mensaje del error"}`
+    
+    Notes
+    -----
+    - Llama a `empresa.obtener_usuarios()` para la lógica de negocio.
+    - Utiliza `formatear_id` para el ID de usuario en la respuesta.
     """
     # Obtener las claims del token
-    claims = get_jwt()
+    claims: Optional[Dict[str, Any]] = get_jwt()
 
     # Verificar si las claims son un diccionario
     if not isinstance(claims, dict):
         return jsonify({'error': 'Error al leer las claims del token'}), 500
 
     # Obtener el rol del usuario
-    rol = claims.get('rol')
+    rol: Optional[str] = claims.get('rol')
+
 
     # Verificar si el rol es admin
     if rol != 'admin':
@@ -389,67 +405,54 @@ def listar_usuarios() -> tuple[dict, int]:
 
 @app.route('/usuarios/detalles/<string:email>', methods=['GET'])
 @jwt_required()
-def detalles_usuario(email: str) -> tuple[dict, int]:
+def detalles_usuario(email: str) -> Tuple[Response, int]:
     """
-    Endpoint para obtener los detalles de un usuario específico.
+    Obtiene los detalles de un usuario específico por su email.
 
-    Este endpoint permite a un administrador o al propio usuario autenticado obtener 
-    los detalles de un usuario específico mediante su correo electrónico. Solo los 
-    usuarios con rol "admin" pueden acceder a los detalles de otros usuarios, mientras 
-    que un usuario normal solo puede acceder a sus propios detalles.
+    Permite a un administrador ver los detalles de cualquier usuario, o a un
+    usuario cliente ver sus propios detalles. La autorización se basa en el rol
+    del token JWT y si el `email` de la URL coincide con la identidad del token.
 
-    Methods
-    -------
-    GET
-        Obtiene los detalles de un usuario específico.
-
-    Parameters
-    ----------
-    email : str
-        Correo electrónico del usuario cuyos detalles se desean obtener. Se pasa como 
-        parte de la URL.
+    Parameters (URL)
+    ----------------
+    email_param : str # Corresponde a <string:email> en la ruta
+        Correo electrónico del usuario cuyos detalles se desean obtener.
 
     Headers
     -------
     Authorization : str
-        Token JWT válido con claims que incluyan el rol del usuario. El token debe 
-        ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
+        Token JWT válido. `Bearer <token_jwt>`.
 
     Returns
     -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Detalles del usuario obtenidos exitosamente",
-            "usuario": {
-                "id_usuario": "U001",
-                "nombre": "Juan Pérez",
-                "tipo": "cliente",
-                "email": "juan@example.com",
-                "contraseña": "hash_contraseña"
-            }
-        }
-
-    Raises
-    ------
-    HTTP 403 Forbidden
-        Si el usuario no tiene permiso para acceder a los detalles del usuario solicitado.
-    HTTP 404 Not Found
-        Si no se encuentra ningún usuario con el correo electrónico proporcionado.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si los detalles se obtienen exitosamente.
+        JSON: `{"mensaje": "Detalles del usuario ...", "usuario": {"id_usuario": "U001", "nombre": ..., ...}}`
+        - 403 Forbidden: Si el usuario no tiene permiso para ver los detalles solicitados.
+        JSON: `{"error": "Acceso no autorizado"}`
+        - 404 Not Found: Si no se encuentra un usuario con el `email_param`
+        (devuelto por `ValueError` de la capa de negocio).
+        JSON: `{"error": "mensaje del error de ValueError"}`
+        - 500 Internal Server Error: Para errores al leer claims o errores internos inesperados.
+        JSON: `{"error": "mensaje del error"}`
+    
+    Notes
+    -----
+    - Llama a `empresa.obtener_usuario_por_email` para la lógica de negocio.
+    - Utiliza `formatear_id` para el ID de usuario en la respuesta.
     """
     # Obtener las claims del token
-    claims = get_jwt()
+    claims: Optional[Dict[str, Any]] = get_jwt()
+
 
     # Verificar si las claims son un diccionario
     if not isinstance(claims, dict):
         return jsonify({'error': 'Error al leer las claims del token'}), 500
 
     # Obtener el rol del usuario
-    rol = claims.get('rol')
-    email_usuario_autenticado = get_jwt_identity()
+    rol: Optional[str] = claims.get('rol')
+    email_usuario_autenticado: Optional[str] = get_jwt_identity()
 
     # Verificar permisos
     if rol != 'admin' and email_usuario_autenticado != email:
@@ -476,694 +479,25 @@ def detalles_usuario(email: str) -> tuple[dict, int]:
     except Exception:
         return jsonify({'error': 'Error interno del servidor'}), 500
     
-    
-@app.route('/usuarios/actualizar-contraseña/<string:email>', methods=['PUT'])
-@jwt_required()
-def actualizar_usuario(email: str) -> tuple[dict, int]:
-    """
-    Endpoint para actualizar la contraseña de un usuario.
 
-    Este endpoint permite a un usuario autenticado actualizar su propia contraseña. 
-    Solo el usuario autenticado puede cambiar su propia contraseña. Se requiere que 
-    el correo electrónico del usuario coincida con el correo electrónico asociado 
-    al token JWT.
+# --------------------------------------------------------------------------
+# SECCIÓN 7: ENDPOINTS DE GESTIÓN Y CONSULTA DE COCHES
+# --------------------------------------------------------------------------
 
-    Methods
-    -------
-    PUT
-        Actualiza la contraseña de un usuario.
-
-    Parameters
-    ----------
-    email : str
-        Correo electrónico del usuario cuya contraseña se desea actualizar. Se pasa 
-        como parte de la URL.
-
-    Headers
-    -------
-    Authorization : str
-        Token JWT válido con claims que incluyan la identidad del usuario. El token 
-        debe ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
-
-    Body
-    ----
-    nueva_contraseña : str
-        La nueva contraseña que se desea establecer para el usuario.
-
-    Returns
-    -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Contraseña actualizada exitosamente"
-        }
-
-    Raises
-    ------
-    HTTP 400 Bad Request
-        Si falta el campo `nueva_contraseña` o si los datos proporcionados son inválidos.
-    HTTP 403 Forbidden
-        Si el usuario no tiene permiso para actualizar la contraseña de otro usuario.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
-    """
-    # Obtener las claims del token
-    claims = get_jwt()
-
-    # Verificar si las claims son un diccionario
-    if not isinstance(claims, dict):
-        return jsonify({'error': 'Error al leer las claims del token'}), 500
-
-    email_usuario_autenticado = get_jwt_identity()
-
-    # Comprobar que el usuario está intentando cambiar sus propios datos
-    if email_usuario_autenticado != email:
-        return jsonify({'error': 'Acceso no autorizado'}), 403
-
-    data = request.json
-    nueva_contraseña = data.get('nueva_contraseña')
-
-    if not nueva_contraseña:
-        return jsonify({'error': 'Debes proporcionar una nueva contraseña'}), 400
-
-    try:
-        # Llamar al método actualizar_usuario de la clase Empresa
-        empresa.actualizar_contraseña_usuario(email=email, nueva_contraseña=nueva_contraseña)
-        return jsonify({'mensaje': 'Contraseña actualizada exitosamente'}), 200
-
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# ---------------------------------------
-# ENDPOINTS RELACIONADOS CON BUSQUEDAS
-# ---------------------------------------
-
-
-@app.route('/coches-disponibles', methods=['GET'])
-def buscar_coches_disponibles() -> tuple[dict, int]:
-    """
-    Endpoint para buscar coches disponibles filtrados por categoría de precio, 
-    categoría de tipo, marca y modelo.
-
-    Este endpoint permite a los usuarios buscar coches disponibles en el sistema 
-    utilizando filtros opcionales como categoría de precio, categoría de tipo, 
-    marca y modelo. Los resultados se devuelven en formato JSON.
-
-    Methods
-    -------
-    GET
-        Busca coches disponibles según los filtros proporcionados.
-
-    Parameters
-    ----------
-    categoria_precio : str, optional
-        Categoría de precio para filtrar los coches (por ejemplo, "Bajo", "Medio", "Alto").
-    categoria_tipo : str, optional
-        Categoría de tipo para filtrar los coches (por ejemplo, "Compacto", "SUV", "Deportivo").
-    marca : str, optional
-        Marca del coche para filtrar los resultados.
-    modelo : str, optional
-        Modelo del coche para filtrar los resultados.
-
-    Returns
-    -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "detalles": [
-                {
-                    "matricula": "8237 SPL",
-                    "marca": "Toyota",
-                    "modelo": "Corolla",
-                    "categoria_precio": "Medio",
-                    "categoria_tipo": "Compacto",
-                    "disponible": true,
-                    "año": 2022,
-                    "precio_diario": 50.0,
-                    "kilometraje": 15000,
-                    "color": "Blanco",
-                    "combustible": "Gasolina",
-                    "cv": 120,
-                    "plazas": 5
-                },
-                ...
-            ]
-        }
-
-    Raises
-    ------
-    HTTP 400 Bad Request
-        Si los parámetros proporcionados son inválidos o no coinciden con los datos disponibles.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
-    """
-    try:
-        # Obtener los parámetros de la solicitud
-        categoria_precio = request.args.get('categoria_precio')
-        categoria_tipo = request.args.get('categoria_tipo')
-        marca = request.args.get('marca')
-        modelo = request.args.get('modelo')
-        
-        # Validar que al menos se proporcione una categoría de precio
-        if not categoria_precio:
-            raise ValueError("Se requiere al menos el parámetro 'categoria_precio'.")
-
-        # Obtener los detalles de los coches
-        coches_filtrados = empresa.buscar_coches_por_filtros(categoria_precio=categoria_precio, categoria_tipo=categoria_tipo, marca=marca, modelo=modelo)
-        # Estructura de respuesta según nivel de filtro
-        if not categoria_tipo and not marca and not modelo:
-            # Solo categoría de precio
-            return jsonify({
-                'categorias_tipo': coches_filtrados
-            }), 200
-
-        elif not marca and not modelo:
-            # Hasta categoría_tipo
-            return jsonify({
-                'marcas': coches_filtrados
-            }), 200
-
-        elif not modelo:
-            # Hasta marca
-            return jsonify({
-                'modelos': coches_filtrados
-            }), 200
-
-        else:
-            # Detalles completos del coche
-            return jsonify({
-                'detalles': coches_filtrados
-            }), 200
-
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), 400
-    except MySQLError as dbe: # Captura errores de MySQL específicamente
-        # print(f"DEBUG Endpoint: Error de BD capturado: {dbe}") # Para el log del servidor
-        return jsonify({"error": f"Error de base de datos: {dbe}"}), 500
-    except Exception:
-        return jsonify({"error": "Error interno del servidor"}), 500
-
-
-# ---------------------------------------
-# ENDPOINTS RELACIONADOS CON ALQUILERES
-# ---------------------------------------
-
-
-@app.route('/alquilar-coche', methods=['POST'])
-@jwt_required(optional=True)
-def alquilar_coches() -> tuple[dict | int]:
-    """
-    Endpoint para registrar un alquiler de coche.
-
-    Este endpoint permite a los usuarios (autenticados o invitados) registrar un nuevo 
-    alquiler de coche. Si el usuario está autenticado, se utiliza su correo electrónico 
-    del token JWT. Los administradores no pueden alquilar coches. Al finalizar el proceso, 
-    se genera una factura en formato PDF que se devuelve como archivo adjunto.
-
-    Methods
-    -------
-    POST
-        Registra un nuevo alquiler de coche.
-
-    Parameters
-    ----------
-    matricula : str
-        La matrícula del coche que se desea alquilar.
-    fecha_inicio : str
-        Fecha de inicio del alquiler en formato YYYY-MM-DD.
-    fecha_fin : str
-        Fecha de fin del alquiler en formato YYYY-MM-DD.
-    email : str, optional
-        Correo electrónico del usuario que realiza el alquiler. Si el usuario está 
-        autenticado, este campo es opcional.
-
-    Headers
-    -------
-    Authorization : str, optional
-        Token JWT válido con claims que incluyan el rol del usuario. El token debe 
-        ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
-
-    Returns
-    -------
-    JSON
-        En caso de error, se devuelve un objeto JSON con la siguiente estructura:
-        {
-            "error": "Mensaje de error descriptivo"
-        }
-
-    File
-        En caso de éxito, se devuelve un archivo PDF con la factura del alquiler. 
-        El archivo se adjunta con el nombre `factura.pdf`.
-
-    Raises
-    ------
-    HTTP 400 Bad Request
-        Si faltan campos obligatorios, las fechas tienen un formato incorrecto o los 
-        datos proporcionados son inválidos.
-    HTTP 403 Forbidden
-        Si el usuario es un administrador (los administradores no pueden alquilar coches).
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
-    """
-    data = request.json
-    matricula = data.get('matricula')
-    fecha_inicio = data.get('fecha_inicio')
-    fecha_fin = data.get('fecha_fin')
-    email = data.get('email')
-
-    # Validaciones necesarias
-    if not matricula or not fecha_inicio or not fecha_fin:
-        return jsonify({'error': 'Debes introducir la matrícula, la fecha de inicio y la fecha de fin'}), 400
-
-    # Validar formato de las fechas
-    try:
-        fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-        fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
-    except ValueError:
-        return jsonify({'error': 'Las fechas deben estar en formato YYYY-MM-DD'}), 400
-
-    try:
-        # Obtener claims del token si existe
-        claims = get_jwt() if get_jwt() else {}
-        rol = claims.get('rol')
-
-        # Verificar si el usuario es admin
-        if rol == 'admin':
-            return jsonify({'error': 'Los administradores no pueden alquilar coches'}), 403
-
-        # Si el usuario está autenticado, obtener su email del token
-        if rol and not email:
-            email = get_jwt_identity()
-
-        # Registrar el alquiler y obtener el PDF
-        pdf_bytes = empresa.alquilar_coche(
-            matricula=matricula,
-            fecha_inicio=fecha_inicio.strftime('%Y-%m-%d'),
-            fecha_fin=fecha_fin.strftime('%Y-%m-%d'),
-            email=email
-        )
-
-        # Crear una respuesta con el archivo PDF
-        response = make_response(pdf_bytes)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = 'attachment; filename=factura.pdf'
-        return response
-
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': f'Error interno del servidor. Por favor, inténtalo de nuevo más tarde: {e}'}), 500
-    
-
-@app.route('/alquileres/listar', methods=['GET'])
-@jwt_required()
-def listar_alquileres() -> tuple[dict, int]:
-    """
-    Endpoint para listar todos los alquileres registrados en el sistema.
-
-    Este endpoint permite a un administrador obtener una lista de todos los alquileres 
-    registrados en el sistema. Solo los usuarios con rol "admin" pueden acceder a este 
-    endpoint. Los datos de los alquileres se devuelven en formato JSON.
-
-    Methods
-    -------
-    GET
-        Obtiene una lista de todos los alquileres registrados.
-
-    Headers
-    -------
-    Authorization : str
-        Token JWT válido con claims que incluyan el rol del usuario. El token debe 
-        ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
-
-    Returns
-    -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Lista de alquileres obtenida exitosamente",
-            "alquileres": [
-                {
-                    "id_alquiler": "A001",
-                    "id_coche": "UID01",
-                    "id_usuario": "U001",
-                    "fecha_inicio": "2025-04-10",
-                    "fecha_fin": "2025-04-11",
-                    "coste_total": 100.0,
-                    "activo": true
-                },
-                ...
-            ]
-        }
-
-    Raises
-    ------
-    HTTP 403 Forbidden
-        Si el usuario que realiza la solicitud no tiene rol de administrador.
-    HTTP 404 Not Found
-        Si no hay alquileres registrados en el sistema.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
-    """
-    # Obtener las claims del token
-    claims = get_jwt()
-
-    # Verificar si las claims son un diccionario
-    if not isinstance(claims, dict):
-        return jsonify({'error': 'Error al leer las claims del token'}), 500
-
-    # Obtener el rol del usuario
-    rol = claims.get('rol')
-
-    # Verificar si el rol es admin
-    if rol != 'admin':
-        return jsonify({'error': 'Acceso no autorizado'}), 403
-
-    try:
-        # Cargar alquileres
-        alquileres = empresa.cargar_alquileres()
-        
-        # Formatear IDs solo al mostrarlos al cliente
-        alquileres_formateados = []
-        for alquiler in alquileres:
-            alquiler_formateado = {
-                "id_alquiler": formatear_id(alquiler["id_alquiler"], "A"),
-                "id_coche": formatear_id(alquiler["id_coche"], "UID"),
-                "id_usuario": formatear_id(alquiler["id_usuario"], "U") if alquiler["id_usuario"] else "INVITADO",
-                "matricula": alquiler["matricula"],
-                "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
-                "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
-                "coste_total": float(alquiler["coste_total"]),
-                "activo": bool(alquiler["activo"])
-            }
-            alquileres_formateados.append(alquiler_formateado)
-
-        return jsonify({
-            "mensaje": "Lista de alquileres obtenida exitosamente.",
-            "alquileres": alquileres_formateados
-        }), 200
-
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), 404
-    except Exception as e:
-        print(f"Error interno: {e}")
-        return jsonify({"error": "Error interno del servidor"}), 500
-        
-    
-
-@app.route('/alquileres/detalles/<string:id_alquiler>', methods=['GET'])
-@jwt_required()
-def detalles_alquiler(id_alquiler: str) -> tuple[dict, int]:
-    """
-    Endpoint para obtener los detalles de un alquiler específico.
-
-    Este endpoint permite a un administrador o al usuario autenticado obtener los 
-    detalles de un alquiler específico mediante su ID. Solo los usuarios con rol 
-    "admin" pueden acceder a los detalles de cualquier alquiler, mientras que un 
-    usuario normal solo puede acceder a los detalles de sus propios alquileres.
-
-    Methods
-    -------
-    GET
-        Obtiene los detalles de un alquiler específico.
-
-    Parameters
-    ----------
-    id_alquiler : str
-        ID único del alquiler cuyos detalles se desean obtener. Se pasa como parte 
-        de la URL.
-
-    Headers
-    -------
-    Authorization : str
-        Token JWT válido con claims que incluyan el rol y la identidad del usuario. 
-        El token debe ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
-
-    Returns
-    -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Detalles del alquiler obtenidos exitosamente",
-            "alquiler": {
-                "id_alquiler": "A001",
-                "id_coche": "UID01",
-                "id_usuario": "U001",
-                "fecha_inicio": "2025-04-10",
-                "fecha_fin": "2025-04-11",
-                "coste_total": 100.0,
-                "activo": true
-            }
-        }
-
-    Raises
-    ------
-    HTTP 403 Forbidden
-        Si el usuario no tiene permiso para acceder a los detalles del alquiler.
-    HTTP 404 Not Found
-        Si no se encuentra ningún alquiler con el ID proporcionado.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
-    """
-    # Obtener las claims del token
-    claims = get_jwt()
-
-    # Verificar si las claims son un diccionario
-    if not isinstance(claims, dict):
-        return jsonify({'error': 'Error al leer las claims del token'}), 500
-
-    # Obtener el rol y el email del usuario autenticado
-    rol = claims.get('rol')
-    email_usuario_autenticado = get_jwt_identity()
-
-    try:
-        # Llamar a Empresa para obtener el alquiler por ID
-        alquiler = empresa.obtener_alquiler_por_id(id_alquiler)
-
-        # Extraer datos del alquiler
-        id_usuario_alquiler = alquiler.get("id_usuario")
-
-        # Validar permisos
-        if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
-            return jsonify({'error': 'Acceso no autorizado'}), 403
-
-        # Formatear IDs solo al mostrarlos al usuario final
-        alquiler_formateado = {
-            "id_alquiler": formatear_id(alquiler["id_alquiler"], "A"),
-            "id_coche": formatear_id(alquiler["id_coche"], "UID"),
-            "id_usuario": formatear_id(alquiler["id_usuario"], "U") if id_usuario_alquiler else "INVITADO",
-            "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
-            "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
-            "coste_total": float(alquiler["coste_total"]),
-            "activo": bool(alquiler["activo"])
-        }
-
-        return jsonify({
-            "mensaje": f"Detalles del alquiler {id_alquiler} obtenidos exitosamente.",
-            "alquiler": alquiler_formateado
-        }), 200
-
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), 404
-    except Exception as e:
-        print(f"Error interno: {str(e)}")
-        return jsonify({"error": "Error interno del servidor"}), 500
-    
-
-@app.route('/alquileres/finalizar/<string:id_alquiler>', methods=['PUT'])
-@jwt_required()
-def finalizar_alquiler(id_alquiler: str) -> tuple[dict, int]:
-    """
-    Endpoint para finalizar un alquiler específico.
-
-    Este endpoint permite a un administrador o al usuario autenticado finalizar un 
-    alquiler específico mediante su ID. Solo los usuarios con rol "admin" pueden 
-    finalizar cualquier alquiler, mientras que un usuario normal solo puede finalizar 
-    sus propios alquileres. Una vez finalizado, el coche asociado al alquiler se marca 
-    como disponible nuevamente.
-
-    Methods
-    -------
-    PUT
-        Finaliza un alquiler específico.
-
-    Parameters
-    ----------
-    id_alquiler : str
-        ID único del alquiler que se desea finalizar. Se pasa como parte de la URL.
-
-    Headers
-    -------
-    Authorization : str
-        Token JWT válido con claims que incluyan el rol y la identidad del usuario. 
-        El token debe ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
-
-    Returns
-    -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Alquiler con id A001 finalizado con exito"
-        }
-
-    Raises
-    ------
-    HTTP 400 Bad Request
-        Si el alquiler ya está finalizado.
-    HTTP 403 Forbidden
-        Si el usuario no tiene permiso para finalizar el alquiler.
-    HTTP 404 Not Found
-        Si no se encuentra ningún alquiler con el ID proporcionado.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
-    """
-    # Obtener las claims del token
-    claims = get_jwt()
-
-    # Verificar si las claims son un diccionario
-    if not isinstance(claims, dict):
-        return jsonify({'error': 'Error al leer las claims del token'}), 500
-
-    # Obtener el rol y el email del usuario autenticado
-    rol = claims.get('rol')
-    email_usuario_autenticado = get_jwt_identity()
-
-    try:
-        
-        alquiler = empresa.obtener_alquiler_por_id(id_alquiler)
-        # Validar si el alquiler ya está terminado
-        if not alquiler['activo']:
-            return jsonify({"error": "El alquiler ya está finalizado."}), 400
-
-        # Extraer datos del alquiler
-        id_usuario_alquiler = alquiler.get("id_usuario")
-        id_coche_alquiler = alquiler.get("id_coche")
-
-        # Verificar autorización
-        if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
-            return jsonify({"error": "Acceso no autorizado"}), 403
-
-        # Llamar al método para finalizar el alquiler
-        resultado = empresa.finalizar_alquiler(id_alquiler)
-
-        if resultado:
-            return jsonify({
-                "mensaje": f"Alquiler {id_alquiler} finalizado correctamente.",
-                "id_coche": formatear_id(id_coche_alquiler, prefijo="UID")
-            }), 200
-        else:
-            return jsonify({"error": "No se pudo finalizar el alquiler."}), 500
-
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), 404
-    except Exception as e:
-        print(f"Error interno: {e}")
-        return jsonify({"error": "Error interno del servidor"}), 500
-
-
-@app.route('/alquileres/historial/<string:email>', methods=['GET'])
-@jwt_required()
-def historial_alquileres(email):
-    """
-    Obtiene el historial de alquileres de un usuario específico.
-
-    Este endpoint permite a un administrador o al propio usuario obtener todos los alquileres asociados a un email.
-
-    Returns
-    -------
-    JSON
-        Un objeto JSON con el historial de alquileres del usuario, incluyendo:
-        - id_alquiler (formateado como "A001")
-        - id_coche (formateado como "UID01")
-        - matricula del coche
-        - fechas de inicio y fin
-        - coste total
-        - estado activo/no activo
-
-    Raises
-    ------
-    HTTP 403 Forbidden
-        Si el usuario no tiene permiso para acceder al historial.
-    HTTP 404 Not Found
-        Si el email no corresponde a ningún usuario registrado.
-    HTTP 500 Internal Server Error
-        Si ocurre un error interno en la base de datos.
-    """
-    claims = get_jwt()
-    rol = claims.get('rol')
-    email_usuario_autenticado = get_jwt_identity()
-
-    # Verificar autorización
-    if rol != 'admin' and email != email_usuario_autenticado:
-        return jsonify({'error': 'Acceso no autorizado'}), 403
-
-    try:
-        connection = empresa.get_connection()
-
-        # Obtener el historial desde MySQL usando el método adaptado
-        resultados = empresa.obtener_historial_alquileres(email)
-
-        # Formatear los resultados antes de devolverlos
-        historial_formateado = []
-        for alquiler in resultados:
-            historial_formateado.append({
-                "id_alquiler": formatear_id(alquiler["id_alquiler"], prefijo="A"),
-                "id_coche": formatear_id(alquiler["id_coche"], prefijo="UID"),
-                "matricula": alquiler["matricula"],
-                "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
-                "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
-                "coste_total": float(alquiler["coste_total"]),
-                "activo": bool(alquiler["activo"])
-            })
-
-        return jsonify({
-            "mensaje": f"Historial de alquileres del usuario {email}",
-            "alquileres": historial_formateado #cuando acabe debug cambiar a historial_formateado
-        }), 200
-
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), 404
-    except Exception as e:
-        return jsonify({"error": f"{e}"}), 500
-        
-
-
-# ---------------------------------------
-# ENDPOINTS RELACIONADOS CON COCHES
-# ---------------------------------------
 
 @app.route('/coches/registrar', methods=['POST'])
 @jwt_required()
-def registrar_coche() -> tuple[dict, int]:
+def registrar_coche() -> Tuple[Response, int]:
     """
-    Endpoint para registrar un nuevo coche en el sistema.
+    Registra un nuevo coche en el sistema.
 
-    Este endpoint permite a un administrador registrar un nuevo coche en el sistema. 
-    Solo los usuarios con rol "admin" pueden acceder a este endpoint. Todos los campos 
-    obligatorios deben ser proporcionados en el cuerpo de la solicitud. El campo 
-    'disponible' debe ser un valor booleano (True o False).
+    Este endpoint permite a un usuario con rol "admin" registrar un nuevo coche
+    Todos los campos detallados en el cuerpo de la solicitud son obligatorios,
+    y el campo `disponible` debe ser un valor booleano. Las validaciones de
+    tipo y rango para campos como `año` se realizan en este endpoint.
 
-    Methods
-    -------
-    POST
-        Registra un nuevo coche en el sistema.
-
-    Headers
-    -------
-    Authorization : str
-        Token JWT válido con claims que incluyan el rol del usuario. El token debe 
-        ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
-
-    Body
-    ----
+    Body (JSON)
+    -----------
     marca : str
         Marca del coche.
     modelo : str
@@ -1171,73 +505,84 @@ def registrar_coche() -> tuple[dict, int]:
     matricula : str
         Matrícula única del coche.
     categoria_tipo : str
-        Categoría de tipo del coche (por ejemplo, "Compacto", "SUV").
+        Tipo de categoría del coche (e.g., "Compacto", "SUV").
     categoria_precio : str
-        Categoría de precio del coche (por ejemplo, "Bajo", "Medio", "Alto").
-    año : int
-        Año de fabricación del coche. Debe estar entre 1900 y el año actual.
-    precio_diario : float
-        Precio diario de alquiler del coche.
-    kilometraje : float
-        Kilometraje actual del coche.
+        Categoría de precio del coche (e.g., "Bajo", "Medio", "Alto").
+    año : int or str
+        Año de fabricación del coche. Se convertirá a entero.
+        Debe estar entre 1900 y el año actual.
+    precio_diario : float or str
+        Precio diario de alquiler del coche. Se convertirá a float.
+    kilometraje : float or str
+        Kilometraje actual del coche. Se convertirá a float.
     color : str
         Color del coche.
     combustible : str
-        Tipo de combustible del coche (por ejemplo, "Gasolina", "Diésel").
-    cv : int
-        Potencia del coche en caballos de vapor (CV).
-    plazas : int
-        Número de plazas del coche.
+        Tipo de combustible del coche (e.g., "Gasolina", "Diésel").
+    cv : int or str
+        Potencia del coche en caballos de vapor (CV). Se convertirá a entero.
+    plazas : int or str
+        Número de plazas del coche. Se convertirá a entero.
     disponible : bool
-        Indica si el coche está disponible para alquilar (True o False).
+        Indica si el coche está disponible para alquilar (`true` o `false` en JSON).
+
+    Headers
+    -------
+    Authorization : str
+        Token JWT válido con la claim 'rol'="admin". `Bearer <token_jwt>`.
 
     Returns
     -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Coche registrado con éxito"
-        }
-
-    Raises
-    ------
-    HTTP 400 Bad Request
-        Si faltan campos obligatorios, los datos proporcionados son inválidos o el 
-        campo 'disponible' no es un valor booleano.
-    HTTP 403 Forbidden
-        Si el usuario que realiza la solicitud no tiene rol de administrador.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 201 Created: Si el coche se registra exitosamente.
+        JSON: `{"mensaje": "Coche registrado con éxito", "id_coche": "UID<ID>"}`
+        - 400 Bad Request: Si faltan campos obligatorios, los datos son inválidos
+        (e.g., `año` fuera de rango, `disponible` no booleano), o si la lógica
+        de negocio devuelve un `ValueError` (e.g., matrícula duplicada).
+        JSON: `{"error": "mensaje descriptivo del error"}`
+        - 403 Forbidden: Si el usuario autenticado no tiene rol "admin".
+        JSON: `{"error": "Acceso no autorizado"}`
+        - 500 Internal Server Error: Para errores al leer claims del token o
+        errores internos inesperados durante la operación.
+        JSON: `{"error": "mensaje del error"}`
+    
+    Notes
+    -----
+    - Llama a `empresa.registrar_coche` para la lógica de negocio.
+    - Utiliza `formatear_id` para el ID del coche en la respuesta.
+    - El endpoint realiza validaciones de tipo y rango para varios campos antes
+    de pasarlos a la capa de negocio.
     """
     # Obtener las claims del token
-    claims = get_jwt()
+    claims: Optional[Dict[str, Any]] = get_jwt()
 
     # Verificar si las claims son un diccionario
     if not isinstance(claims, dict):
         return jsonify({'error': 'Error al leer las claims del token'}), 500
 
     # Obtener el rol del usuario
-    rol = claims.get('rol')
+    rol: Optional[str] = claims.get('rol')
 
     # Verificar si el rol es admin
     if rol != 'admin':
         return jsonify({'error': 'Acceso no autorizado'}), 403
 
     # Obtener los datos enviados en la solicitud
-    data = request.json
-    marca = data.get('marca')
-    modelo = data.get('modelo')
-    matricula = data.get('matricula')
-    categoria_tipo = data.get('categoria_tipo')
-    categoria_precio = data.get('categoria_precio')
-    año = data.get('año')
-    precio_diario = data.get('precio_diario')
-    kilometraje = data.get('kilometraje')
-    color = data.get('color')
-    combustible = data.get('combustible')
-    cv = data.get('cv')
-    plazas = data.get('plazas')
-    disponible = data.get('disponible')
+    data: Optional[Dict[str, Any]] = request.json
+    marca: Optional[str] = data.get('marca')
+    modelo: Optional[str] = data.get('modelo')
+    matricula: Optional[str] = data.get('matricula')
+    categoria_tipo: Optional[str] = data.get('categoria_tipo')
+    categoria_precio: Optional[str] = data.get('categoria_precio')
+    año: Optional[Union[int, str]] = data.get('año')
+    precio_diario: Optional[Union[float, str, int]] = data.get('precio_diario')
+    kilometraje: Optional[Union[float, str, int]] = data.get('kilometraje')
+    color: Optional[str] = data.get('color')
+    combustible: Optional[str] = data.get('combustible')
+    cv: Optional[Union[int, str]] = data.get('cv')
+    plazas: Optional[Union[int, str]] = data.get('plazas')
+    disponible: Optional[bool] = data.get('disponible') 
 
     # Validar campos obligatorios
     if not all([marca, modelo, matricula, categoria_tipo, categoria_precio, año, precio_diario, kilometraje, color, combustible, cv, plazas]):
@@ -1285,13 +630,213 @@ def registrar_coche() -> tuple[dict, int]:
         return jsonify({"error": "Error interno del servidor"}), 500
 
 
-@app.route('/coches/detalles/<string:matricula>', methods=['GET'])
-def detalles_coche(matricula: str) -> tuple[dict, int]:
+@app.route('/coches/actualizar-matricula/<string:id_coche>', methods=['PUT'])
+@jwt_required()
+def actualizar_matricula(id_coche: str) -> Tuple[Response, int]:
     """
-    Endpoint para obtener los detalles de un coche específico mediante su matrícula.
+    Actualiza la matrícula de un coche específico.
 
-    Este endpoint permite a cualquier usuario (sin autenticación) obtener los detalles 
-    completos de un coche usando su matrícula. Si el coche no se encuentra, devuelve 404.
+    Este endpoint permite a un usuario con rol "admin" actualizar la matrícula
+    de un coche existente, identificado por su `id_coche_url` (formato "UIDXXX").
+    La nueva matrícula se proporciona en el cuerpo JSON de la solicitud.
+
+    Parameters (URL)
+    ----------------
+    id_coche_url : str # Corresponde a <string:id_coche> en la ruta
+        ID formateado del coche (e.g., "UID001") cuya matrícula se desea actualizar.
+
+    Body (JSON)
+    -----------
+    nueva_matricula : str
+        La nueva matrícula que se asignará al coche.
+
+    Headers
+    -------
+    Authorization : str
+        Token JWT válido con la claim 'rol'="admin". `Bearer <token_jwt>`.
+
+    Returns
+    -------
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si la matrícula se actualiza exitosamente.
+        JSON: `{"mensaje": "Matrícula del coche con ID <id_coche_url> actualizada exitosamente"}`
+        - 400 Bad Request: Si falta `nueva_matricula` en el cuerpo JSON,
+        si la nueva matrícula es inválida, o si la lógica de negocio
+        devuelve un `ValueError` (e.g., ID de coche inválido, coche no encontrado,
+        nueva matrícula ya en uso).
+        JSON: `{"error": "mensaje descriptivo del error"}`
+        - 403 Forbidden: Si el usuario autenticado no tiene rol "admin".
+        JSON: `{"error": "Acceso no autorizado"}`
+        - 404 Not Found: (No explícito aquí, pero `ValueError` podría cubrirlo si `empresa` lo lanza)
+        - 500 Internal Server Error: Para errores al leer claims o errores internos inesperados.
+        JSON: `{"error": "mensaje del error"}`
+    
+    Notes
+    -----
+    - Llama a `empresa.actualizar_matricula` para la lógica de negocio.
+    - El `id_coche_url` se pasa a la capa de negocio, que es responsable de
+    convertirlo al ID numérico si es necesario.
+    """
+    
+    claims: Optional[Dict[str, Any]] = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    rol: Optional[str] = claims.get('rol')
+
+    # Comprobar que el usuario es admin
+    if rol != 'admin':
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
+    data: Optional[Dict[str, Any]] = request.json
+    nueva_matricula: Optional[str] = data.get('nueva_matricula')
+
+    if not nueva_matricula:
+        return jsonify({'error': 'Debes proporcionar una nueva matricula'}), 400
+
+    try:
+        # Llamar al método actualizar_matricula de la clase Empresa
+        empresa.actualizar_matricula(id_coche=id_coche, nueva_matricula=nueva_matricula)
+
+        return jsonify({'mensaje': f'Matrícula del coche con ID {id_coche} actualizada exitosamente'}), 200
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+
+@app.route('/coches-disponibles', methods=['GET'])
+def buscar_coches_disponibles() -> Tuple[Response, int]:
+    """
+    Busca coches disponibles o atributos de coches (tipos, marcas, modelos)
+    basado en una serie de filtros progresivos.
+
+    Este endpoint público permite a los usuarios buscar coches.
+    - Si solo se proporciona `categoria_precio`, devuelve los tipos de categoría disponibles.
+    - Si se proporcionan `categoria_precio` y `categoria_tipo`, devuelve las marcas disponibles.
+    - Si se proporcionan `categoria_precio`, `categoria_tipo` y `marca`, devuelve los modelos disponibles.
+    - Si se proporcionan todos los filtros (`categoria_precio`, `categoria_tipo`, `marca`, `modelo`),
+    devuelve los detalles de los coches que coinciden.
+
+    Query Parameters (URL)
+    ----------------------
+    categoria_precio : str
+        Categoría de precio para filtrar (obligatoria).
+    categoria_tipo : str, optional
+        Tipo de categoría para filtrar.
+    marca : str, optional
+        Marca del coche para filtrar.
+    modelo : str, optional
+        Modelo del coche para filtrar.
+
+    Returns
+    -------
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si la búsqueda es exitosa. El contenido del JSON varía:
+            - `{"categorias_tipo": ["Tipo1", "Tipo2", ...]}`
+            - `{"marcas": ["Marca1", "Marca2", ...]}`
+            - `{"modelos": ["Modelo1", "Modelo2", ...]}`
+            - `{"detalles": [{"id": ..., "marca": ..., "modelo": ..., ...}, ...]}`
+        - 400 Bad Request: Si `categoria_precio` no se proporciona o si la lógica de negocio
+        devuelve un `ValueError` (e.g., filtros inválidos o no se encuentran resultados
+        si la capa inferior lanza error en lugar de lista vacía).
+        JSON: `{"error": "mensaje descriptivo del error"}`
+        - 500 Internal Server Error: Para errores de base de datos u otros errores inesperados.
+        JSON: `{"error": "mensaje del error"}`
+    
+    Notes
+    -----
+    - Llama a `empresa.buscar_coches_por_filtros` que implementa la lógica de
+    búsqueda progresiva y devuelve diferentes tipos de datos.
+    - No requiere autenticación.
+    """
+    try:
+        # Obtener los parámetros de la solicitud
+        categoria_precio: Optional[str] = request.args.get('categoria_precio')
+        categoria_tipo: Optional[str] = request.args.get('categoria_tipo')
+        marca: Optional[str] = request.args.get('marca')
+        modelo: Optional[str] = request.args.get('modelo')
+        
+        # Validar que al menos se proporcione una categoría de precio
+        if not categoria_precio:
+            raise ValueError("Se requiere al menos el parámetro 'categoria_precio'.")
+
+        # Obtener los detalles de los coches
+        coches_filtrados = empresa.buscar_coches_por_filtros(categoria_precio=categoria_precio, categoria_tipo=categoria_tipo, marca=marca, modelo=modelo)
+        # Estructura de respuesta según nivel de filtro
+        if not categoria_tipo and not marca and not modelo:
+            # Solo categoría de precio
+            return jsonify({
+                'categorias_tipo': coches_filtrados
+            }), 200
+
+        elif not marca and not modelo:
+            # Hasta categoría_tipo
+            return jsonify({
+                'marcas': coches_filtrados
+            }), 200
+
+        elif not modelo:
+            # Hasta marca
+            return jsonify({
+                'modelos': coches_filtrados
+            }), 200
+
+        else:
+            # Detalles completos del coche
+            return jsonify({
+                'detalles': coches_filtrados
+            }), 200
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except MySQLError as dbe: # Captura errores de MySQL específicamente
+        # print(f"DEBUG Endpoint: Error de BD capturado: {dbe}") # Para el log del servidor
+        return jsonify({"error": f"Error de base de datos: {dbe}"}), 500
+    except Exception:
+        return jsonify({"error": "Error interno del servidor"}), 500
+
+
+@app.route('/coches/detalles/<string:matricula>', methods=['GET'])
+def detalles_coche(matricula: str) -> Tuple[Response, int]:
+    """
+    Obtiene y devuelve los detalles de un coche específico mediante su matrícula.
+
+    Este endpoint público permite a cualquier usuario consultar la información
+    completa de un coche proporcionando su matrícula en la URL.
+    Los datos del coche se formatean antes de ser devueltos.
+
+    Parameters (URL)
+    ----------------
+    matricula : str # Corresponde a <string:matricula> en la ruta
+        La matrícula del coche cuyos detalles se desean obtener.
+
+    Returns
+    -------
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si se encuentran los detalles del coche.
+        JSON: `{"mensaje": "Detalles del coche obtenidos exitosamente", "coche": {"id": "UID...", "marca": ..., ...}}`
+        - 404 Not Found: Si no se encuentra ningún coche con la matrícula proporcionada
+        (ya sea porque `empresa.obtener_detalle_coche_por_matricula` devuelve `None`
+        o porque lanza un `ValueError` que indica "no encontrado").
+        JSON: `{"error": "Coche no encontrado"}` o el mensaje de `ValueError`.
+        - 500 Internal Server Error: Para otros errores inesperados, incluyendo
+        errores de base de datos si no son capturados como `ValueError`.
+        JSON: `{"error": "<detalle_del_error>"}`
+    
+    Notes
+    -----
+    - No requiere autenticación.
+    - Llama a `empresa.obtener_detalle_coche_por_matricula` para la lógica de negocio.
+    - Utiliza `formatear_id` para el ID del coche en la respuesta.
+    - Realiza conversiones de tipo explícitas (e.g., `float()`, `bool()`) para los
+    campos en la respuesta formateada.
     """
     try:
         # Llamar a Empresa para obtener el coche por matricula
@@ -1327,99 +872,35 @@ def detalles_coche(matricula: str) -> tuple[dict, int]:
         return jsonify({"error": str(ve)}), 404
     except Exception as e:
         return jsonify({"error": f"{e}"}), 500
-    
-    
-@app.route('/coches/actualizar-matricula/<string:id_coche>', methods=['PUT'])
-@jwt_required()
-def actualizar_matricula(id_coche: str) -> tuple[dict, int]:
-    """
-    Endpoint para actualizar la matrícula de un coche específico.
-
-    Este endpoint permite a un administrador actualizar la matrícula de un coche 
-    registrado en el sistema. Solo los usuarios con rol "admin" pueden acceder a este 
-    endpoint. Se debe proporcionar una nueva matrícula válida en el cuerpo de la solicitud.
-
-    Methods
-    -------
-    PUT
-        Actualiza la matrícula de un coche específico.
-
-    Parameters
-    ----------
-    id_coche : str
-        ID único del coche cuya matrícula se desea actualizar. Se pasa como parte de la URL.
-
-    Headers
-    -------
-    Authorization : str
-        Token JWT válido con claims que incluyan el rol del usuario. El token debe 
-        ser proporcionado en el encabezado de la solicitud en el formato:
-        `Authorization: Bearer <token_jwt>`.
-
-    Body
-    ----
-    nueva_matricula : str
-        La nueva matrícula que se desea asignar al coche.
-
-    Returns
-    -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Matrícula del coche con ID UID01 actualizada exitosamente"
-        }
-
-    Raises
-    ------
-    HTTP 400 Bad Request
-        Si no se proporciona una nueva matrícula en la solicitud.
-    HTTP 403 Forbidden
-        Si el usuario que realiza la solicitud no tiene rol de administrador.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
-    """
-    claims = get_jwt()
-
-    # Verificar si las claims son un diccionario
-    if not isinstance(claims, dict):
-        return jsonify({'error': 'Error al leer las claims del token'}), 500
-
-    rol = claims.get('rol')
-
-    # Comprobar que el usuario es admin
-    if rol != 'admin':
-        return jsonify({'error': 'Acceso no autorizado'}), 403
-
-    data = request.json
-    nueva_matricula = data.get('nueva_matricula')
-
-    if not nueva_matricula:
-        return jsonify({'error': 'Debes proporcionar una nueva matricula'}), 400
-
-    try:
-        # Llamar al método actualizar_matricula de la clase Empresa
-        empresa.actualizar_matricula(id_coche=id_coche, nueva_matricula=nueva_matricula)
-
-        return jsonify({'mensaje': f'Matrícula del coche con ID {id_coche} actualizada exitosamente'}), 200
-
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    
-    
-# ---------------------------------------
-# ENDPOINTS ADICIONALES
-# ---------------------------------------
 
 
 @app.route('/coches/categorias/precio', methods=['GET'])
-def categorias_precio():
+def categorias_precio() -> Tuple[Response, int]:
     """
-    Endpoint para obtener las categorías de precio disponibles.
+    Obtiene una lista de todas las categorías de precio de coches disponibles.
 
-    Returns:
-        JSON: Una lista de categorías de precio únicas disponibles.
+    Este endpoint público consulta y devuelve una lista única y ordenada de las
+    categorías de precio existentes para los coches disponibles en el sistema.
+
+    Returns
+    -------
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si las categorías se obtienen exitosamente (incluso si la lista está vacía).
+        JSON: `{"mensaje": "Categorías de precio obtenidas exitosamente", "categorias_precio": ["Precio1", "Precio2", ...]}`
+        - 404 Not Found: Si `empresa.mostrar_categorias_precio` lanza un `ValueError`
+        (por ejemplo, si la lógica de negocio considera un error no encontrar categorías,
+        aunque típicamente devolvería una lista vacía).
+        JSON: `{"error": "mensaje del ValueError"}`
+        - 500 Internal Server Error: Para errores de base de datos u otros errores inesperados.
+        JSON: `{"error": "Error interno del servidor: <detalle_del_error>"}`
+    
+    Notes
+    -----
+    - No requiere autenticación.
+    - Llama a `empresa.mostrar_categorias_precio` (o `empresa.obtener_categorias_precio`)
+    para la lógica de negocio.
+    - Si no hay categorías, se devuelve una lista vacía con un mensaje de éxito.
     """
     try:
         # Llamar al método de la clase Empresa para obtener las categorías de precio
@@ -1434,37 +915,32 @@ def categorias_precio():
         return jsonify({'error': str(e)}), 404
     except Exception as e:
         return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
-    
-    
+
+
 @app.route('/coches/categorias/tipo', methods=['GET'])
-def categorias_tipo():
+def categorias_tipo()-> Tuple[Response, int]:
     """
-    Endpoint para obtener las categorías de tipo disponibles.
+    Obtiene una lista de todas las categorías de tipo de coches disponibles.
 
-    Este endpoint permite recuperar una lista de todas las categorías de tipo 
-    de coches disponibles en el sistema. Las categorías se obtienen a través del 
-    método `mostrar_categorias_tipo` de la clase `Empresa`.
-
-    Methods
-    -------
-    GET
-        Obtiene una lista de categorías de tipo disponibles.
+    Este endpoint público consulta y devuelve una lista única y ordenada de los
+    tipos de categoría existentes para los coches disponibles en el sistema.
 
     Returns
     -------
-    JSON
-        Un objeto JSON con la siguiente estructura:
-        {
-            "mensaje": "Categorías de tipo obtenidas exitosamente",
-            "categorias_tipo": ["Compacto", "SUV", "Deportivo", "Familiar"]
-        }
-
-    Raises
-    ------
-    HTTP 404 Not Found
-        Si no hay datos disponibles o si ocurre un error al cargar las categorías.
-    HTTP 500 Internal Server Error
-        Si ocurre un error inesperado durante la ejecución.
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si las categorías se obtienen exitosamente (incluso si la lista está vacía).
+        JSON: `{"mensaje": "Categorías de tipo obtenidas exitosamente", "categorias_tipo": ["Tipo1", "Tipo2", ...]}`
+        - 404 Not Found: Si `empresa.mostrar_categorias_tipo` lanza un `ValueError`.
+        JSON: `{"error": "mensaje del ValueError"}`
+        - 500 Internal Server Error: Para errores de base de datos u otros errores inesperados.
+        JSON: `{"error": "Error interno del servidor: <detalle_del_error>"}`
+    Notes
+    -----
+    - No requiere autenticación.
+    - Llama a `empresa.mostrar_categorias_tipo` (o `empresa.obtener_categorias_tipo`)
+    para la lógica de negocio.
+    - Si no hay categorías, se devuelve una lista vacía con un mensaje de éxito.
     """
     try:
         # Llamar al método de la clase Empresa para obtener las categorías de tipo
@@ -1479,6 +955,488 @@ def categorias_tipo():
         return jsonify({'error': str(e)}), 404
     except Exception as e:
         return jsonify({'error': f'Error interno del servidor: {str(e)}'}), 500
+
+
+# --------------------------------------------------------------------------
+# SECCIÓN 8: ENDPOINTS DE GESTIÓN Y CONSULTA DE ALQUILERES
+# --------------------------------------------------------------------------
+
+
+@app.route('/alquilar-coche', methods=['POST'])
+@jwt_required(optional=True)
+def alquilar_coches()-> Union[Response, Tuple[Response, int]]:
+    """
+    Registra un nuevo alquiler de coche y devuelve la factura en PDF.
+
+    Permite a usuarios autenticados (clientes) o invitados registrar un alquiler.
+    - Si se proporciona un token JWT y el usuario no es admin, se usa su identidad (email).
+    - Si se proporciona un email en el cuerpo JSON, se usa ese (prioridad si está logueado y también lo envía).
+    - Si no hay token ni email en el cuerpo, se considera un alquiler de invitado.
+    - Administradores no pueden alquilar coches.
+
+    Body (JSON)
+    -----------
+    matricula : str
+        Matrícula del coche a alquilar.
+    fecha_inicio : str
+        Fecha de inicio del alquiler en formato 'YYYY-MM-DD'.
+    fecha_fin : str
+        Fecha de fin del alquiler en formato 'YYYY-MM-DD'.
+    email : str, optional
+        Correo electrónico del usuario. Si el usuario está autenticado y este campo
+        no se proporciona, se intentará usar el email del token. Si no hay token
+        y no se proporciona email, se considera un alquiler de invitado.
+
+    Headers
+    -------
+    Authorization : str, optional
+        Token JWT. Si está presente y es válido, se usa para identificar al usuario
+        y su rol. `Bearer <token_jwt>`.
+
+    Returns
+    -------
+    Union[Response, Tuple[Response, int]]
+        - Response (con contenido PDF): Si el alquiler es exitoso, se devuelve
+        directamente el archivo PDF de la factura con `Content-Type: application/pdf`
+        y `Content-Disposition: attachment; filename=factura.pdf`. El código de estado
+        será 200 OK por defecto si no se especifica.
+        - Tuple[Response, int] (con JSON y código de estado): En caso de error.
+            - 400 Bad Request: Campos faltantes, formato de fecha incorrecto, o
+            `ValueError` de la lógica de negocio (e.g., coche no disponible,
+            usuario no encontrado, fechas inválidas).
+            JSON: `{"error": "mensaje descriptivo"}`
+            - 403 Forbidden: Si el usuario autenticado es un administrador.
+            JSON: `{"error": "Los administradores no pueden alquilar coches"}`
+            - 500 Internal Server Error: Para otros errores inesperados.
+            JSON: `{"error": "Error interno del servidor..."}`
+    
+    Notes
+    -----
+    - Llama a `empresa.alquilar_coche` para la lógica de negocio, que a su vez
+    genera el PDF.
+    - Utiliza `make_response` para construir la respuesta HTTP con el archivo PDF.
+    """
+    data: Optional[Dict[str, Any]] = request.json
+    matricula: Optional[str] = data.get('matricula')
+    fecha_inicio: Optional[str] = data.get('fecha_inicio') # Recibido como string
+    fecha_fin: Optional[str] = data.get('fecha_fin')       # Recibido como string
+    email: Optional[str] = data.get('email')          
+
+    # Validaciones necesarias
+    if not matricula or not fecha_inicio or not fecha_fin:
+        return jsonify({'error': 'Debes introducir la matrícula, la fecha de inicio y la fecha de fin'}), 400
+
+    # Validar formato de las fechas
+    try:
+        fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+        fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({'error': 'Las fechas deben estar en formato YYYY-MM-DD'}), 400
+
+    try:
+        # Obtener claims del token si existe
+        claims = get_jwt() if get_jwt() else {}
+        rol = claims.get('rol')
+
+        # Verificar si el usuario es admin
+        if rol == 'admin':
+            return jsonify({'error': 'Los administradores no pueden alquilar coches'}), 403
+
+        # Si el usuario está autenticado, obtener su email del token
+        if rol and not email:
+            email = get_jwt_identity()
+
+        # Registrar el alquiler y obtener el PDF
+        pdf_bytes = empresa.alquilar_coche(
+            matricula=matricula,
+            fecha_inicio=fecha_inicio.strftime('%Y-%m-%d'),
+            fecha_fin=fecha_fin.strftime('%Y-%m-%d'),
+            email=email
+        )
+
+        # Crear una respuesta con el archivo PDF
+        response = make_response(pdf_bytes)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = 'attachment; filename=factura.pdf'
+        return response
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Error interno del servidor. Por favor, inténtalo de nuevo más tarde: {e}'}), 500
+    
+
+@app.route('/alquileres/listar', methods=['GET'])
+@jwt_required()
+def listar_alquileres() -> Tuple[Response, int]:
+    """
+    Obtiene una lista de todos los alquileres registrados en el sistema.
+
+    Este endpoint es accesible solo por usuarios con rol "admin". Devuelve una lista
+    completa de los alquileres, incluyendo información formateada del alquiler,
+    coche (ID y matrícula) y usuario asociado.
+
+    Headers
+    -------
+    Authorization : str
+        Token JWT válido con la claim 'rol'="admin". `Bearer <token_jwt>`.
+
+    Returns
+    -------
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si la lista de alquileres se obtiene exitosamente.
+        JSON: `{"mensaje": "Lista de alquileres obtenida exitosamente.", "alquileres": [...]}`
+        (la estructura de cada alquiler en la lista se detalla en el código).
+        - 403 Forbidden: Si el usuario autenticado no tiene rol "admin".
+        JSON: `{"error": "Acceso no autorizado"}`
+        - 404 Not Found: Si `empresa.cargar_alquileres` lanza un `ValueError` (por ejemplo,
+        si la lógica de negocio considera un error no encontrar alquileres, aunque
+        típicamente devolvería una lista vacía).
+        JSON: `{"error": "mensaje del ValueError"}`
+        - 500 Internal Server Error: Para errores al leer claims o errores internos
+        inesperados durante la obtención o formateo de datos.
+        JSON: `{"error": "mensaje del error"}`
+    
+    Notes
+    -----
+    - Llama a `empresa.cargar_alquileres()` para obtener los datos de los alquileres.
+    - Se asume que `empresa.cargar_alquileres()` devuelve una lista de diccionarios,
+    donde cada diccionario ya incluye `id_alquiler`, `id_coche`, `id_usuario`,
+    `matricula`, `fecha_inicio` (como objeto date/datetime), `fecha_fin` (como
+    objeto date/datetime), `coste_total`, y `activo`.
+    - Utiliza `formatear_id` para los IDs en la respuesta.
+    - Las fechas se formatean como strings 'YYYY-MM-DD'.
+    - `coste_total` y `activo` se convierten a `float` y `bool` respectivamente.
+    """
+    # Obtener las claims del token
+    claims: Optional[Dict[str, Any]] = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    # Obtener el rol del usuario
+    rol: Optional[str] = claims.get('rol')
+
+    # Verificar si el rol es admin
+    if rol != 'admin':
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
+    try:
+        # Cargar alquileres
+        alquileres = empresa.cargar_alquileres()
+        
+        # Formatear IDs solo al mostrarlos al cliente
+        alquileres_formateados = []
+        for alquiler in alquileres:
+            alquiler_formateado = {
+                "id_alquiler": formatear_id(alquiler["id_alquiler"], "A"),
+                "id_coche": formatear_id(alquiler["id_coche"], "UID"),
+                "id_usuario": formatear_id(alquiler["id_usuario"], "U") if alquiler["id_usuario"] else "INVITADO",
+                "matricula": alquiler["matricula"],
+                "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
+                "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
+                "coste_total": float(alquiler["coste_total"]),
+                "activo": bool(alquiler["activo"])
+            }
+            alquileres_formateados.append(alquiler_formateado)
+
+        return jsonify({
+            "mensaje": "Lista de alquileres obtenida exitosamente.",
+            "alquileres": alquileres_formateados
+        }), 200
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
+    except Exception as e:
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+        
+    
+
+@app.route('/alquileres/detalles/<string:id_alquiler>', methods=['GET'])
+@jwt_required()
+def detalles_alquiler(id_alquiler: str) -> Tuple[Response, int]:
+    """
+    Obtiene los detalles de un alquiler específico por su ID.
+
+    Permite a un administrador ver los detalles de cualquier alquiler.
+    Un usuario cliente solo puede ver los detalles de un alquiler si el `id_usuario`
+    asociado al alquiler (obtenido de la base de datos) coincide con la identidad
+    (email) del usuario autenticado.
+    El ID del alquiler se espera en formato "AXXX" (e.g., "A001").
+
+    Parameters (URL)
+    ----------------
+    id_alquiler : str # Corresponde a <string:id_alquiler> en la ruta
+        ID único del alquiler (formato "AXXX") cuyos detalles se desean obtener.
+
+    Headers
+    -------
+    Authorization : str
+        Token JWT válido. `Bearer <token_jwt>`. Debe contener claims para 'rol'
+        y la identidad del usuario (email).
+
+    Returns
+    -------
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si los detalles del alquiler se obtienen y formatean exitosamente.
+        JSON: `{"mensaje": "Detalles del alquiler...", "alquiler": {"id_alquiler": "A...", ...}}`
+        (la estructura de `alquiler` se detalla en el código).
+        - 403 Forbidden: Si el usuario autenticado no es "admin" y el `id_usuario`
+        del alquiler no coincide con la identidad del token.
+        JSON: `{"error": "Acceso no autorizado"}`
+        - 404 Not Found: Si no se encuentra ningún alquiler con el ID proporcionado
+        (generalmente capturado como `ValueError` desde la capa de negocio).
+        JSON: `{"error": "mensaje del ValueError"}`
+        - 500 Internal Server Error: Para errores al leer claims, errores de base de datos
+        no capturados como `ValueError`, o errores internos inesperados durante
+        el procesamiento o formateo.
+        JSON: `{"error": "mensaje del error"}`
+
+    Notes
+    -----
+    - Llama a `empresa.obtener_alquiler_por_id` para la lógica de negocio.
+    - Es crucial que `empresa.obtener_alquiler_por_id` devuelva el `id_usuario`
+    (numérico, no el email) del alquiler para la verificación de permisos.
+    Si `empresa.obtener_alquiler_por_id` devuelve `None` o lanza `ValueError`
+    cuando el alquiler no se encuentra, este endpoint lo manejará como 404.
+    - El `id_usuario` en la respuesta JSON se formatea, pero la comparación para
+    autorización se hace con el `id_usuario` numérico del alquiler vs el `email_usuario_autenticado`.
+      **Esto implica que la lógica de autorización `email_usuario_autenticado != id_usuario_alquiler`
+    necesita una revisión si `id_usuario_alquiler` es un ID numérico y
+    `email_usuario_autenticado` es un email. Se necesitaría obtener el email del
+    usuario del alquiler para una comparación directa, o comparar IDs numéricos.**
+    (Mantendré la lógica original, pero esto es un punto importante).
+    """
+    # Obtener las claims del token
+    claims: Optional[Dict[str, Any]] = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    # Obtener el rol y el email del usuario autenticado
+    rol: Optional[str] = claims.get('rol')
+    email_usuario_autenticado: Optional[str] = get_jwt_identity()
+
+    try:
+        # Llamar a Empresa para obtener el alquiler por ID
+        alquiler = empresa.obtener_alquiler_por_id(id_alquiler)
+
+        # Extraer datos del alquiler
+        id_usuario_alquiler = alquiler.get("id_usuario")
+
+        # Validar permisos
+        if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
+            return jsonify({'error': 'Acceso no autorizado'}), 403
+
+        # Formatear IDs solo al mostrarlos al usuario final
+        alquiler_formateado = {
+            "id_alquiler": formatear_id(alquiler["id_alquiler"], "A"),
+            "id_coche": formatear_id(alquiler["id_coche"], "UID"),
+            "id_usuario": formatear_id(alquiler["id_usuario"], "U") if id_usuario_alquiler else "INVITADO",
+            "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
+            "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
+            "coste_total": float(alquiler["coste_total"]),
+            "activo": bool(alquiler["activo"])
+        }
+
+        return jsonify({
+            "mensaje": f"Detalles del alquiler {id_alquiler} obtenidos exitosamente.",
+            "alquiler": alquiler_formateado
+        }), 200
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
+    except Exception as e:
+        print(f"Error interno: {str(e)}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+    
+
+@app.route('/alquileres/finalizar/<string:id_alquiler>', methods=['PUT'])
+@jwt_required()
+def finalizar_alquiler(id_alquiler: str)-> Tuple[Response, int]:
+    """
+    Finaliza un alquiler específico, marcándolo como inactivo y liberando el coche.
+
+    Permite a un administrador finalizar cualquier alquiler, o a un usuario cliente
+    finalizar sus propios alquileres. La autorización se basa en el rol del token JWT
+    y si el `id_usuario` asociado al alquiler (obtenido de la BD) coincide con la
+    identidad del usuario autenticado.
+    El ID del alquiler se espera en formato "AXXX" (e.g., "A001").
+
+    Parameters (URL)
+    ----------------
+    id_alquiler : str # Corresponde a <string:id_alquiler> en la ruta
+        ID único del alquiler (formato "AXXX") que se desea finalizar.
+
+    Headers
+    -------
+    Authorization : str
+        Token JWT válido. `Bearer <token_jwt>`. Debe contener claims para 'rol'
+        y la identidad del usuario (email).
+
+    Returns
+    -------
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si el alquiler se finaliza exitosamente.
+        JSON: `{"mensaje": "Alquiler <id_alquiler_url> finalizado correctamente.", "id_coche": "UID<ID_COCHE>"}`
+        - 400 Bad Request: Si el alquiler ya está finalizado.
+        JSON: `{"error": "El alquiler ya está finalizado."}`
+        - 403 Forbidden: Si el usuario autenticado no tiene permiso para finalizar
+        el alquiler solicitado.
+        JSON: `{"error": "Acceso no autorizado"}`
+        - 404 Not Found: Si no se encuentra ningún alquiler con el ID proporcionado
+        (generalmente capturado como `ValueError` desde la capa de negocio).
+        JSON: `{"error": "mensaje del ValueError"}`
+        - 500 Internal Server Error: Para errores al leer claims, errores de base de datos
+        no capturados como `ValueError`, o si `empresa.finalizar_alquiler` devuelve `False`
+        inesperadamente, o para otros errores internos.
+        JSON: `{"error": "mensaje del error"}`
+    
+    Notes
+    -----
+    - Primero llama a `empresa.obtener_alquiler_por_id` para verificar el estado
+    del alquiler y obtener datos para la autorización.
+    - Luego llama a `empresa.finalizar_alquiler` para la lógica de negocio.
+    - La misma advertencia sobre la comparación `email_usuario_autenticado != id_usuario_alquiler`
+    aplica aquí como en `detalles_alquiler` si los tipos/valores no son directamente comparables.
+    """
+    # Obtener las claims del token
+    claims: Optional[Dict[str, Any]] = get_jwt()
+
+    # Verificar si las claims son un diccionario
+    if not isinstance(claims, dict):
+        return jsonify({'error': 'Error al leer las claims del token'}), 500
+
+    # Obtener el rol y el email del usuario autenticado
+    rol: Optional[str] = claims.get('rol')
+    email_usuario_autenticado: Optional[str] = get_jwt_identity()
+
+    try:
+        
+        alquiler = empresa.obtener_alquiler_por_id(id_alquiler)
+        # Validar si el alquiler ya está terminado
+        if not alquiler['activo']:
+            return jsonify({"error": "El alquiler ya está finalizado."}), 400
+
+        # Extraer datos del alquiler
+        id_usuario_alquiler = alquiler.get("id_usuario")
+        id_coche_alquiler = alquiler.get("id_coche")
+
+        # Verificar autorización
+        if rol != 'admin' and email_usuario_autenticado != id_usuario_alquiler:
+            return jsonify({"error": "Acceso no autorizado"}), 403
+
+        # Llamar al método para finalizar el alquiler
+        resultado = empresa.finalizar_alquiler(id_alquiler)
+
+        if resultado:
+            return jsonify({
+                "mensaje": f"Alquiler {id_alquiler} finalizado correctamente.",
+                "id_coche": formatear_id(id_coche_alquiler, prefijo="UID")
+            }), 200
+        else:
+            return jsonify({"error": "No se pudo finalizar el alquiler."}), 500
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
+    except Exception as e:
+        print(f"Error interno: {e}")
+        return jsonify({"error": "Error interno del servidor"}), 500
+
+
+@app.route('/alquileres/historial/<string:email>', methods=['GET'])
+@jwt_required()
+def historial_alquileres(email: str) -> Tuple[Response, int]:
+    """
+    Obtiene el historial de alquileres de un usuario específico por su email.
+
+    Permite a un administrador ver el historial de cualquier usuario, o a un
+    usuario cliente ver su propio historial. La autorización se basa en el rol
+    del token JWT y si el `email` de la URL coincide con la identidad
+    (email) del usuario autenticado.
+
+    Parameters (URL)
+    ----------------
+    email : str # Corresponde a <string:email> en la ruta
+        Correo electrónico del usuario cuyo historial de alquileres se desea obtener.
+
+    Headers
+    -------
+    Authorization : str
+        Token JWT válido. `Bearer <token_jwt>`. Debe contener claims para 'rol'
+        y la identidad del usuario (email).
+
+    Returns
+    -------
+    Tuple[Response, int]
+        Una tupla conteniendo una respuesta Flask (JSON) y un código de estado HTTP.
+        - 200 OK: Si el historial se obtiene y formatea exitosamente (incluso si está vacío).
+        JSON: `{"mensaje": "Historial de alquileres del usuario...", "alquileres": [...]}`
+        (la estructura de cada alquiler en la lista se detalla en el código de formateo).
+        - 403 Forbidden: Si el usuario autenticado no es "admin" y el `email_param`
+        no coincide con la identidad del token.
+        JSON: `{"error": "Acceso no autorizado"}`
+        - 404 Not Found: Si no se encuentra un usuario con el `email_param` (generalmente
+        capturado como `ValueError` desde la capa de negocio).
+        JSON: `{"error": "mensaje del ValueError"}`
+        - 500 Internal Server Error: Para errores al leer claims, errores de base de datos
+        no capturados como `ValueError`, o errores internos inesperados durante
+        el procesamiento o formateo.
+        JSON: `{"error": "mensaje del error"}`
+    
+    Notes
+    -----
+    - Llama a `empresa.obtener_historial_alquileres` para la lógica de negocio.
+    - Se asume que `empresa.obtener_historial_alquileres` devuelve una lista de
+    diccionarios, donde cada diccionario ya incluye todos los datos necesarios,
+    incluida la `matricula` del coche.
+    - Utiliza `formatear_id` para los IDs en la respuesta.
+    - Las fechas se formatean como strings 'YYYY-MM-DD'.
+    """
+    claims = get_jwt()
+    rol = claims.get('rol')
+    email_usuario_autenticado = get_jwt_identity()
+
+    # Verificar autorización
+    if rol != 'admin' and email != email_usuario_autenticado:
+        return jsonify({'error': 'Acceso no autorizado'}), 403
+
+    try:
+        connection = empresa.get_connection()
+
+        # Obtener el historial desde MySQL usando el método adaptado
+        resultados = empresa.obtener_historial_alquileres(email)
+
+        # Formatear los resultados antes de devolverlos
+        historial_formateado = []
+        for alquiler in resultados:
+            historial_formateado.append({
+                "id_alquiler": formatear_id(alquiler["id_alquiler"], prefijo="A"),
+                "id_coche": formatear_id(alquiler["id_coche"], prefijo="UID"),
+                "matricula": alquiler["matricula"],
+                "fecha_inicio": alquiler["fecha_inicio"].strftime("%Y-%m-%d"),
+                "fecha_fin": alquiler["fecha_fin"].strftime("%Y-%m-%d"),
+                "coste_total": float(alquiler["coste_total"]),
+                "activo": bool(alquiler["activo"])
+            })
+
+        return jsonify({
+            "mensaje": f"Historial de alquileres del usuario {email}",
+            "alquileres": historial_formateado #cuando acabe debug cambiar a historial_formateado
+        }), 200
+
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
+    except Exception as e:
+        return jsonify({"error": f"{e}"}), 500
+        
+
 
 if __name__ == '__main__':
     app.run(debug=True)
