@@ -37,7 +37,11 @@ Nicolas Grima: Creación de la documentación y Debugging
 
 ## Instrucciones de instalación y ejecución
 
-Es necesario instalar todas las librerias del requirements.txt y ejecutar el ejecutable de Ejemplos.py
+Es necesario instalar todas las librerias del requirements.txt y ejecutar los siguientes comandos desde la terminal por orden: 
+
+cd Documentos/GitHub/prog2_25_C4/source  
+
+./Ejemplos
 
 ## Resumen de la API
 
