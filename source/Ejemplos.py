@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 """
 Script de cliente de consola para interactuar con la API de Alquiler de Coches.
 
