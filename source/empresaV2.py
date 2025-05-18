@@ -355,13 +355,13 @@ class Empresa:
             connection = self.get_connection()
 
             # Flujo progresivo
-            if not categoria_tipo:
+            if not categoria_tipo: 
                 return Coche.obtener_categorias_tipo(connection, categoria_precio)
-            elif not marca:
+            if not marca: 
                 return Coche.obtener_marcas(connection, categoria_precio, categoria_tipo)
-            elif not modelo:
+            if not modelo: 
                 return Coche.obtener_modelos(connection, categoria_precio, categoria_tipo, marca)
-            else:
+            else: 
                 return Coche.filtrar_por_modelo(connection, categoria_precio, categoria_tipo, marca, modelo)
         finally:
             if connection and connection.is_connected():
