@@ -769,29 +769,14 @@ def buscar_coches_disponibles() -> Tuple[Response, int]:
         # Obtener los detalles de los coches
         coches_filtrados = empresa.buscar_coches_por_filtros(categoria_precio=categoria_precio, categoria_tipo=categoria_tipo, marca=marca, modelo=modelo)
         # Estructura de respuesta según nivel de filtro
-        if not categoria_tipo and not marca and not modelo:
-            # Solo categoría de precio
-            return jsonify({
-                'categorias_tipo': coches_filtrados
-            }), 200
-
-        elif not marca and not modelo:
-            # Hasta categoría_tipo
-            return jsonify({
-                'marcas': coches_filtrados
-            }), 200
-
-        elif not modelo:
-            # Hasta marca
-            return jsonify({
-                'modelos': coches_filtrados
-            }), 200
-
-        else:
-            # Detalles completos del coche
-            return jsonify({
-                'detalles': coches_filtrados
-            }), 200
+        if modelo and marca and categoria_tipo: # Implica que todos están presentes
+            return jsonify({'detalles': coches_filtrados}), 200
+        elif marca and categoria_tipo: # Implica que modelo es None o vacío
+            return jsonify({'modelos': coches_filtrados}), 200
+        elif categoria_tipo: # Implica que marca y modelo son None o vacíos
+            return jsonify({'marcas': coches_filtrados}), 200
+        else: # Solo categoria_precio está presente
+            return jsonify({'categorias_tipo': coches_filtrados}), 200
 
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 400
