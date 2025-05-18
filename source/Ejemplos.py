@@ -131,7 +131,8 @@ def mostrar_menu_principal() -> None:
 
         if TOKEN: # Solo mostrar cerrar sesión si hay un token
             print("4. 🔚 Cerrar sesión")
-        print("5. 🚪 Salir")
+            print("5. 🚪 Salir")
+        print("4. 🚪 Salir")
         
         opcion = input("👉 Selecciona una opción (1-5): ").strip()
 
